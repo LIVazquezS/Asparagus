@@ -1,0 +1,31 @@
+Data: Contains all the classes to create a data set, load and split it.
+       Improvements:
+       - Read from .xzy files or a general quantum chemistry file format.
+       - Add an option for .h5 files.
+
+Layers: Contains the activation function, cutoff and initialization of rbf of physnet
+         Improvements:
+         - Finish the activation functions
+         - Finish the cutoff functions
+         - Add other initialization functions (i.e. equivariant or schnet)
+
+Model: Contains the layers of the NN
+        Improvements:
+        - Finish the input layer
+        - Add the interaction layer for PhysNet and allow others
+        - Add the output layer (with multiple states)
+
+Train: Contains the training and testing of the model
+        Improvements:
+        - Add the training of the model
+        - Add the testing of the model
+
+Settings: Define the minimum settings for the model.
+
+Utils: Various functions.
+        Improvements:
+        - Add the functions to save and load the model
+        - Add calculators of ASE
+
+main.py: The main file to run the model
+

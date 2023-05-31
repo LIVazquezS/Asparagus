@@ -1,0 +1,1 @@
+For future developments, the interaction layers can be modified to allow compatibility with more sophisticated representations.
