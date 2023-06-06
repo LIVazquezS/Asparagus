@@ -93,6 +93,7 @@ Additional examples will be added in the future.
 - [ ] Add sampling methods:
     - [ ] MD and MC with XTB
     - [ ] Normal Model Sampling
+    - [ ] Normal Model Scanning (Kai)
     - [ ] Umbrella Sampling
     - [ ] Methadynamics Sampling (Kai)
     - [ ] Adaptive Sampling
