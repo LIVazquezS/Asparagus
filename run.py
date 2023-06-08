@@ -1,9 +1,9 @@
 
-from src import DataContainer
+from asparagus import DataContainer
 
-from src import Sampler
+from asparagus import Sampler
 
-from src import PhysPack
+from asparagus import Asparagus
 
 if False:
 
@@ -47,7 +47,7 @@ if True:
 
 if False:
 
-    model = PhysPack(
+    model = Asparagus(
         data_file='data/h2co_b3lyp.db',
         data_source=['data/h2co_B3LYP_cc_pVDZ_4001.npz'],
         data_load_properties=['energy', 'force', 'dipole'],
