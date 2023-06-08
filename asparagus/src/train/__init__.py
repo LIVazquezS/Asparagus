@@ -1,7 +1,3 @@
-from .train import (
-    Train
-)
-
 from .trainer import (
     Trainer
 )
