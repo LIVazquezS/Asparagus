@@ -147,7 +147,7 @@ class NormalModeScanner(sample.Sampler):
         #####################################
         # # # Initialize Sample DataSet # # #
         #####################################
-        print(self.sample_properties)
+        
         self.nms_dataset = data.DataSet(
             self.nms_data_file,
             self.sample_unit_positions,

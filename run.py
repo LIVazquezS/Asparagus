@@ -24,14 +24,14 @@ if False:
 
 if True:
 
-    sampler = NormalModeScanner(
-        sample_directory='test_samples',
-        sample_systems='data/hono.xyz',
-        sample_systems_format='xyz',
-        sample_systems_optimize=True,
-        sample_systems_optimize_fmax=0.001,
-        )
-    sampler.run()
+    #sampler = NormalModeScanner(
+        #sample_directory='test_samples',
+        #sample_systems='data/hono.xyz',
+        #sample_systems_format='xyz',
+        #sample_systems_optimize=True,
+        #sample_systems_optimize_fmax=0.001,
+        #)
+    #sampler.run()
 
     sampler = MDSampler(
         sample_directory='test_samples',
