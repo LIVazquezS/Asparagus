@@ -44,6 +44,8 @@ class Sampler:
         sample_calculator: Optional[Union[str, object]] = None,
         sample_calculator_args: Optional[Dict[str, Any]] = None,
         sample_properties: Optional[List[str]] = None,
+        sample_systems_optimize: Optional[bool] = None,
+        sample_systems_optimize_fmax: Optional[float] = None,
         **kwargs,
     ):
         """
@@ -83,6 +85,12 @@ class Sampler:
             calculator available property list and return an error when one
             requested property is unavailable. By default all available
             properties will be stored.
+        sample_systems_optimize: bool, optional, default False
+            Instruction flag if the system coordinates shall be
+            optimized using the ASE calculator defined by 'sample_calculator'.
+        sample_systems_optimize_fmax: float, optional, default 0.01
+            Instruction flag, if the system coordinates shall be
+            optimized using the ASE calculator defined by 'sample_calculator'.
         
         Returns
         -------
@@ -176,6 +184,7 @@ class Sampler:
             self.sample_systems = [self.sample_systems]
         elif utils.is_ase_atoms(self.sample_systems):
             self.sample_systems = [self.sample_systems]
+
         if self.sample_systems_format is None:
             self.sample_systems_format = [None]*len(self.sample_systems)
         elif utils.is_string(self.sample_systems_format):
@@ -252,3 +261,137 @@ class Sampler:
             for prop in self.sample_properties}
         
     
+    def get_info(self):
+        """
+        Dummy function for sampling parameter dictionary
+        """
+        return {}
+    
+    
+    def run(
+        self,
+        sample_systems_idx: Optional[Union[int, List[int]]] = None,
+    ):
+        """
+        Perform sampling of all sample systems or a selection of them.
+        
+        Parameters
+        ----------
+
+        sample_systems_idx: (int, list(int)), optional, default None
+            Index or list of indices to run MD sampling only 
+            for the respective systems of the sample system list
+        """
+        
+        ################################
+        # # # Check Sampling Input # # #
+        ################################
+        
+        # Collect sampling parameters
+        config_sample = {
+            f'{self.sample_counter}_{self.sample_tag}': 
+                self.get_info()
+            }
+        
+        # Check sample system selection
+        sample_systems_selection = self.check_systems_idx(sample_systems_idx)
+        
+        # Update sampling parameters
+        config_sample['sample_systems_idx'] = sample_systems_idx
+        
+        # Update configuration file with sampling parameters
+        if 'sampler_schedule' not in self.config:
+            self.config['sampler_schedule'] = {}
+        self.config['sampler_schedule'].update(config_sample)
+        
+        # Increment sample counter
+        self.config['sample_counter'] = self.sample_counter
+        self.sample_counter += 1
+        
+        ###############################
+        # # # Perform MD Sampling # # #
+        ###############################
+        
+        # Iterate over systems
+        for system in self.sample_systems_atoms:
+            
+            # Skip unselected system samples
+            if not sample_systems_selection:
+                continue
+            
+            # If requested, perform structure optimization
+            if self.sample_systems_optimize:
+                
+                # Assign ASE optimizer
+                ase_optimizer = optimize.BFGS
+
+                # Perform structure optimization
+                ase_optimizer(system).run(
+                    fmax=self.sample_systems_optimize_fmax)
+                
+            # Start normal mode sampling
+            self.run_system(system)
+    
+    
+    def run_system(self, system):
+        raise NotImplementedError()
+    
+    
+    def check_systems_idx(self, systems_idx):
+        """
+        Check sample system selection input
+        """
+    
+        if systems_idx is None:
+            
+            # Select all
+            systems_selection = np.ones(
+                len(self.sample_systems_atoms), dtype=bool)
+            
+        elif utils.is_integer(systems_idx):
+            
+            # Check selection index and sample system length
+            if (
+                    systems_idx >= len(self.sample_systems_atoms)
+                    or systems_idx < -len(self.sample_systems_atoms)
+                ):
+                raise ValueError(
+                    f"Sample systems selection 'systems_idx' " +
+                    f"({systems_idx}) " +
+                    f"is out of range of loaded system samples" +
+                    f"({len(self.sample_systems_atoms)})!")
+            
+            # Select system of index
+            systems_selection = np.zeros(
+                len(self.sample_systems_atoms), dtype=bool)
+            systems_selection[systems_idx] = True
+            
+        elif utils.is_integer_array(systems_idx):
+            
+            # Select systems of respective indices
+            systems_selection = np.zeros(
+                len(self.sample_systems_atoms), dtype=bool)
+            for idx in systems_idx:
+                
+                # Check selection index and sample system length
+                if (
+                        idx >= len(self.sample_systems_atoms)
+                        or idx < -len(self.sample_systems_atoms)
+                    ):
+                    raise ValueError(
+                        f"Sample systems selection in 'systems_idx' " +
+                        f"({idx}) " +
+                        f"is out of range of loaded system samples" +
+                        f"({len(self.sample_systems_atoms)})!")
+                
+                # Select system
+                systems_selection[idx] = True
+                
+        else:
+            
+            raise ValueError(
+                f"Sample systems selection in 'systems_idx' " +
+                f"has a wrong type '{type(systems_idx)}'!\n"
+                )
+        
+        return systems_selection

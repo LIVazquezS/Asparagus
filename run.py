@@ -1,7 +1,7 @@
 
 from asparagus import DataContainer
 
-from asparagus import Sampler, NormalModeScanner
+from asparagus import Sampler, NormalModeScanner, MDSampler
 
 from asparagus import Asparagus
 
@@ -28,32 +28,18 @@ if True:
         sample_directory='test_samples',
         sample_systems='data/hono.xyz',
         sample_systems_format='xyz',
-        nms_systems_optimize=True,
-        nms_systems_optimize_fmax=0.001,
+        sample_systems_optimize=True,
+        sample_systems_optimize_fmax=0.001,
         )
     sampler.run()
 
-    #sampler = Sampler(
-        #sample_directory='test_samples',
-        #sample_systems='data/hono.xyz',
-        #sample_systems_format='xyz',
-        #sample_systems_optimize=True,
-        #sample_systems_optimize_fmax=0.0001,
-        #)
-    #sampler.normal_mode_sampling()
-    #sampler.normal_mode_sampling(
-        #sample_file='nms1.traj',        # Trajectory or DB file to store samples
-        #sample_step_size=1.0,           # Normal mode step size. Within harmonic
-        ## approximation, step size 1 should increase potential by frequency level
-        ## OR
-        #sample_step_energy=0.5,         # Within harmonic approximation, scale
-        ## normal mode, that step size leads to, e.g., 0.5eV energy difference
-        #sample_potential_cut=5.0,       # Potential cut for mode elongation (eV)
-        #sample_max_structures=1000,     # Maximum number of structures, sorted by E
-        #sample_cross_modes=1,           # Combine different number of modes
-        #)
-
-
+    sampler = MDSampler(
+        sample_directory='test_samples',
+        sample_systems='data/hono.xyz',
+        sample_systems_format='xyz',
+        )
+    sampler.run()
+    
 if False:
 
     model = Asparagus(
