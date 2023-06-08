@@ -91,9 +91,10 @@ Additional examples will be added in the future.
 - [ ] Add more NN architectures
 - [ ] Read parameters from older PhysNet Versions (i.e. TF1 and TF2)
 - [ ] Add sampling methods:
-    - [ ] MD and MC with XTB
+    - [x] MD with XTB
+    - [ ] MC with XTB
     - [ ] Normal Model Sampling
-    - [ ] Normal Model Scanning (Kai)
+    - [x] Normal Model Scanning (Kai)
     - [ ] Umbrella Sampling
     - [ ] Methadynamics Sampling (Kai)
     - [ ] Adaptive Sampling
