@@ -334,7 +334,7 @@ class Trainer:
             self.epoch_start = latest_checkpoint['epoch']
         else:
             self.trainer_epoch_start = 1
-            
+
 
     def train(self, verbose=True):
         

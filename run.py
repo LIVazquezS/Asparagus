@@ -1,7 +1,7 @@
 
 from asparagus import DataContainer
 
-from asparagus import Sampler
+from asparagus import Sampler, NormalModeScanner
 
 from asparagus import Asparagus
 
@@ -24,14 +24,23 @@ if False:
 
 if True:
 
-    sampler = Sampler(
+    sampler = NormalModeScanner(
         sample_directory='test_samples',
         sample_systems='data/hono.xyz',
         sample_systems_format='xyz',
-        sample_systems_optimize=True,
-        sample_systems_optimize_fmax=0.0001,
+        nms_systems_optimize=True,
+        nms_systems_optimize_fmax=0.001,
         )
-    sampler.normal_mode_sampling()
+    sampler.run()
+
+    #sampler = Sampler(
+        #sample_directory='test_samples',
+        #sample_systems='data/hono.xyz',
+        #sample_systems_format='xyz',
+        #sample_systems_optimize=True,
+        #sample_systems_optimize_fmax=0.0001,
+        #)
+    #sampler.normal_mode_sampling()
     #sampler.normal_mode_sampling(
         #sample_file='nms1.traj',        # Trajectory or DB file to store samples
         #sample_step_size=1.0,           # Normal mode step size. Within harmonic

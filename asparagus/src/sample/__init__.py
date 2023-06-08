@@ -3,5 +3,5 @@ from .sampler import (
 )
 
 from .nms import (
-    NormalModeSampler
+    NormalModeScanner
 )
