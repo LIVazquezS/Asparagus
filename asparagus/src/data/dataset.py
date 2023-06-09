@@ -776,6 +776,8 @@ class DataSet():
             
             # Update with further properties
             for ip, prop in enumerate(self.load_properties):
+                if prop in atoms_properties:
+                    continue
                 atoms_properties[prop] = properties.get(prop)
             
             # Write to ASE Database file

@@ -223,13 +223,14 @@ class DataBase_SQLite3(data.DataBase):
             if cur.fetchone()[0] == 0:
                 
                 # Update initial statements with properties to load
+                init_systems_execute = init_systems[:]
                 for prop_i in metadata.get('load_properties'):
                     if prop_i not in structure_properties_dtype.keys():
-                        init_systems[0] += f"{prop_i} BLOB,\n"
-                init_systems[0] = init_systems[0][:-2] + ")"
+                        init_systems_execute[0] += f"{prop_i} BLOB,\n"
+                init_systems_execute[0] = init_systems_execute[0][:-2] + ")"
                 
                 # Initialize data columns 
-                for statement in init_systems:
+                for statement in init_systems_execute:
                     con.execute(statement)
                 con.commit()
                 

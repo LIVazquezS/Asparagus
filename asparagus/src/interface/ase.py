@@ -9,7 +9,8 @@ from .. import debug
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ['get_ase_calculator']
+__all__ = [
+    'ase_calculator_units', 'get_ase_calculator', 'ase_calculate_properties']
 
 
 # ======================================
@@ -35,7 +36,6 @@ ase_calculator_avaiable = {
     'XTB'.lower(): debug.XTB,
     }
 
-
 def get_ase_calculator(
     calculator,
     calculator_args
@@ -57,6 +57,9 @@ def get_ase_calculator(
         ASE Calculator object to compute atomic systems
     """
 
+    # Initialize calculator name parameter
+    calculator_tag = None
+
     # In case of calculator label, initialize ASE calculator
     if utils.is_string(calculator):
 
@@ -69,6 +72,7 @@ def get_ase_calculator(
 
         # initialize ASE calculator
         try:
+            calculator_tag = calculator
             calculator = ase_calculator_avaiable[calculator.lower()](
                 **calculator_args)
         except TypeError as error:
@@ -77,6 +81,45 @@ def get_ase_calculator(
                 f"ASE calculator '{calculator}' does not accept " +
                 f"arguments in 'calculator_args'")
 
-    # Retrun ASE calculator
-    return calculator
+    else:
+        
+        # Check for calculator name parameter in calculator class
+        if hasattr(calculator, 'calculator_tag'):
+            calculator_tag = calculator.calculator_tag
+        
+    # Retrun ASE calculator and name label
+    return calculator, calculator_tag
 
+
+# ======================================
+# ASE Calculator Properties
+# ======================================
+
+def ase_calculate_properties(
+    system, 
+    properties,
+    ase_properties,
+):
+    """
+    ASE Calculator interface
+
+    Parameters
+    ----------
+    system: ASE Atoms object
+        ASE Atoms object with assigned ASE calculator
+    properties: list(str)
+        List of properties to compute
+    ase_properties: list(str)
+        List of properties to compute directly by ASE calculator
+
+    Returns
+    -------
+    dict
+        Computed properties
+    """
+    
+    #system.get_properties()
+    
+    #system._calc.calculate_properties(
+        #system, sample_properties)
+    pass
