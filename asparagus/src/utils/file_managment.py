@@ -21,6 +21,7 @@ def file_managment(config, restart=False):
     else:
         
         directory = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        # I would prefer if we keep the specifications of the NN model in the name of the directory...LIVS
         #(
                 #datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
                 #+ "_" + id_generator() + "_F" + str(config['input_n_atombasis'])
@@ -29,7 +30,7 @@ def file_managment(config, restart=False):
                 #+ "i" + str(config['graph_n_residual_interaction'])
                 #+ "o" + str(config['output_n_residual']) + "cut" + str(config['input_cutoff_descriptor'])
                 #+ "e" + str(config['model_electrostatic']) + "d" + str(config['model_dispersion']) + "r" + str(config['model_repulsion']))
-        
+        config['model_directory'] = directory
         if not os.path.exists(directory):
             os.makedirs(directory)
             best_dir = os.path.join(directory, 'best')

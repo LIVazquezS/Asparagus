@@ -32,7 +32,7 @@ _default_args = {
     'config':                       {},
     'config_file':                  'config.json',
     # Model
-    'model_directory':              '',
+    'model_directory':              None,
     'model_restart':                False,
     'model_calculator':             None,
     'model_type':                   _default_calculator_model,
