@@ -9,9 +9,11 @@ import numpy as np
 from .. import data
 from .. import settings
 from .. import utils
+from .. import model
 
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
+from .test import Testing
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -181,8 +183,8 @@ class Trainer:
         if self.model_calculator is None:
             
             # Set global dropout rate value
-            if config_train.get("trainer_dropout_rate") is not None:
-                settings.set_global_rate(config_train.get(
+            if config.get("trainer_dropout_rate") is not None:
+                settings.set_global_rate(config.get(
                     "trainer_dropout_rate"))
                 
             # Get property scaling guess from reference data to link
@@ -334,6 +336,12 @@ class Trainer:
             self.epoch_start = latest_checkpoint['epoch']
         else:
             self.trainer_epoch_start = 1
+
+         ########################################
+        # Prepare the testing part. Important, it will only test for the best model.
+        ########################################
+        self.testing = Testing(self.config,self.data_container,
+                               self.model_calculator)
 
 
     def train(self, verbose=True):
@@ -494,7 +502,13 @@ class Trainer:
                         scheduler=self.trainer_scheduler, 
                         epoch=epoch,
                         best=True)
-                    
+
+                    #Evaluation of the test set
+                    # For the moment, it only prints the statistics for the test set and save the results in a npz file
+                    # Later we can add the option to save plots.
+                    self.testing.test(verbose=True,save_npz=True)
+
+
                     # Write to training summary
                     for prop, value in metrics_best.items():
                         if utils.is_dictionary(value):

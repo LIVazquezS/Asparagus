@@ -3,16 +3,20 @@ import torch
 from typing import Optional, List, Dict, Tuple, Union, Any
 import numpy as np
 import os
+import sys
 
 from .. import data
 from .. import settings
 from .. import utils
+from .. import model
 
 try: #These packages are necessary for the plotting and analysis but only here.
     import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
     from scipy import stats
+except ImportError:
+    raise UserWarning("You need to install matplotlib, pandas, seaborn and scipy to use all plotting and analysis functions. Some functions might not work.")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,7 +29,9 @@ class Testing:
         config: Optional[Union[str, dict, object]] = None,
         data_container: Optional[object] = None,
         model_calculator: Optional[object] = None,
-        checkpoint: Optional[str] = None,**kwargs):
+        checkpoint: Optional[str] = None,
+        test_properties_evaluation: Optional[List[str]] = None,
+                 **kwargs):
 
 
         config = settings.get_config(config)
@@ -106,8 +112,7 @@ class Testing:
         # Check for test properties, Ideally test properties should be defined in the config file
         # If not, consider all properties covered in reference data set and the
         # model calculator.
-        if (not len(self.test_properties_evaluation) or
-                self.test_properties_evaluation is None):
+        if (self.test_properties_evaluation is None) or (len(self.test_properties_evaluation) == 0):
 
             # Reinitialize test properties list
             self.test_properties_evaluation = []
@@ -139,14 +144,28 @@ class Testing:
                         f"model calculator!\n" +
                         f"Property '{prop}' is removed from evaluation " +
                         f"property list.")
+    @staticmethod
+    def is_imported(module):
+        '''
+        Check if a module is imported in the current session.
+        '''
+        return module in sys.modules
 
     def test(self, verbose=True,
              save_npz=False, npz_name='test_vals.npz',
              save_csv=False, csv_name='test_vals.csv',
-             plot=False, plots_to_show=None,save_plots=False,
-             residual_plots=False, residuals_to_show=None,save_residuals=False,
-             histogram_plots=False, histograms_to_show=None,save_histograms=False,
+             plot=False, plots_to_show=None, save_plots=False, show_plots=False,
+             residual_plots=False, residuals_to_show=None, save_residuals=False, show_residuals=False,
+             histogram_plots=False, histograms_to_show=None, save_histograms=False, show_histograms=False,
              ):
+
+        if plot or residual_plots or histogram_plots:
+            if not self.is_imported('matplotlib') or not self.is_imported('seaborn'):
+                raise UserWarning("You need to install matplotlib to use all plotting and analysis functions. Some functions might not work.")
+
+        if save_csv:
+            if not self.is_imported('pandas'):
+                raise UserWarning("You need to install pandas to save a .csv file. The file will not be saved. Try saving a .npz file instead.")
 
         # Check if saving a file is required and then create a folder for the files in a directory called 'test_results'
         if save_npz or save_csv or save_plots or save_residuals or save_histograms:
@@ -161,7 +180,7 @@ class Testing:
 
         # Check which plots to show, by default show only the energy plot, if 'all' is selected show plots for all available properties
         if plot and plots_to_show is None:
-            plots_to_show = ['Energy']
+            plots_to_show = ['energy']
         elif plots_to_show == 'all':
             plots_to_show = self.test_properties_evaluation
         else:
@@ -169,7 +188,7 @@ class Testing:
 
         # Check which residuals to show, by default show only the energy plot, if 'all' is selected show plots for all available properties
         if residual_plots and residuals_to_show is None:
-            residuals_to_show = ['Energy']
+            residuals_to_show = ['energy']
         elif residuals_to_show == 'all':
             residuals_to_show = self.test_properties_evaluation
         else:
@@ -177,7 +196,7 @@ class Testing:
 
         # Check which histograms to show, by default show only the energy plot, if 'all' is selected show plots for all available properties
         if histogram_plots and histograms_to_show is None:
-            histograms_to_show = ['Energy']
+            histograms_to_show = ['energy']
         elif histograms_to_show == 'all':
             histograms_to_show = self.test_properties_evaluation
         else:
@@ -192,7 +211,6 @@ class Testing:
             # Compute metrics
             vals = self.compute_vals(prediction, batch)
             values.update(vals)
-
         # Print absolute errors
         if verbose:
             self.print_averages(values)
@@ -202,11 +220,11 @@ class Testing:
             self.save_csv(values,csv_name)
         if plot:
             print('Plotting results as scatter plot, other options available are residuals and histograms of the errors')
-            self.plot_results(values,plots_to_show=plots_to_show,save_plots=save_plots)
+            self.plot_results(values,plots_to_show=plots_to_show,save_plots=save_plots,show_plots=show_plots)
         if residual_plots:
-            self.plot_residuals(values,residuals_to_show,save_residuals=save_residuals)
+            self.plot_residuals(values,residuals_to_show,save_residuals=save_residuals,show_residuals=show_residuals)
         if histogram_plots:
-            self.plot_histograms(values,histograms_to_show,save_histograms=save_histograms)
+            self.plot_histograms(values,histograms_to_show,save_histograms=save_histograms,show_histograms=show_histograms)
 
 
     def reset_metrics(self):
@@ -253,72 +271,85 @@ class Testing:
         df = pd.DataFrame(vals)
         df.to_csv(path_to_save, index=False)
 
-    def plot_results(self,vals,plots_to_show,save_plots=False):
+    def plot_results(self, vals, plots_to_show, save_plots=False, show_plots=False):
         for prop in plots_to_show:
-            if prop == 'Forces' or prop=='Dipole':
-                fig, ax = plt.subplots(3,1,figsize=(15,5))
+            if prop == 'forces' or prop == 'dipole':
+                fig, ax = plt.subplots(3, 1, figsize=(15, 5))
                 for i in range(3):
-                    sns.regplot(x=vals['{} reference'.format(prop)][:,i], y=vals['{} prediction'.format(prop)][:,i], ax=ax[i])
-                    trendline = np.arange(np.min(vals['{} reference'.format(prop)][:,i]), np.max(vals['{} reference'.format(prop)][:,i]), 0.1)
+                    sns.scatterplot(x=vals['{} reference'.format(prop)][:, i], y=vals['{} prediction'.format(prop)][:, i],
+                                ax=ax[i])
+                    trendline = np.arange(np.min(vals['{} reference'.format(prop)][:, i]),
+                                          np.max(vals['{} reference'.format(prop)][:, i]), 0.1)
                     ax[i].plot(trendline, trendline, color='black', linestyle='--')
-                    ax[i].set_xlim(np.min(vals['{} reference'.format(prop)][:,i]), np.max(vals['{} reference'.format(prop)][:,i]))
-                    ax[i].set_ylim(np.min(vals['{} reference'.format(prop)][:,i]), np.max(vals['{} reference'.format(prop)][:,i]))
+                    ax[i].set_xlim(np.min(vals['{} prediction'.format(prop)][:, i]),
+                                   np.max(vals['{} prediction'.format(prop)][:, i]))
+                    ax[i].set_ylim(np.min(vals['{} prediction'.format(prop)][:, i]),
+                                   np.max(vals['{} prediction'.format(prop)][:, i]))
                     ax[i].set_xlabel('Reference {}'.format(prop))
                     ax[i].set_ylabel('Predicted {}'.format(prop))
                 if save_plots:
-                    path_to_save = os.path.join(self.save_directory,'{}_test.pdf'.format(prop))
-                    plt.savefig(path_to_save,dpi=300)
-                plt.show()
+                    path_to_save = os.path.join(self.save_directory, '{}_test.pdf'.format(prop))
+                    plt.savefig(path_to_save, dpi=300)
+                if show_plots:
+                    plt.show()
+                plt.close()
             else:
-                slope, intercept, r, p, se = stats.linregress(vals['{} prediction'.format(prop)], vals['{} reference'.format(prop)])
+                slope, intercept, r, p, se = stats.linregress(vals['{} prediction'.format(prop)],
+                                                              vals['{} reference'.format(prop)])
                 rsquare = r ** 2
-                fig, ax = plt.subplots(figsize=(5,5))
-                sns.regplot(x=vals['{} reference'.format(prop)], y=vals['{} prediction'.format(prop)], ax=ax)
+                fig, ax = plt.subplots(figsize=(5, 5))
+                sns.scatterplot(x=vals['{} reference'.format(prop)], y=vals['{} prediction'.format(prop)], ax=ax)
                 ax.text(0.05, 0.95, '$R^2$ = {:.3f}'.format(rsquare), transform=ax.transAxes)
-                trendline = np.arange(np.min(vals['{} reference'.format(prop)]), np.max(vals['{} reference'.format(prop)]), 0.1)
+                trendline = np.arange(np.min(vals['{} prediction'.format(prop)]),
+                                      np.max(vals['{} prediction'.format(prop)]), 0.1)
                 ax.plot(trendline, trendline, color='black', linestyle='--')
-                ax.set_xlim(np.min(vals['{} reference'.format(prop)]), np.max(vals['{} reference'.format(prop)]))
-                ax.set_ylim(np.min(vals['{} reference'.format(prop)]), np.max(vals['{} reference'.format(prop)]))
+                ax.set_xlim(np.min(vals['{} prediction'.format(prop)]), np.max(vals['{} prediction'.format(prop)]))
+                ax.set_ylim(np.min(vals['{} prediction'.format(prop)]), np.max(vals['{} prediction'.format(prop)]))
                 ax.set_xlabel('Reference {}'.format(prop))
                 ax.set_ylabel('Predicted {}'.format(prop))
                 if save_plots:
-                    path_to_save = os.path.join(self.save_directory,'{}_test.pdf'.format(prop))
-                    plt.savefig(path_to_save,dpi=300)
-                plt.show()
+                    path_to_save = os.path.join(self.save_directory, '{}_test.pdf'.format(prop))
+                    plt.savefig(path_to_save, dpi=300)
+                if show_plots:
+                    plt.show()
+                plt.close()
 
-    def plot_residuals(self,vals,residuals_to_show,save_residuals=False):
+    def plot_residuals(self, vals, residuals_to_show, save_residuals=False, show_residuals=False):
         '''
         I hate residuals, but Kai likes them, so here they are--LIVS
         '''
         for prop in residuals_to_show:
-            fig, ax = plt.subplots(1,1,figsize=(5,5))
-            if prop == 'Forces' or prop=='Dipole':
-                error_vals = np.mean(vals['error {}'.format(prop)],ax=1)
-                ax.plot(vals['{} reference'.format(prop)],error_vals,'o')
+            fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+            if prop == 'Forces' or prop == 'Dipole':
+                error_vals = np.mean(vals['error {}'.format(prop)], ax=1)
+                ax.plot(vals['{} reference'.format(prop)], error_vals, 'o')
             else:
-                ax.plot(vals['{} reference'.format(prop)],vals['error {}'.format(prop)],'o')
+                ax.plot(vals['{} reference'.format(prop)], vals['error {}'.format(prop)], 'o')
             ax.set_xlabel('Reference {}'.format(prop))
             ax.set_ylabel('Error {}'.format(prop))
             if save_residuals:
-                path_to_save = os.path.join(self.save_directory,'residuals_{}_test.pdf'.format(prop))
+                path_to_save = os.path.join(self.save_directory, 'residuals_{}_test.pdf'.format(prop))
                 plt.savefig(path_to_save, dpi=300)
-            plt.show()
+            if show_residuals:
+                plt.show()
+            plt.close()
 
-    def plot_histograms(self,vals,histograms_to_show,save_histograms=False):
+    def plot_histograms(self, vals, histograms_to_show, save_histograms=False, show_histograms=False):
         for prop in histograms_to_show:
-            fig, ax = plt.subplots(1,1,figsize=(5,5))
-            if prop == 'Forces' or prop=='Dipole':
-                error_vals = np.mean(vals['error {}'.format(prop)],ax=1)
-                sns.histplot(error_vals,ax=ax,kde=True)
+            fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+            if prop == 'Forces' or prop == 'Dipole':
+                error_vals = np.mean(vals['error {}'.format(prop)], ax=1)
+                sns.histplot(error_vals, ax=ax, kde=True)
             else:
-                sns.histplot(vals['error {}'.format(prop)],ax=ax,kde=True)
+                sns.histplot(vals['error {}'.format(prop)], ax=ax, kde=True)
             ax.set_xlabel('Error {}'.format(prop))
             ax.set_ylabel('Count')
             if save_histograms:
-                path_to_save = os.path.join(self.save_directory,'histogram_{}_test.pdf'.format(prop))
+                path_to_save = os.path.join(self.save_directory, 'histogram_{}_test.pdf'.format(prop))
                 plt.savefig(path_to_save, dpi=300)
-            plt.show()
-
+            if show_histograms:
+                plt.show()
+            plt.close()
 
     def compute_vals(self,
             prediction: Dict[str, Any],
@@ -328,9 +359,9 @@ class Testing:
         # Initialize metrics dictionary
         metrics = {}
         for ip,prop in enumerate(self.test_properties_evaluation):
-            metrics['{} reference'.format(prop)] = reference[prop].detach().cpu().numpy()
-            metrics['{} prediction'.format(prop)] = prediction[prop].detach().cpu().numpy()
-            metrics['error {}'.format(prop)] = prediction[prop].detach().cpu().numpy() - reference[prop].detach().cpu().numpy()
+            metrics['{} reference'.format(prop)] = reference[prop].detach().cpu().numpy().flatten()
+            metrics['{} prediction'.format(prop)] = prediction[prop].detach().cpu().numpy().flatten()
+            metrics['error {}'.format(prop)] = prediction[prop].detach().cpu().numpy().flatten() - reference[prop].detach().cpu().numpy().flatten()
         return metrics
 
 

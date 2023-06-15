@@ -1,0 +1,85 @@
+{
+    "data_file": "data/h2co_b3lyp.db",
+    "data_source": [
+        "data/h2co_B3LYP_cc_pVDZ_4001.npz"
+    ],
+    "data_load_properties": [
+        "energy",
+        "forces",
+        "dipole"
+    ],
+    "model_properties": [
+        "energy",
+        "forces",
+        "atomic_charges",
+        "dipole"
+    ],
+    "output_properties": [
+        "energy",
+        "forces",
+        "atomic_charges",
+        "dipole"
+    ],
+    "trainer_optimizer_args": {
+        "lr": 0.0001
+    },
+    "checkpoint": "20230525163715_YQO817Vk_F128KNoneb5a2i3o1cut8.0eTruedTruerFalse/best/best_model.pt",
+    "data_format": [],
+    "data_alt_property_labels": {},
+    "data_unit_positions": "Ang",
+    "data_unit_properties": {
+        "energy": "eV",
+        "forces": "eV/Ang",
+        "charge": "e",
+        "dipole": "eAng"
+    },
+    "data_num_train": 0.8,
+    "data_num_valid": 0.1,
+    "data_train_batch_size": 128,
+    "data_valid_batch_size": 128,
+    "data_test_batch_size": 128,
+    "data_num_workers": 1,
+    "data_workdir": ".",
+    "data_overwrite": false,
+    "data_seed": 957045,
+    "model_type": "PhysNet",
+    "model_interaction_cutoff": 8.0,
+    "model_cutoff_width": 2.0,
+    "model_repulsion": false,
+    "model_electrostatic": true,
+    "model_dispersion": true,
+    "model_dispersion_trainable": true,
+    "input_type": "PhysNetRBF",
+    "input_n_atombasis": 128,
+    "input_n_radialbasis": 64,
+    "input_cutoff_descriptor": 8.0,
+    "input_cutoff_fn": "Poly6",
+    "input_rbf_center_start": 1.0,
+    "input_rbf_trainable": true,
+    "input_n_maxatom": 94,
+    "input_atom_features_range": 1.7320508075688772,
+    "graph_type": "PhysNetMP",
+    "graph_n_blocks": 5,
+    "graph_n_residual_interaction": 3,
+    "graph_n_residual_atomic": 2,
+    "output_type": "PhysNetOut",
+    "output_n_residual": 1,
+    "model_properties_scaling": {
+        "energy": [
+            0.21445266821499387,
+            -15.703772587180133
+        ],
+        "forces": [
+            1.459209176200663,
+            -1.0524332076829158e-10
+        ],
+        "charge": [
+            0.0,
+            0.0
+        ],
+        "dipole": [
+            0.08015628433271522,
+            -0.05529830555315139
+        ]
+    }
+}

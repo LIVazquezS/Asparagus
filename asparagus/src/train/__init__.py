@@ -2,6 +2,10 @@ from .trainer import (
     Trainer
 )
 
+from .test import (
+    Testing
+)
+
 from .optimizer import (
     get_optimizer
 )
