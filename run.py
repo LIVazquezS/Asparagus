@@ -51,4 +51,4 @@ model = Asparagus(data_file='data/h2co_b3lyp.db',
                   data_container=None)
 #
 ckpt = '20230525163715_YQO817Vk_F128KNoneb5a2i3o1cut8.0eTruedTruerFalse/best/best_model.pt'
-model.test_model(ckpt,plot=True,show_plots=True,residual_plots=True,show_residuals=True,histogram_plots=True,show_histograms=True)
+model.test_model(ckpt,plot=True,show_plots=True,save_plots=True)#,residual_plots=True,show_residuals=True,histogram_plots=True,show_histograms=True)

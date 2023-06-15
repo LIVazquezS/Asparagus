@@ -274,12 +274,14 @@ class Testing:
     def plot_results(self, vals, plots_to_show, save_plots=False, show_plots=False):
         for prop in plots_to_show:
             if prop == 'forces' or prop == 'dipole':
-                fig, ax = plt.subplots(3, 1, figsize=(15, 5))
+                vals['{} reference'.format(prop)] = np.reshape(vals['{} reference'.format(prop)],(-1,3))
+                vals['{} prediction'.format(prop)] = np.reshape(vals['{} prediction'.format(prop)],(-1,3))
+                fig, ax = plt.subplots(1, 3, figsize=(15, 5))
                 for i in range(3):
                     sns.scatterplot(x=vals['{} reference'.format(prop)][:, i], y=vals['{} prediction'.format(prop)][:, i],
                                 ax=ax[i])
-                    trendline = np.arange(np.min(vals['{} reference'.format(prop)][:, i]),
-                                          np.max(vals['{} reference'.format(prop)][:, i]), 0.1)
+                    trendline = np.arange(np.min(vals['{} prediction'.format(prop)][:, i]),
+                                          np.max(vals['{} prediction'.format(prop)][:, i]), 0.1)
                     ax[i].plot(trendline, trendline, color='black', linestyle='--')
                     ax[i].set_xlim(np.min(vals['{} prediction'.format(prop)][:, i]),
                                    np.max(vals['{} prediction'.format(prop)][:, i]))
@@ -287,6 +289,7 @@ class Testing:
                                    np.max(vals['{} prediction'.format(prop)][:, i]))
                     ax[i].set_xlabel('Reference {}'.format(prop))
                     ax[i].set_ylabel('Predicted {}'.format(prop))
+                plt.tight_layout()
                 if save_plots:
                     path_to_save = os.path.join(self.save_directory, '{}_test.pdf'.format(prop))
                     plt.savefig(path_to_save, dpi=300)
@@ -307,6 +310,7 @@ class Testing:
                 ax.set_ylim(np.min(vals['{} prediction'.format(prop)]), np.max(vals['{} prediction'.format(prop)]))
                 ax.set_xlabel('Reference {}'.format(prop))
                 ax.set_ylabel('Predicted {}'.format(prop))
+                plt.tight_layout()
                 if save_plots:
                     path_to_save = os.path.join(self.save_directory, '{}_test.pdf'.format(prop))
                     plt.savefig(path_to_save, dpi=300)
@@ -320,11 +324,7 @@ class Testing:
         '''
         for prop in residuals_to_show:
             fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-            if prop == 'Forces' or prop == 'Dipole':
-                error_vals = np.mean(vals['error {}'.format(prop)], ax=1)
-                ax.plot(vals['{} reference'.format(prop)], error_vals, 'o')
-            else:
-                ax.plot(vals['{} reference'.format(prop)], vals['error {}'.format(prop)], 'o')
+            ax.plot(vals['{} reference'.format(prop)], vals['error {}'.format(prop)], 'o')
             ax.set_xlabel('Reference {}'.format(prop))
             ax.set_ylabel('Error {}'.format(prop))
             if save_residuals:
@@ -337,11 +337,7 @@ class Testing:
     def plot_histograms(self, vals, histograms_to_show, save_histograms=False, show_histograms=False):
         for prop in histograms_to_show:
             fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-            if prop == 'Forces' or prop == 'Dipole':
-                error_vals = np.mean(vals['error {}'.format(prop)], ax=1)
-                sns.histplot(error_vals, ax=ax, kde=True)
-            else:
-                sns.histplot(vals['error {}'.format(prop)], ax=ax, kde=True)
+            sns.histplot(vals['error {}'.format(prop)], ax=ax, kde=True)
             ax.set_xlabel('Error {}'.format(prop))
             ax.set_ylabel('Count')
             if save_histograms:
