@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 import ase
 
 from .. import utils
-from .. import debug
+#from .. import debug
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ ase_calculator_units = {
 # ======================================
 
 ase_calculator_avaiable = {
-    'XTB'.lower(): debug.XTB,
+    #'XTB'.lower(): debug.XTB,
     }
 
 def get_ase_calculator(

@@ -1,0 +1,719 @@
+import os
+import logging
+from typing import Optional, List, Dict, Tuple, Union, Any
+
+import numpy as np
+
+import ase
+from ase import optimize
+from ase import units
+
+from ase.constraints import Hookean
+
+from ase.io.trajectory import Trajectory
+
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
+from ase.md.langevin import Langevin
+
+from .. import data
+from .. import model
+from .. import settings
+from .. import utils
+from .. import sample
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+__all__ = ['MetaSampler']
+
+
+class MetaSampler(sample.Sampler):
+    """
+    Meta(-Dynamic) Sampler class
+    """
+
+    def __init__(
+        self,
+        meta_data_file: Optional[str] = None,
+        meta_cv: Optional[List[int]] = None,
+        meta_gaussian_height: Optional[float] = None,
+        meta_gaussian_widths: Optional[Union[float, List[float]]] = None,
+        meta_gaussian_interval: Optional[int] = None,
+        meta_hookean: Optional[List[Union[int, float]]] = None,
+        meta_hookean_force_constant: Optional[float] = None,
+        meta_temperature: Optional[float] = None,
+        meta_time_step: Optional[float] = None,
+        meta_simulation_time: Optional[float] = None,
+        meta_save_interval: Optional[float] = None,
+        meta_langevin_friction: Optional[float] = None,
+        meta_initial_velocities: Optional[bool] = None,
+        meta_initial_temperature: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Initialize Normal Mode Scanning class
+
+        Parameters
+        ----------
+
+        meta_data_file: str, optional, default 'sample.db'
+            Database file name to store the sampled systems with computed
+            reference data.
+        meta_cv: list(list(int)), optional, default []
+            List of sublists defining collective variables (CVs) / reaction
+            coordinates to add Gaussian potentials. The number of atom indices
+            in the sublist defines either bonds (2), angles (3) or
+            dihedrals (4). Example [[1, 2], [1, 2, 3], [4, 1, 2, 3]]
+        meta_gaussian_height: float, optional, default 0.05
+            Potential energy height in eV of the Gaussian potential.
+        meta_gaussian_widths: (float, list(floats)), optional, default 0.1
+            Gaussian width for all CVs or a list of widths per CV that define
+            the FWHM of Gaussian potential.
+        meta_gaussian_interval: int, optional, default 10
+            Step interval to add gaussian potential at current set of
+            collective variable.
+        meta_hookean: list(list(int,float)), optional, default []
+            It is always recommended for bond type collective variables to
+            define a hookean constraint that limit the distance between two
+            atoms. Otherwise gaussian potential could be only added to an ever
+            increasing atoms bond distance. Hookean are defined by a list of
+            sublists containing first two atom indices followed by one upper
+            distance limit and, optionally, a Hookean force constant k (default
+            is defined by meta_hookean_force_constant).
+            For example: [1, 2, 4.0] or [1, 2, 4.0, 5.0]
+        meta_hookean_force_constant: float, optional, default 5.0
+            Default Hookean force constant if not specifically defined in
+            Hookean constraint list meta_hookean.
+        meta_temperature: float, optional, default 300
+            Target temperature in Kelvin of the MD simulation controlled by a
+            Langevin thermostat
+        meta_time_step: float, optional, default 1.0 (1 fs)
+            MD Simulation time step in fs
+        meta_simulation_time: float, optional, default 1E5 (100 ps)
+            Total MD Simulation time in fs
+        meta_save_interval: int, optional, default 10
+            MD Simulation step interval to store system properties of
+            the current frame to dataset.
+        meta_langevin_friction: float, optional, default 0.1
+            Langevin thermostat friction coefficient in Kelvin. The coefficient
+            should be much higher than in classical MD simulations  (1E-2 to
+            1E-4) due to the fast heating of the systems due to the Gaussian
+            potentials.
+        meta_initial_velocities: bool, optional, default False
+            Instruction flag if initial atom velocities are assigned with
+            respect to a Maxwell-Boltzmann distribution at temperature
+            'md_initial_temperature'.
+        meta_initial_temperature: float, optional, default 300
+            Temperature for initial atom velocities according to a Maxwell-
+            Boltzmann distribution.
+
+        Returns
+        -------
+        object
+            Meta(-Dynamics) Sampler class object
+        """
+
+        # Initialize parent class with following parameter in kwargs:
+        #config: Optional[Union[str, dict, object]] = None,
+        #sample_directory: Optional[str] = None,
+        #sample_data_file: Optional[str] = None,
+        #sample_systems: Optional[Union[str, List[str], object]] = None,
+        #sample_systems_format: Optional[Union[str, List[str]]] = None,
+        #sample_calculator: Optional[Union[str, object]] = None,
+        #sample_calculator_args: Optional[Dict[str, Any]] = None,
+        #sample_properties: Optional[List[str]] = None,
+        #sample_systems_optimize: Optional[bool] = None,
+        #sample_systems_optimize_fmax: Optional[float] = None,
+        super().__init__(**kwargs)
+
+        ##################################
+        # # # Check Meta Class Input # # #
+        ##################################
+
+        # Check input parameter, set default values if necessary and
+        # update the configuration dictionary
+        #config_update = {}
+        for arg, item in locals().items():
+
+            # Skip 'config' argument and possibly more
+            if arg in [
+                    'self', 'config', 'config_update', 'kwargs', '__class__']:
+                continue
+
+            # Take argument from global configuration dictionary if not defined
+            # directly
+            if item is None:
+                item = self.config.get(arg)
+
+            # Set default value if the argument is not defined (None)
+            if arg in settings._default_args.keys() and item is None:
+                item = settings._default_args[arg]
+
+            # Check datatype of defined arguments
+            if arg in settings._dtypes_args.keys():
+                match = utils.check_input_dtype(
+                    arg, item, settings._dtypes_args, raise_error=True)
+
+            # Append to update dictionary
+            #config_update[arg] = item
+
+            # Assign as class parameter
+            setattr(self, arg, item)
+
+        # Update global configuration dictionary
+        #self.config.update(config_update)
+
+        # Sampler class label
+        self.sample_tag = 'meta'
+
+        # Check sample data file
+        if self.meta_data_file is None:
+            self.meta_data_file = os.path.join(
+                self.sample_directory,
+                f'{self.sample_counter:d}_{self.sample_tag:s}.db')
+        elif not utils.is_string(self.meta_data_file):
+            raise ValueError(
+                f"Sample data file 'meta_data_file' must be a string " +
+                f"of a valid file path but is of type " +
+                f"'{type(self.meta_data_file)}'.")
+
+        # Get number of collective variables
+        Ncv = len(self.meta_cv)
+
+        # Check collective variables
+        self.cv_type = []
+        self.cv_type_dict = {
+            2: 'bond',
+            3: 'angle',
+            4: 'dihedral',
+            5: 'bondmix'}
+        for icv, cv in enumerate(self.meta_cv):
+
+            # Check cv data type
+            if not utils.is_integer_array(cv):
+                raise ValueError(
+                    f"Collective variable number {icv:d} is not an integer " +
+                    f"list but of type '{type(cv):s}'!")
+
+            # Get cv type
+            if self.cv_type_dict.get(len(cv)) is None:
+                raise ValueError(
+                    f"Collective variable number {icv:} is not of valid " +
+                    f"length but of length '{len(cv):d}'!")
+            else:
+                self.cv_type.append(self.cv_type_dict.get(len(cv)))
+
+        # Check meta sampling input format
+        if utils.is_numeric(self.meta_gaussian_widths):
+            self.meta_gaussian_widths = [self.meta_gaussian_widths]*Ncv
+        elif Ncv > len(self.meta_gaussian_widths):
+            raise ValueError(
+                f"Unsufficient number of gaussian width defined " +
+                f"({len(self.meta_gaussian_widths):d}) for the number " +
+                f"of collective variables with {Ncv:d}")
+
+        # Check Hookean constraints
+        for ihk, hk in enumerate(self.meta_hookean):
+
+            # Check Hookean list data type
+            if not utils.is_numeric_array(hk):
+                raise ValueError(
+                    f"Hookean constraint number {ihk:d} is not a numeric " +
+                    f"list but of type '{type(hk):s}'!")
+
+            # Check Hookean constraint definition validity
+            if len(hk)==3:
+                # Add default Hookean force constant
+                hk.append(self.meta_hookean_force_constant)
+            elif not len(hk)==4:
+                raise ValueError(
+                    f"Hookean constraint number {ihk:d} is expected to be " +
+                    f"length 3 or 4 but has a length of {len(hk):d}!")
+
+            # Check atom definition type
+            for ii, idx in enumerate(hk[:2]):
+                if not utils.is_integer(idx):
+                    raise ValueError(
+                        f"Atom index {ii:d} in Hookean constraint number " +
+                        f"{ihk:d} is not an integer but of type {type(idx)}!")
+
+
+        # Define log file paths
+        self.meta_simulation_log_file = os.path.join(
+            self.sample_directory,
+            f'{self.sample_counter:d}_{self.sample_tag:s}_simulation.log')
+        self.meta_gaussian_log_file = os.path.join(
+            self.sample_directory,
+            f'{self.sample_counter:d}_{self.sample_tag:s}_gaussian.log')
+        self.meta_trajectory_file = os.path.join(
+            self.sample_directory,
+            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
+
+        # Check sample properties for energy and forces properties which are
+        # required for Meta sampling
+        if 'energy' not in self.sample_properties:
+            self.sample_properties.append('energy')
+        if 'forces' not in self.sample_properties:
+            self.sample_properties.append('forces')
+
+        #####################################
+        # # # Initialize Sample DataSet # # #
+        #####################################
+
+        self.md_dataset = data.DataSet(
+            self.meta_data_file,
+            self.sample_unit_positions,
+            self.sample_properties,
+            self.sample_unit_properties,
+            data_overwrite=True)
+
+
+    def run_system(self, system):
+        """
+        Perform Meta Sampling Simulation with the sample system.
+        """
+
+        # Initialize meta dynamic constraint
+        meta_constraint = MetaConstraint(
+            self.meta_cv,
+            self.meta_gaussian_widths,
+            self.meta_gaussian_height,
+            self.meta_gaussian_log_file,
+            self.meta_gaussian_interval
+            )
+
+        # Initialize Hookean constraint
+        meta_hookean_constraint = []
+        for hk in self.meta_hookean:
+            meta_hookean_constraint.append(
+                Hookean(hk[0], hk[1], hk[2], rt=hk[3]))
+
+        # Set constraints to system
+        system.set_constraint(
+            [meta_constraint] + meta_hookean_constraint)
+
+        # Set initial atom velocities if requested
+        if self.meta_initial_velocities:
+            MaxwellBoltzmannDistribution(
+                system,
+                temperature_K=self.meta_initial_temperature)
+
+        # Initialize MD simulation propagator
+        meta_dyn = Langevin(
+            system,
+            timestep=self.meta_time_step*units.fs,
+            temperature_K=self.meta_temperature,
+            friction=self.meta_langevin_friction,
+            logfile=self.meta_simulation_log_file,
+            loginterval=self.meta_save_interval)
+
+        # Attach system properties saving function
+        meta_dyn.attach(
+            self.save_properties,
+            interval=self.meta_save_interval,
+            system=system)
+
+        # Attach trajectory
+        self.meta_trajectory = Trajectory(
+            self.meta_trajectory_file, atoms=system,
+            mode='a', properties=self.sample_properties)
+        meta_dyn.attach(
+            self.write_trajectory,
+            interval=self.meta_gaussian_interval,
+            system=system)
+
+        # Attach collective variables writer
+        meta_cv_logger = MetaDynamicLogger(meta_constraint, system)
+        meta_dyn.attach(
+            meta_cv_logger.log, interval=self.meta_gaussian_interval)
+
+        # Run MD simulation
+        meta_simulation_step = round(
+            self.meta_simulation_time/self.meta_time_step)
+        meta_dyn.run(meta_simulation_step)
+
+
+    def save_properties(self, system):
+        """
+        Save system properties
+        """
+
+        self.md_dataset.add_atoms(system, system._calc.results)
+
+
+    def write_trajectory(self, system):
+        """
+        Write current image to trajectory file but without constraints
+        """
+
+        system_noconstraint = system.copy()
+        system_noconstraint.set_constraint()
+        self.meta_trajectory.write(system_noconstraint)
+
+
+class MetaConstraint:
+    """
+    Constraint class to perform Meta Dynamics simulations by adding
+    artificial Gaussian potentials.
+    """
+
+    def __init__(
+        self,
+        cv,
+        widths,
+        height,
+        logfile,
+        logwrite,
+    ):
+        """
+        Forces atoms of cluster to stay close to the center.
+
+        cv : list
+            List of collective variables - e.g.:
+                [[1,2], [2,4], [1,2,3], [2,3,4,1]]
+            [a,b] bond variable between atom a and b
+            [a,b,c] angle variable between angle a->b->c
+            [a,b,c,d] dihedral angle variable between angle a->b->c->d
+        widths : array
+           Width if Gaussian distribution for cv i
+        heights : array
+           Maximum height of the artificial Gaussian potential
+        """
+
+        self.cv = cv
+        self.Ncv = len(cv)
+        self.widths = np.asarray(widths)
+        self.height = height
+        self.logfile = logfile
+        self.logwrite = logwrite
+
+        self.cv_list = np.array([], dtype=np.float)
+        self.last_cv = None
+        self.ilog = 0
+
+        if self.Ncv != len(self.widths):
+            raise IOError(
+                'Please provide an array of width values of them' +
+                'same lengths as the number of collective variables cv.')
+
+        self.removed_dof = 0
+
+    def get_removed_dof(self, atoms):
+        return 0
+
+    def todict(self):
+        dct = {'name': 'MetaConstraints'}
+        dct['kwargs'] = {'cv': self.cv,
+                         'widths': self.widths,
+                         'height': self.height}
+        #dct['kwargs'] = {}
+        return dct
+
+    def adjust_positions(self, atoms, newpositions):
+        pass
+
+    def adjust_momenta(self, atoms, momenta):
+        pass
+
+    def adjust_forces(self, atoms, forces):
+        """Returns the Forces related to artificial Gaussian potential"""
+
+        # Get collective variable i and partial derivative dcvdR
+        cv = np.zeros(self.Ncv, dtype=np.float)
+        dcvdR = np.zeros([self.Ncv, *forces.shape], dtype=np.float)
+        for icv, cvi in enumerate(self.cv):
+            # Bond length
+            if len(cvi)==2:
+                cv[icv] = np.linalg.norm(
+                    atoms.positions[cvi[0]] - atoms.positions[cvi[1]])
+                dcvdR[icv, cvi[0]] = (
+                    (atoms.positions[cvi[1]] - atoms.positions[cvi[0]])/cv[icv])
+                dcvdR[icv, cvi[1]] = (
+                    (atoms.positions[cvi[0]] - atoms.positions[cvi[1]])/cv[icv])
+            # Angle
+            elif len(cvi)==3:
+                raise NotImplementedError
+            # Dihedral angle
+            elif len(cvi)==4:
+                raise NotImplementedError
+            # Reaction coordinate
+            elif len(cvi)==5:
+                if cvi[0]=='-':
+                    a = np.linalg.norm(
+                        atoms.positions[cvi[1]] - atoms.positions[cvi[2]])
+                    b = np.linalg.norm(
+                        atoms.positions[cvi[3]] - atoms.positions[cvi[4]])
+                    cv[icv] = a - b
+                    dcvdR[icv, cvi[1]] = (
+                        (atoms.positions[cvi[2]] - atoms.positions[cvi[1]])/a)
+                    dcvdR[icv, cvi[2]] = (
+                        (atoms.positions[cvi[1]] - atoms.positions[cvi[2]])/a)
+                    dcvdR[icv, cvi[3]] = (
+                        (atoms.positions[cvi[3]] - atoms.positions[cvi[4]])/b)
+                    dcvdR[icv, cvi[4]] = (
+                        (atoms.positions[cvi[4]] - atoms.positions[cvi[3]])/b)
+                else:
+                    raise NotImplementedError
+            else:
+                raise IOError('Check cv list of Metadynamic constraint!')
+
+        # Put to last cv
+        self.last_cv = cv
+
+        # If CV list is empty return zero forces
+        # (Important to put it after last_cv update for the add_to_cv function)
+        if self.cv_list.shape[0]==0:
+            return np.zeros_like(forces)
+
+        # Compute Gaussian exponents
+        exponents = np.sum(
+            np.divide(
+                np.square(
+                    np.subtract(
+                        self.cv_list,
+                        #(Nlist, Ncv)
+                        np.expand_dims(cv, axis=0)
+                        #(1, Ncv)
+                        )
+                    #(Nlist, Ncv)
+                    ),
+                #(Nlist, Ncv)
+                np.expand_dims(
+                    np.multiply(
+                        2.0,
+                        np.square(
+                            self.widths
+                            #(Ncv)
+                            )
+                        #(Ncv)
+                        ),
+                    #(Ncv)
+                    axis=0
+                    )
+                #(1, Ncv)
+                ),
+            #(Nlist, Ncv)
+            axis=1
+            )
+        #(Nlist)
+
+        # Compute Gaussians
+        gaussians = -1.0*self.height*np.exp(-exponents)
+        #(Nlist)
+
+        # Compute partial derivative d exponent d cv
+        dexpdcv = np.divide(
+            np.subtract(
+                self.cv_list,
+                #(Nlist, Ncv)
+                np.expand_dims(
+                    cv,
+                    #(Ncv)
+                    axis=0
+                    )
+                #(1, Ncv)
+                ),
+            #(Nlist, Ncv)
+            np.expand_dims(
+                np.square(
+                    self.widths
+                    #(Ncv)
+                    ),
+                #(Ncv)
+                axis=0
+                )
+            #(1, Ncv)
+            )
+        #(Nlist, Ncv)
+
+        # Add up gradient with respective to cv
+        dgausdcv = np.sum(
+            np.multiply(
+                np.expand_dims(
+                    gaussians,
+                    #(Nlist)
+                    axis=1
+                    ),
+                #(Nlist, 1)
+                dexpdcv
+                ),
+            #(Nlist, Ncv)
+            axis=0
+            )
+        #(Ncv)
+
+        # Compute gradient with respect to Cartesian
+        gradient = np.sum(
+            np.multiply(
+                np.expand_dims(
+                    dgausdcv,
+                    #(Ncv)
+                    axis=(1,2)
+                    ),
+                #(Ncv, 1, 1)
+                dcvdR
+                #(Ncv, Natoms, Ncart)
+                ),
+            axis=0
+            )
+        #(Natoms, Ncart)
+
+        #dvec = (atoms.positions[1] - atoms.positions[0])/cv[0]
+        #dforce = -gradient*dvec.reshape(1, -1)
+        ##dforce = np.sqrt(np.sum(dforce**2, axis=-1))
+        ##dforce = dforce.reshape(-1, 1)*dvec.reshape(1, -1)
+        ##dforce -= (dforce[0] + dforce[1])/2.
+        #print(dforce)
+        ##print(np.sqrt(np.sum(dforce**2)))
+        #atoms_num = atoms.copy()
+        #atoms_num.set_distance(0, 1, cv[0] - 0.005)
+        #em = self.adjust_potential_energy(atoms_num)
+        #atoms_num.set_distance(0, 1, cv[0] + 0.005)
+        #ep = self.adjust_potential_energy(atoms_num)
+        #print((ep - em)/.01)
+
+        forces -= gradient
+
+    def adjust_potential_energy(self, atoms):
+        """Returns the artificial Gaussian potential"""
+
+        # Get collective variable i
+        cv = np.zeros(self.Ncv, dtype=np.float)
+        for icv, cvi in enumerate(self.cv):
+
+            # Bond length
+            if len(cvi)==2:
+                cv[icv] = np.linalg.norm(
+                    atoms.positions[cvi[0]] - atoms.positions[cvi[1]])
+            # Angle
+            elif len(cvi)==3:
+                raise NotImplementedError
+            # Dihedral angle
+            elif len(cvi)==4:
+                raise NotImplementedError
+            # Special
+            elif len(cvi)==5:
+                if cvi[0]=='-':
+                    a = np.linalg.norm(
+                        atoms.positions[cvi[1]] - atoms.positions[cvi[2]])
+                    b = np.linalg.norm(
+                        atoms.positions[cvi[3]] - atoms.positions[cvi[4]])
+                    cv[icv] = a - b
+                else:
+                    raise NotImplementedError
+            else:
+                raise IOError('Check cv list of Metadynamic constraint!')
+
+        # Update to last cv
+        self.last_cv = cv
+
+        # If CV list is empty return zero potential
+        # (Important to put it after last_cv update for the add_to_cv function)
+        if self.cv_list.shape[0]==0:
+            return 0.0
+
+        # Compute Gaussian exponents
+        exponents = np.sum(
+            np.divide(
+                np.square(
+                    np.subtract(
+                        self.cv_list,
+                        #(Nlist, Ncv)
+                        np.expand_dims(cv, axis=0)
+                        #(1, Ncv)
+                        )
+                    #(Nlist, Ncv)
+                    ),
+                #(Nlist, Ncv)
+                np.expand_dims(
+                    np.multiply(
+                        2.0,
+                        np.square(
+                            self.widths
+                            #(Ncv)
+                            )
+                        #(Ncv)
+                        ),
+                    #(Ncv)
+                    axis=0
+                    )
+                #(1, Ncv)
+                ),
+            #(Nlist, Ncv)
+            axis=1
+            )
+        #(Nlist)
+
+        # Compute gaussians
+        gaussians = self.height*np.exp(-exponents)
+        #(Nlist)
+
+        # Add up potential
+        potential = np.sum(gaussians)
+
+        return potential
+
+    def add_to_cv(self, atoms):
+
+        # Get collective variable i
+        if self.last_cv is None:
+            return
+        else:
+            cv = self.last_cv
+
+        # Add cv to list
+        if self.cv_list.shape[0]==0:
+            self.cv_list = np.array([cv], dtype=np.float)
+        else:
+            self.cv_list = np.append(self.cv_list, [cv], axis=0)
+
+        # Write cv list but just every logwrite time to avoid repeated writing
+        # of large files
+        if not self.ilog%self.logwrite:
+            np.savetxt(self.logfile, self.cv_list)
+        self.ilog += 1
+
+    def get_indices(self):
+        raise NotImplementedError
+
+    def index_shuffle(self, atoms, ind):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return (
+            'Metadynamics constraint')
+
+
+
+class MetaDynamicLogger:
+    """
+    Store defined amount of images of a trajectory and save the images
+    within a defined time window around a point when an action happened.
+    """
+
+    def __init__(self, metadynamic, system):
+        """
+        Parameters:
+
+        metadynamic: object
+            Metadynamic constraint class
+        """
+
+        # Allocate parameter
+        self.metadynamic = metadynamic
+        self.system = system
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.close()
+
+    def log(self, system=None, **kwargs):
+        """
+        Execute
+        """
+
+        if system is None:
+            system = self.system
+        self.metadynamic.add_to_cv(system)
+
+        return
+

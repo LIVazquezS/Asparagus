@@ -96,7 +96,7 @@ Additional examples will be added in the future.
     - [ ] Normal Model Sampling
     - [x] Normal Model Scanning (Kai)
     - [ ] Umbrella Sampling
-    - [ ] Methadynamics Sampling (Kai)
+    - [x] Methadynamics Sampling (Kai)
     - [ ] Adaptive Sampling
 - [ ] Electronic structure calculations:
    - [ ] Automatic generation of input files for common used codes (e.g. Gaussian, Orca, MOLPRO, etc.)
