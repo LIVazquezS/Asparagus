@@ -1,7 +1,7 @@
 
 from asparagus import DataContainer
 
-from asparagus import Sampler, NormalModeScanner, MDSampler
+from asparagus import NormalModeScanner, MDSampler, MetaSampler
 
 from asparagus import Asparagus
 
@@ -33,10 +33,19 @@ if True:
         #)
     #sampler.run()
 
-    sampler = MDSampler(
+    #sampler = MDSampler(
+        #sample_directory='test_samples',
+        #sample_systems='data/hono.xyz',
+        #sample_systems_format='xyz',
+        #)
+    #sampler.run()
+    
+    sampler = MetaSampler(
         sample_directory='test_samples',
         sample_systems='data/hono.xyz',
         sample_systems_format='xyz',
+        meta_cv=[[2, 1], [2, 3], [2, 0]],
+        meta_hookean=[[2, 1, 4.0], [2, 3, 4.0], [2, 0, 4.0]]
         )
     sampler.run()
     

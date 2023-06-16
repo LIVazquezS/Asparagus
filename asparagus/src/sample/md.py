@@ -33,8 +33,6 @@ class MDSampler(sample.Sampler):
     def __init__(
         self,
         md_data_file: Optional[str] = None,
-        md_systems_optimize: Optional[bool] = None,
-        md_systems_optimize_fmax: Optional[float] = None,
         md_temperature: Optional[float] = None,
         md_time_step: Optional[float] = None,
         md_simulation_time: Optional[float] = None,
@@ -54,12 +52,6 @@ class MDSampler(sample.Sampler):
         md_data_file: str, optional, default 'sample.db'
             Database file name to store the sampled systems with computed
             reference data.
-        md_systems_optimize: bool, optional, default False
-            Instruction flag, if the system coordinates shall be
-            optimized using the ASE calculator defined by 'sample_calculator'.
-        md_systems_optimize_fmax: float, optional, default 0.01
-            Instruction flag, if the system coordinates shall be
-            optimized using the ASE calculator defined by 'sample_calculator'.
         md_temperature: float, optional, default 300
             Target temperature in Kelvin of the MD simulation controlled by a
             Langevin thermostat
@@ -154,7 +146,7 @@ class MDSampler(sample.Sampler):
                 f"of a valid file path but is of type " + 
                 f"'{type(self.md_data_file)}'.")
         
-        # Create MD log file
+        # Define MD log file path
         self.md_log_file = os.path.join(
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}.log')
@@ -165,7 +157,6 @@ class MDSampler(sample.Sampler):
             self.sample_properties.append('energy')
         if 'forces' not in self.sample_properties:
             self.sample_properties.append('forces')
-        
         
         #####################################
         # # # Initialize Sample DataSet # # #
@@ -190,8 +181,8 @@ class MDSampler(sample.Sampler):
             'sample_calculator': self.sample_calculator_tag,
             'sample_calculator_args': self.sample_calculator_args,
             'sample_properties': self.sample_properties,
-            'sample_systems_optimize': self.md_systems_optimize,
-            'sample_systems_optimize_fmax': self.md_systems_optimize_fmax,
+            'sample_systems_optimize': self.sample_systems_optimize,
+            'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
             'md_data_file': self.md_data_file,
             'md_temperature': self.md_temperature,        
             'md_time_step': self.md_time_step,
@@ -202,71 +193,6 @@ class MDSampler(sample.Sampler):
             'md_initial_velocities': self.md_initial_velocities,
             'md_initial_temperature': self.md_initial_temperature,
         }
-    
-    #def run(
-        #self,
-        #md_systems_idx: Optional[Union[int, List[int]]] = None,
-    #):
-        #"""
-        #Perform MD sampling all sample systems or a selection of them.
-        
-        #Parameters
-        #----------
-
-        #md_systems_idx: (int, list(int)), optional, default None
-            #Index or list of indices to run MD sampling only 
-            #for the respective systems of the sample system list
-        #"""
-        
-        ###############################
-        ## # # Check MD Run Input # # #
-        ###############################
-        
-        ## Collect NMS sampling parameters
-        #config_md = {
-            #f'{self.sample_counter}_{self.sample_tag}': 
-                #self.get_info()
-            #}
-        
-        ## Check sample system selection
-        #md_systems_selection = self.check_system_idx(md_systems_idx)
-        
-        ## Update sampling parameters
-        #config_nms['md_systems_idx'] = md_systems_idx
-        
-        ## Update configuration file with sampling parameters
-        #if 'sampler_schedule' not in self.config:
-            #self.config['sampler_schedule'] = {}
-        #self.config['sampler_schedule'].update(config_nms)
-        
-        ## Increment sample counter
-        #self.config['sample_counter'] = self.sample_counter
-        #self.sample_counter += 1
-        
-        ################################
-        ## # # Perform MD Sampling # # #
-        ################################
-        
-        ## Iterate over systems
-        #for system in self.sample_systems_atoms:
-            
-            ## Skip unselected system samples
-            #if not md_systems_selection:
-                #continue
-            
-            ## If requested, perform structure optimization
-            #if self.md_systems_optimize:
-                
-                ## Assign ASE optimizer
-                #ase_optimizer = optimize.BFGS
-
-                ## Perform structure optimization
-                #ase_optimizer(system).run(
-                    #fmax=self.md_systems_optimize_fmax)
-                
-            ## Start normal mode sampling
-            #self.run_system(system)
-
     
     def run_system(self, system):
         """
