@@ -22,7 +22,7 @@ We recommend to use [ Miniconda](https://docs.conda.io/projects/conda/en/latest/
 Once in miniconda, you can create a virtual enviroment called *physpack* 
 
 ``` 
-conda env create physpack
+conda create --name physpack python=3.8
 ```
  
 To activate the virtual environment use the command:
