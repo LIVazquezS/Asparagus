@@ -387,7 +387,7 @@ class MetaConstraint:
         self.logfile = logfile
         self.logwrite = logwrite
         
-        self.cv_list = np.array([], dtype=np.float)
+        self.cv_list = np.array([], dtype=float)
         self.last_cv = None
         self.ilog = 0
         
@@ -397,7 +397,7 @@ class MetaConstraint:
                 'same lengths as the number of collective variables cv.')
         
         self.removed_dof = 0
-        
+                
     def get_removed_dof(self, atoms):
         return 0
 
@@ -419,8 +419,8 @@ class MetaConstraint:
         """Returns the Forces related to artificial Gaussian potential"""
         
         # Get collective variable i and partial derivative dcvdR
-        cv = np.zeros(self.Ncv, dtype=np.float)
-        dcvdR = np.zeros([self.Ncv, *forces.shape], dtype=np.float)
+        cv = np.zeros(self.Ncv, dtype=float)
+        dcvdR = np.zeros([self.Ncv, *forces.shape], dtype=float)
         for icv, cvi in enumerate(self.cv):
             # Bond length
             if len(cvi)==2:
@@ -432,7 +432,31 @@ class MetaConstraint:
                     (atoms.positions[cvi[0]] - atoms.positions[cvi[1]])/cv[icv])
             # Angle
             elif len(cvi)==3:
-                raise NotImplementedError
+                # Connection vectors
+                ab = atoms.positions[cvi[0]] - atoms.positions[cvi[1]]
+                cb = atoms.positions[cvi[2]] - atoms.positions[cvi[1]]
+                # Vector distances
+                d2ab = np.sum(ab**2)
+                dab = np.sqrt(d2ab)
+                d2cb = np.sum(cb**2)
+                dcb = np.sqrt(d2cb)
+                # Vector angles
+                cabbc = np.sum(ab*cb)/(dab*dcb)
+                cabbc = np.clip(cabbc, -1.0, 1.0)
+                sabbc = np.sqrt(1.0 - cabbc**2)
+                sabbc = np.clip(sabbc, 1.e-8, None)
+                tabbc = np.arccos(cabbc)
+                # Add to current collective variable
+                cv[icv] = tabbc
+                # Compute gradients dcvdRi
+                a11 = sabbc*cabbc/d2ab
+                a12 = -sabbc/(dab*dcb)
+                a22 = sabbc*cabbc/d2cb
+                fab = a11*ab + a12*cb
+                fcb = a22*cb + a12*ab
+                dcvdR[icv, cvi[0]] = -fab
+                dcvdR[icv, cvi[1]] = fab + fcb
+                dcvdR[icv, cvi[2]] = -fcb
             # Dihedral angle
             elif len(cvi)==4:
                 raise NotImplementedError
@@ -458,7 +482,7 @@ class MetaConstraint:
                 raise IOError('Check cv list of Metadynamic constraint!')
         
         # Put to last cv
-        self.last_cv = cv
+        self.last_cv = cv.copy()
         
         # If CV list is empty return zero forces
         # (Important to put it after last_cv update for the add_to_cv function)
@@ -466,35 +490,40 @@ class MetaConstraint:
             return np.zeros_like(forces)
         
         # Compute Gaussian exponents
+        #exponents = np.sum(
+            #np.divide(
+                #np.square(
+                    #np.subtract(
+                        #self.cv_list,
+                        ##(Nlist, Ncv)
+                        #np.expand_dims(cv, axis=0)
+                        ##(1, Ncv)
+                        #)
+                    ##(Nlist, Ncv)
+                    #),
+                ##(Nlist, Ncv)
+                #np.expand_dims(
+                    #np.multiply(
+                        #2.0,
+                        #np.square(
+                            #self.widths
+                            ##(Ncv)
+                            #)
+                        ##(Ncv)
+                        #),
+                    ##(Ncv)
+                    #axis=0
+                    #)
+                ##(1, Ncv)
+                #),
+            ##(Nlist, Ncv)
+            #axis=1
+            #)
+        ##(Nlist)
         exponents = np.sum(
-            np.divide(
-                np.square(
-                    np.subtract(
-                        self.cv_list,
-                        #(Nlist, Ncv)
-                        np.expand_dims(cv, axis=0)
-                        #(1, Ncv)
-                        )
-                    #(Nlist, Ncv)
-                    ),
-                #(Nlist, Ncv)
-                np.expand_dims(
-                    np.multiply(
-                        2.0,
-                        np.square(
-                            self.widths
-                            #(Ncv)
-                            )
-                        #(Ncv)
-                        ),
-                    #(Ncv)
-                    axis=0
-                    )
-                #(1, Ncv)
-                ),
-            #(Nlist, Ncv)
-            axis=1
-            )
+            (self.cv_list - np.expand_dims(cv, axis=0))**2
+            /np.expand_dims(2.0*self.widths**2, axis=0),
+            axis=1)
         #(Nlist)
         
         # Compute Gaussians
@@ -502,60 +531,68 @@ class MetaConstraint:
         #(Nlist)
         
         # Compute partial derivative d exponent d cv
-        dexpdcv = np.divide(
-            np.subtract(
-                self.cv_list,
-                #(Nlist, Ncv)
-                np.expand_dims(
-                    cv,
-                    #(Ncv)
-                    axis=0
-                    )
-                #(1, Ncv)
-                ),
-            #(Nlist, Ncv)
-            np.expand_dims(
-                np.square(
-                    self.widths
-                    #(Ncv)
-                    ),
-                #(Ncv)
-                axis=0
-                )
-            #(1, Ncv)
-            )
+        #dexpdcv = np.divide(
+            #np.subtract(
+                #self.cv_list,
+                ##(Nlist, Ncv)
+                #np.expand_dims(
+                    #cv,
+                    ##(Ncv)
+                    #axis=0
+                    #)
+                ##(1, Ncv)
+                #),
+            ##(Nlist, Ncv)
+            #np.expand_dims(
+                #np.square(
+                    #self.widths
+                    ##(Ncv)
+                    #),
+                ##(Ncv)
+                #axis=0
+                #)
+            ##(1, Ncv)
+            #)
+        ##(Nlist, Ncv)
+        dexpdcv = (
+            (self.cv_list -  np.expand_dims(cv, axis=0))
+            /np.expand_dims(self.widths**2, axis=0))
         #(Nlist, Ncv)
         
         # Add up gradient with respective to cv
-        dgausdcv = np.sum(
-            np.multiply(
-                np.expand_dims(
-                    gaussians,
-                    #(Nlist)
-                    axis=1
-                    ),
-                #(Nlist, 1)
-                dexpdcv
-                ),
-            #(Nlist, Ncv)
-            axis=0
-            )
+        #dgausdcv = np.sum(
+            #np.multiply(
+                #np.expand_dims(
+                    #gaussians,
+                    ##(Nlist)
+                    #axis=1
+                    #),
+                ##(Nlist, 1)
+                #dexpdcv
+                #),
+            ##(Nlist, Ncv)
+            #axis=0
+            #)
+        ##(Ncv)
+        dgausdcv = np.sum(np.expand_dims(gaussians, axis=1)*dexpdcv, axis=0)
         #(Ncv)
         
         # Compute gradient with respect to Cartesian
-        gradient = np.sum(
-            np.multiply(
-                np.expand_dims(
-                    dgausdcv,
-                    #(Ncv)
-                    axis=(1,2)
-                    ),
-                #(Ncv, 1, 1)
-                dcvdR
-                #(Ncv, Natoms, Ncart)
-                ),
-            axis=0
-            )
+        #gradient = np.sum(
+            #np.multiply(
+                #np.expand_dims(
+                    #dgausdcv,
+                    ##(Ncv)
+                    #axis=(1,2)
+                    #),
+                ##(Ncv, 1, 1)
+                #dcvdR
+                ##(Ncv, Natoms, Ncart)
+                #),
+            #axis=0
+            #)
+        ##(Natoms, Ncart)
+        gradient = np.sum(np.expand_dims(dgausdcv, axis=(1,2))*dcvdR, axis=0)
         #(Natoms, Ncart)
         
         #dvec = (atoms.positions[1] - atoms.positions[0])/cv[0]
@@ -578,7 +615,7 @@ class MetaConstraint:
         """Returns the artificial Gaussian potential"""
         
         # Get collective variable i
-        cv = np.zeros(self.Ncv, dtype=np.float)
+        cv = np.zeros(self.Ncv, dtype=float)
         for icv, cvi in enumerate(self.cv):
             
             # Bond length
@@ -587,7 +624,20 @@ class MetaConstraint:
                     atoms.positions[cvi[0]] - atoms.positions[cvi[1]])
             # Angle
             elif len(cvi)==3:
-                raise NotImplementedError
+                # Connection vectors
+                ab = atoms.positions[cvi[0]] - atoms.positions[cvi[1]]
+                cb = atoms.positions[cvi[2]] - atoms.positions[cvi[1]]
+                # Vector distances
+                d2ab = np.sum(ab**2)
+                dab = np.sqrt(d2ab)
+                d2cb = np.sum(cb**2)
+                dcb = np.sqrt(d2cb)
+                # Vector angles
+                cabbc = np.sum(ab*cb)/(dab*dcb)
+                cabbc = np.clip(cabbc, -1.0, 1.0)
+                tabbc = np.arccos(cabbc)
+                # Add to current collective variable
+                cv[icv] = tabbc
             # Dihedral angle
             elif len(cvi)==4:
                 raise NotImplementedError
@@ -605,7 +655,7 @@ class MetaConstraint:
                 raise IOError('Check cv list of Metadynamic constraint!')
         
         # Update to last cv
-        self.last_cv = cv
+        self.last_cv = cv.copy()
         
         # If CV list is empty return zero potential
         # (Important to put it after last_cv update for the add_to_cv function)
@@ -614,34 +664,9 @@ class MetaConstraint:
         
         # Compute Gaussian exponents
         exponents = np.sum(
-            np.divide(
-                np.square(
-                    np.subtract(
-                        self.cv_list,
-                        #(Nlist, Ncv)
-                        np.expand_dims(cv, axis=0)
-                        #(1, Ncv)
-                        )
-                    #(Nlist, Ncv)
-                    ),
-                #(Nlist, Ncv)
-                np.expand_dims(
-                    np.multiply(
-                        2.0,
-                        np.square(
-                            self.widths
-                            #(Ncv)
-                            )
-                        #(Ncv)
-                        ),
-                    #(Ncv)
-                    axis=0
-                    )
-                #(1, Ncv)
-                ),
-            #(Nlist, Ncv)
-            axis=1
-            )
+            (self.cv_list - np.expand_dims(cv, axis=0))**2
+            /np.expand_dims(2.0*self.widths**2, axis=0),
+            axis=1)
         #(Nlist)
         
         # Compute gaussians
@@ -663,7 +688,7 @@ class MetaConstraint:
         
         # Add cv to list
         if self.cv_list.shape[0]==0:
-            self.cv_list = np.array([cv], dtype=np.float)
+            self.cv_list = np.array([cv], dtype=float)
         else:
             self.cv_list = np.append(self.cv_list, [cv], axis=0)
         

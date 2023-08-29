@@ -40,12 +40,27 @@ if True:
         #)
     #sampler.run()
     
+    #sampler = MetaSampler(
+        #sample_directory='test_samples',
+        #sample_systems='data/hono.xyz',
+        #sample_systems_format='xyz',
+        #meta_cv=[[2, 1], [2, 3], [2, 0]],
+        #meta_hookean=[[2, 1, 4.0], [2, 3, 4.0], [2, 0, 4.0]]
+        #)
+    #sampler.run()
+    
     sampler = MetaSampler(
         sample_directory='test_samples',
-        sample_systems='data/hono.xyz',
+        sample_systems='data/co2.xyz',
         sample_systems_format='xyz',
-        meta_cv=[[2, 1], [2, 3], [2, 0]],
-        meta_hookean=[[2, 1, 4.0], [2, 3, 4.0], [2, 0, 4.0]]
+        meta_cv=[[0, 1, 2]],
+        meta_gaussian_height=0.01,
+        meta_gaussian_widths=0.05,
+        meta_time_step=0.1,
+        meta_simulation_time=1.0E5,
+        meta_save_interval=100,
+        meta_initial_velocities=True,
+        meta_initial_temperature=300.
         )
     sampler.run()
     
