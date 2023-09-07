@@ -6,7 +6,6 @@ import numpy as np
 
 from ase import Atoms
 import ase.db as ase_db
-#from ase.db import  connect
 from ase.neighborlist import neighbor_list
 
 import torch
@@ -765,9 +764,7 @@ class DataSet():
                 atoms.get_atomic_numbers())
             atoms_properties['positions'] = (
                 atoms.get_positions())
-            #TODO
-            atoms_properties['charge'] = (
-                round(np.sum(atoms.get_charges())))
+            atoms_properties['charge'] = properties.get('charge')
             atoms_properties['cell'] = list(atoms.get_cell())[0]
             atoms_properties['pbc'] = atoms.get_pbc()
             atoms_properties['idx_i'] = idx_i

@@ -151,7 +151,15 @@ _default_args = {
     'meta_time_step':               1.,
     'meta_simulation_time':         1.E5,
     'meta_save_interval':           100,
-    'meta_langevin_friction':       1.E-1,
+    'meta_langevin_friction':       1.E-0,
     'meta_initial_velocities':      False,
     'meta_initial_temperature':     300.,
+    # Sample Re-calculator
+    'recalc_interface':             'ase',
+    'recalc_calculator':            'XTB',
+    'recalc_calculator_args':       {},
+    'recalc_properties':            ['energy', 'forces', 'dipole'],
+    'recalc_source_data_file':      None,
+    'recalc_target_data_file':      None,
+    'recalc_directory':             '',
 }

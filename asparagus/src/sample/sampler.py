@@ -107,7 +107,7 @@ class Sampler:
 
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
-        #config_update = {}
+        config_update = {}
         for arg, item in locals().items():
 
             # Skip 'config' argument and possibly more
@@ -130,13 +130,13 @@ class Sampler:
                     arg, item, settings._dtypes_args, raise_error=True)
 
             # Append to update dictionary
-            #config_update[arg] = item
+            config_update[arg] = item
 
             # Assign as class parameter
             setattr(self, arg, item)
 
         # Update global configuration dictionary
-        #config.update(config_update)
+        config.update(config_update)
         
         # Check system input
         if self.sample_systems is None:
@@ -313,10 +313,10 @@ class Sampler:
         ###############################
         
         # Iterate over systems
-        for system in self.sample_systems_atoms:
+        for isys, system in enumerate(self.sample_systems_atoms):
             
             # Skip unselected system samples
-            if not sample_systems_selection:
+            if not sample_systems_selection[isys]:
                 continue
             
             # If requested, perform structure optimization
@@ -337,6 +337,14 @@ class Sampler:
         raise NotImplementedError()
     
     
+    def get_properties(self, system):
+        """
+        Collect system properties and calculator results
+        """
+        
+        return interface.get_ase_properties(system, self.sample_properties)
+
+
     def check_systems_idx(self, systems_idx):
         """
         Check sample system selection input

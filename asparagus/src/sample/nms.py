@@ -71,17 +71,6 @@ class NormalModeScanner(sample.Sampler):
             Normal Mode Scanning class object
         """
         
-        # Initialize parent class with following parameter in kwargs:
-        #config: Optional[Union[str, dict, object]] = None,
-        #sample_directory: Optional[str] = None,
-        #sample_data_file: Optional[str] = None,
-        #sample_systems: Optional[Union[str, List[str], object]] = None,
-        #sample_systems_format: Optional[Union[str, List[str]]] = None,
-        #sample_calculator: Optional[Union[str, object]] = None,
-        #sample_calculator_args: Optional[Dict[str, Any]] = None,
-        #sample_properties: Optional[List[str]] = None,
-        #sample_systems_optimize: Optional[bool] = None,
-        #sample_systems_optimize_fmax: Optional[float] = None,
         super().__init__(**kwargs)
         
         #################################
@@ -177,73 +166,6 @@ class NormalModeScanner(sample.Sampler):
             'nms_limit_of_steps': self.nms_limit_of_steps,
         }
 
-
-    #def run(
-        #self,
-        #nms_systems_idx: Optional[Union[int, List[int]]] = None,
-    #):
-        #"""
-        #Perform Normal Mode Scanning on all sample systems or a
-        #selection of them.
-
-        #Parameters
-        #----------
-
-        #nms_systems_idx: (int, list(int)), optional, default None
-            #Index or list of indices to run normal mode scanning only 
-            #for the respective systems of the sample system list
-        #"""
-        
-        ################################
-        ## # # Check NMS Run Input # # #
-        ################################
-        
-        ## Collect NMS sampling parameters
-        #config_nms = {
-            #f'{self.sample_counter}_{self.sample_tag}': 
-                #self.get_info()
-            #}
-        
-        ## Check sample system selection
-        #nms_systems_selection = self.check_system_idx(nms_systems_idx)
-        
-        ## Update sampling parameters
-        #config_nms['nms_systems_idx'] = nms_systems_idx
-        
-        ## Update configuration file with sampling parameters
-        #if 'sampler_schedule' not in self.config:
-            #self.config['sampler_schedule'] = {}
-        #self.config['sampler_schedule'].update(config_nms)
-        
-        ## Increment sample counter
-        #self.config['sample_counter'] = self.sample_counter
-        #self.sample_counter += 1
-        
-        #########################################
-        ## # # Perform Normal Mode Sampling # # #
-        #########################################
-        
-        ## Iterate over systems
-        #for system in self.sample_systems_atoms:
-            
-            ## Skip unselected system samples
-            #if not nms_systems_selection:
-                #continue
-            
-            ## If requested, perform structure optimization
-            #if self.nms_systems_optimize:
-                
-                ## Assign ASE optimizer
-                #ase_optimizer = optimize.BFGS
-
-                ## Perform structure optimization
-                #ase_optimizer(system).run(
-                    #fmax=self.nms_systems_optimize_fmax)
-                
-            ## Start normal mode sampling
-            #self.run_system(system)
-            
-    
     def run_system(self, system):
         """
         Perform Normal Mode Scanning on the sample system.
@@ -257,11 +179,11 @@ class NormalModeScanner(sample.Sampler):
         # TODO Special calculate property function to handle special properties
         # not supported by ASE such as, e.g., charge, hessian, etc.
         self.sample_calculator.calculate(system)
-        init_properties = system._calc.results
-        system_init_potential = init_properties['energy']
+        system_init_potential = system._calc.results['energy']
         
         # Add initial state properties to dataset
-        self.nms_dataset.add_atoms(system, init_properties)
+        system_properties = self.get_properties(system)
+        self.nms_dataset.add_atoms(system, system_properties)
         
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
@@ -381,8 +303,9 @@ class NormalModeScanner(sample.Sampler):
                             
                         # Add to dataset
                         if converged:
+                            system_properties = self.get_properties(system)
                             self.nms_dataset.add_atoms(
-                                system, current_properties)
+                                system, system_properties)
                         
                         # Check energy threshold
                         if threshold_reached:

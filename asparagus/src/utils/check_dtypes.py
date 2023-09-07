@@ -1,10 +1,14 @@
 
 import numpy as np
 
+import logging
 from typing import Callable
 
 import torch
 import ase
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --------------- ** Checking data types ** ---------------
 
@@ -79,6 +83,11 @@ def is_dictionary(x, verbose=False):
 
 def is_array_like(x, verbose=False):
     if verbose:
+        # Test for inhomogeneity of the array object 
+        try:
+            _ = np.asarray(x)
+        except ValueError as error:
+            logger.warning(error)
         return isinstance(x, darr_all), type(x), str(darr_all)
     else:
         return isinstance(x, darr_all)

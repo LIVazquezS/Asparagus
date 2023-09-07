@@ -113,17 +113,6 @@ class MetaSampler(sample.Sampler):
             Meta(-Dynamics) Sampler class object
         """
         
-        # Initialize parent class with following parameter in kwargs:
-        #config: Optional[Union[str, dict, object]] = None,
-        #sample_directory: Optional[str] = None,
-        #sample_data_file: Optional[str] = None,
-        #sample_systems: Optional[Union[str, List[str], object]] = None,
-        #sample_systems_format: Optional[Union[str, List[str]]] = None,
-        #sample_calculator: Optional[Union[str, object]] = None,
-        #sample_calculator_args: Optional[Dict[str, Any]] = None,
-        #sample_properties: Optional[List[str]] = None,
-        #sample_systems_optimize: Optional[bool] = None,
-        #sample_systems_optimize_fmax: Optional[float] = None,
         super().__init__(**kwargs)
         
         ##################################
@@ -260,7 +249,7 @@ class MetaSampler(sample.Sampler):
         # # # Initialize Sample DataSet # # #
         #####################################
         
-        self.md_dataset = data.DataSet(
+        self.meta_dataset = data.DataSet(
             self.meta_data_file,
             self.sample_unit_positions,
             self.sample_properties,
@@ -338,7 +327,8 @@ class MetaSampler(sample.Sampler):
         Save system properties
         """
         
-        self.md_dataset.add_atoms(system, system._calc.results)
+        system_properties = self.get_properties(system)
+        self.meta_dataset.add_atoms(system, system_properties)
         
         
     def write_trajectory(self, system):

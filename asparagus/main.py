@@ -195,11 +195,6 @@ class Asparagus(torch.nn.Module):
         # Assign NNP Trainer
         if self.trainer is None:
 
-            #self.trainer = train.Train(
-                #self.calculator,
-                #config_train,
-                #**kwargs
-                #)
             self.trainer = train.Trainer(
                 config_train,
                 self.data_container,
@@ -208,18 +203,19 @@ class Asparagus(torch.nn.Module):
                 )
 
         # Start training
-        #self.trainer.train(self.data_train, self.data_valid)
         self.trainer.train()
 
         return
 
-    def test_model(self, checkpoint=None, verbose=True,
-             save_npz=False, npz_name='test_vals.npz',
-             save_csv=False, csv_name='test_vals.csv',
-             plot=False, plots_to_show=None, save_plots=False, show_plots=False,
-             residual_plots=False, residuals_to_show=None, save_residuals=False, show_residuals=False,
-             histogram_plots=False, histograms_to_show=None, save_histograms=False, show_histograms=False,
-                   **kwargs):
+    def test_model(
+        self, 
+        checkpoint=None, verbose=True,
+        save_npz=False, npz_name='test_vals.npz',
+        save_csv=False, csv_name='test_vals.csv',
+        plot=False, plots_to_show=None, save_plots=False, show_plots=False,
+        residual_plots=False, residuals_to_show=None, save_residuals=False, show_residuals=False,
+        histogram_plots=False, histograms_to_show=None, save_histograms=False, show_histograms=False,
+        **kwargs):
         """
         Testing model in the test set.
         
@@ -259,8 +255,11 @@ class Asparagus(torch.nn.Module):
 
         # Assign NNP Tester
         if self.tester is None:
-            self.tester = train.Testing(self.config, self.data_container,
-                                        self.calculator, self.checkpoint)
+            self.tester = train.Testing(
+                self.config, 
+                self.data_container,
+                self.calculator, 
+                self.checkpoint)
         
         # Run testing
         self.tester.test(verbose=verbose,save_npz=save_npz, npz_name=npz_name,

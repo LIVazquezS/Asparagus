@@ -100,7 +100,7 @@ _dtypes_args = {
     'md_equilibration_time':        [utils.is_numeric],
     'md_initial_velocities':        [utils.is_bool],
     'md_initial_temperature':       [utils.is_numeric],
-    'meta_cv':                      [utils.is_integer_array],
+    'meta_cv':                      [utils.is_array_like],
     'meta_gaussian_height':         [utils.is_numeric],
     'meta_gaussian_width':          [utils.is_numeric, utils.is_numeric_array],
     'meta_gaussian_interval':       [utils.is_integer],
@@ -113,4 +113,12 @@ _dtypes_args = {
     'meta_langevin_friction':       [utils.is_numeric],
     'meta_initial_velocities':      [utils.is_bool],
     'meta_initial_temperature':     [utils.is_numeric],
+    # Sample Re-calculator
+    'recalc_interface':             [utils.is_string],
+    'recalc_calculator':            [utils.is_string],
+    'recalc_calculator_args':       [utils.is_dictionary],
+    'recalc_properties':            [utils.is_string, utils.is_string_array],
+    'recalc_source_data_file':      [utils.is_string, utils.is_string_array],
+    'recalc_target_data_file':      [utils.is_string, utils.is_string_array],
+    'recalc_directory':             [utils.is_string],
     }

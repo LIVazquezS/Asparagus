@@ -82,17 +82,6 @@ class MDSampler(sample.Sampler):
             Molecular Dynamics Sampler class object
         """
         
-        # Initialize parent class with following parameter in kwargs:
-        #config: Optional[Union[str, dict, object]] = None,
-        #sample_directory: Optional[str] = None,
-        #sample_data_file: Optional[str] = None,
-        #sample_systems: Optional[Union[str, List[str], object]] = None,
-        #sample_systems_format: Optional[Union[str, List[str]]] = None,
-        #sample_calculator: Optional[Union[str, object]] = None,
-        #sample_calculator_args: Optional[Dict[str, Any]] = None,
-        #sample_properties: Optional[List[str]] = None,
-        #sample_systems_optimize: Optional[bool] = None,
-        #sample_systems_optimize_fmax: Optional[float] = None,
         super().__init__(**kwargs)
         
         ################################
@@ -242,4 +231,6 @@ class MDSampler(sample.Sampler):
         Save system properties
         """
         
-        self.md_dataset.add_atoms(system, system._calc.results)
+        system_properties = self.get_properties(system)
+        self.md_dataset.add_atoms(system, system_properties)
+        
