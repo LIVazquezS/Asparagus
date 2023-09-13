@@ -1,39 +1,53 @@
-import logging
-import torch
-from typing import Optional, List, Dict, Tuple, Union, Any
-import numpy as np
 import os
 import sys
+
+import logging
+from typing import Optional, List, Dict, Tuple, Union, Any
+
+import numpy as np
+
+import torch
 
 from .. import data
 from .. import settings
 from .. import utils
 from .. import model
 
-try: #These packages are necessary for the plotting and analysis but only here.
+#These packages are necessary for the plotting and analysis but only here.
+try: 
     import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
     from scipy import stats
 except ImportError:
-    raise UserWarning("You need to install matplotlib, pandas, seaborn and scipy to use all plotting and analysis functions. Some functions might not work.")
+    raise UserWarning(
+        "You need to install matplotlib, pandas, seaborn and scipy to use all "
+        + "plotting and analysis functions. Some functions might not work.")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ['Testing']
+__all__ = ['Tester']
 
-class Testing:
+class Tester:
+    """
+    Model Prediction Tester Class
+    """
 
     def __init__(self,
         config: Optional[Union[str, dict, object]] = None,
         data_container: Optional[object] = None,
         model_calculator: Optional[object] = None,
-        checkpoint: Optional[str] = None,
+        model_checkpoint: Optional[str] = None,
         test_properties_evaluation: Optional[List[str]] = None,
-                 **kwargs):
+        **kwargs
+    ):
 
+        ####################################
+        # # # Check Model Tester Input # # #
+        ####################################
 
+        # Get configuration object
         config = settings.get_config(config)
 
         # Check input parameter, set default values if necessary and
@@ -43,7 +57,7 @@ class Testing:
 
             # Skip 'config' argument and possibly more
             if arg in [
-                'self', 'config', 'config_update', 'kwargs', '__class__']:
+                    'self', 'config', 'config_update', 'kwargs', '__class__']:
                 continue
 
             # Take argument from global configuration dictionary if not defined
@@ -69,42 +83,49 @@ class Testing:
         # Update global configuration dictionary
         config.update(config_update)
 
-        # Assign global arguments
-        self.dtype = settings._global_dtype
-        self.device = settings._global_device
+        ## Assign global arguments
+        #self.dtype = settings._global_dtype
+        #self.device = settings._global_device
 
         ################################
         # # # Check Data Container # # #
         ################################
 
-        # Assign DataContainer
+        # Assign DataContainer and test data loader 
         if self.data_container is None:
             self.data_container = data.DataContainer(
                 config=config,
                 **kwargs)
-
         self.data_test = self.data_container.test_loader
 
         # Get reference data properties
         self.data_properties = self.data_container.data_load_properties
         self.data_units = self.data_container.data_unit_properties
 
-        # Assign DataContainer
+        ################################
+        # # # Check NNP Calculator # # #
+        ################################
+
+        # Assign NNP calculator model
         if self.model_calculator is None:
-            # Assign NNP calculator model
             self.model_calculator = model.get_calculator(
                 config=config,
                 **kwargs)
 
-        # Load checkpoint if not provided, it takes the best model by default.
-        if checkpoint is None:
-            print('No checkpoint provided, loading best model from {}'.format(config['model_directory']))
-            self.checkpoint = os.path.join(config['model_directory'],'best/best_model.pt')
-        else:
-            self.checkpoint = checkpoint
-
-        latest_ckpt = utils.load_checkpoint(self.checkpoint)
+        # Load checkpoint (best model parameters by default).
+        #if self.model_checkpoint is None:
+            #self.model_checkpoint = os.path.join(
+                #config['model_directory'], 'best/best_model.pt')
+            
+            #print('No model checkpoint provided, loading best model from {}'.format(config['model_directory']))
+        
+        latest_ckpt = utils.load_checkpoint(self.model_checkpoint)
         self.model_calculator.load_state_dict(latest_ckpt['model_state_dict'])
+
+        # Initialize checkpoint file manager and summary writer
+        self.filemanager = FileManager(config)
+        # TODO I wouldn't load checkpoint here (saves memory) but rather when
+        # when testing is performed.
 
         # Get reference data properties
         self.model_properties = self.model_calculator.model_properties

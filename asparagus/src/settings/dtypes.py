@@ -8,7 +8,7 @@ from .. import utils
 # Expected data types of input variables
 _dtypes_args = {
     # Model
-    'model_directory':              [utils.is_string],
+    'model_directory':              [utils.is_string, utils.is_None],
     'model_calculator':             [utils.is_object],
     'model_type':                   [utils.is_string],
     'model_properties':             [utils.is_string_array],
@@ -62,6 +62,7 @@ _dtypes_args = {
     'dataset':                      [utils.is_object],
     'subset_idx':                   [utils.is_integer_array],
     # Trainer
+    'trainer_restart':              [utils.is_bool],
     'trainer_max_epochs':           [utils.is_integer],
     'trainer_properties_train':     [utils.is_string_array],
     'trainer_properties_metrics':   [utils.is_dictionary],

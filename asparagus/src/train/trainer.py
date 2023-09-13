@@ -13,7 +13,7 @@ from .. import model
 
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
-from .test import Testing
+from .tester import Tester
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ class Trainer:
         config: Optional[Union[str, dict, object]] = None,
         data_container: Optional[object] = None,
         model_calculator: Optional[object] = None,
+        trainer_restart: Optional[int] = None,
         trainer_max_epochs: Optional[int] = None,
         trainer_properties_train: Optional[List[str]] = None,
         trainer_properties_metrics: Optional[Dict[str, str]] = None,
@@ -67,6 +68,8 @@ class Trainer:
             NNP model calculator to train matching training and validation
             data in the reference data set. If not provided, the model 
             calculator will be initialized according to config input.
+        trainer_restart: bool, optional, default False
+            Restart the model training from state in config['model_directory']
         trainer_max_epochs: int, optional, default 10000
             Maximum number of training epochs
         trainer_properties_train: list, optional, default []
@@ -166,10 +169,9 @@ class Trainer:
                 config=config,
                 **kwargs)
 
-        # Assign training, validation and test data loader
+        # Assign training and validation data loader
         self.data_train = self.data_container.train_loader
         self.data_valid = self.data_container.valid_loader
-        self.data_test = self.data_container.test_loader
         
         # Get reference data properties
         self.data_properties = self.data_container.data_load_properties
@@ -178,8 +180,8 @@ class Trainer:
         ################################
         # # # Check NNP Calculator # # #
         ################################
-        
-        # Assign DataContainer
+
+        # Assign NNP calculator model
         if self.model_calculator is None:
             
             # Set global dropout rate value
@@ -199,7 +201,6 @@ class Trainer:
                 config.update(
                     {'model_properties_scaling': model_properties_scaling})
                 
-            # Assign NNP calculator model
             self.model_calculator = model.get_calculator(
                 config=config,
                 **kwargs)
@@ -286,7 +287,7 @@ class Trainer:
         # # # Prepare Optimizer # # #
         #############################
         
-        # Assign optimizer
+        # Assign model parameter optimizer
         self.trainer_optimizer = get_optimizer(
             self.trainer_optimizer,
             self.model_calculator.parameters(),
@@ -296,7 +297,7 @@ class Trainer:
         # # # Prepare Scheduler # # #
         #############################
         
-        # Assign scheduler
+        # Assign learning rate scheduler
         self.trainer_scheduler = get_scheduler(
             self.trainer_scheduler,
             self.trainer_optimizer,
@@ -312,20 +313,30 @@ class Trainer:
             self.trainer_ema_model = ExponentialMovingAverage(
                 self.model_calculator.parameters(),
                 decay=self.trainer_ema_decay)
+
+        ##########################
+        # # # Prepare Tester # # #
+        ##########################
         
+        # Assign model prediction tester
+        #self.tester = Tester(
+            #config,
+            #self.data_container,
+            #self.model_calculator)
+
         ##################################
         # # # Load Latest Checkpoint # # #
         ##################################
         
-        # Initialize file management tools
-        self.summary_writer, self.best_dir, self.ckpt_dir = (
-            utils.file_managment(config))
+        # Initialize checkpoint file manager and summary writer
+        self.filemanager = utils.FileManager(
+            config)
+        self.summary_writer = self.filemanager.writer
         
-        # Load, if exists, lated model calculator and training state 
+        # Load, if exists, latest model calculator and training state 
         # checkpoint file
-        latest_checkpoint = utils.load_checkpoint(
-            config.get('checkpoint_file'))
-
+        latest_checkpoint = self.filemanager.load_checkpoint(best=False)
+        
         if latest_checkpoint is not None:
             self.model_calculator.load_state_dict(
                 latest_checkpoint['model_state_dict'])
@@ -333,23 +344,19 @@ class Trainer:
                 latest_checkpoint['optimizer_state_dict'])
             self.trainer_scheduler.load_state_dict(
                 latest_checkpoint['scheduler_state_dict'])
-            self.epoch_start = latest_checkpoint['epoch']
+            self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
         else:
             self.trainer_epoch_start = 1
 
-         ########################################
-        # Prepare the testing part. Important, it will only test for the best model.
-        ########################################
-        self.testing = Testing(self.config,self.data_container,
-                               self.model_calculator)
-
-
-    def train(self, verbose=True):
         
-        # Initialize training mode for calculator
+    def train(self, verbose=True, debug=False):
+        
+        # Initialize training mode for calculator 
+        # (torch.nn.Module function to activate, e.g., parameter dropout)
         self.model_calculator.train()
         torch.set_grad_enabled(True)
-        #torch.autograd.set_detect_anomaly(True)
+        if debug:
+            torch.autograd.set_detect_anomaly(True)
         
         # Initialize best total loss value of validation reference data
         self.best_loss = None
@@ -457,14 +464,11 @@ class Trainer:
 
             # Save current model each interval
             if not (epoch % self.trainer_save_interval):
-                number_of_ckpt = epoch//self.trainer_save_interval
-                utils.save_checkpoint(
-                    self.ckpt_dir,
+                self.filemanager.save_checkpoint(
                     model=self.model_calculator, 
                     optimizer=self.trainer_optimizer,
                     scheduler=self.trainer_scheduler, 
-                    epoch=epoch, 
-                    name_of_ckpt=epoch)
+                    epoch=epoch)
 
             
             # Perform model validation each interval
@@ -495,8 +499,7 @@ class Trainer:
                     metrics_best = metrics_valid
                     
                     # Save model calculator state
-                    utils.save_checkpoint(
-                        self.best_dir,
+                    self.filemanager.save_checkpoint(
                         model=self.model_calculator, 
                         optimizer=self.trainer_optimizer,
                         scheduler=self.trainer_scheduler, 
@@ -506,7 +509,7 @@ class Trainer:
                     #Evaluation of the test set
                     # For the moment, it only prints the statistics for the test set and save the results in a npz file
                     # Later we can add the option to save plots.
-                    self.testing.test(verbose=True,save_npz=True)
+                    #self.testing.test(verbose=True,save_npz=True)
 
 
                     # Write to training summary
@@ -522,7 +525,7 @@ class Trainer:
                                 prop, metrics_best[prop], 
                                 global_step=epoch)
                         
-                    # Update best total loss value
+                    # Update best total loss     value
                     self.best_loss = metrics_valid['loss']
                     
                 # Print validation metrics summary

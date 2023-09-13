@@ -69,13 +69,14 @@ def get_scheduler(
             
             try:
                 
-                trainer_scheduler_args['gamma'] = np.power(
-                    trainer_scheduler_args['gamma'],
-                    1./trainer_scheduler_args['decay_steps'])
+                #TODO Why again???
+                #trainer_scheduler_args['gamma'] = np.power(
+                    #trainer_scheduler_args['gamma'],
+                    #1./trainer_scheduler_args['decay_steps'])
                 
-                # Delete decay_steps
-                # TODO maybe a more elegant way to do this is needed
-                del trainer_scheduler_args['decay_steps'] 
+                ## Delete decay_steps
+                ## TODO maybe a more elegant way to do this is needed
+                #del trainer_scheduler_args['decay_steps'] 
                 
                 return scheduler_avaiable[trainer_scheduler.lower()](
                     optimizer=trainer_optimizer,

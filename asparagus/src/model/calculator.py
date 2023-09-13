@@ -26,6 +26,7 @@ calculator_avaiable = {
 
 def get_calculator(
     config: Optional[Union[str, dict, object]] = None,
+    model_directory: Optional[str] = None,
     model_type: Optional[str] = None,
     **kwargs
 ):
@@ -37,7 +38,9 @@ def get_calculator(
         config: (str, dict, object)
             Either the path to json file (str), dictionary (dict) or
             settings.config class object of model parameters
-        model_type: str
+        model_directory: str, optional, default None
+            Calculator model directory for file management
+        model_type: str, optional, default 'PhysNetRBF'
             Calculator model type of the NN potential
             e.g. 'PhysNetRBF'
         **kwargs: dict, optional

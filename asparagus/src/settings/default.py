@@ -103,6 +103,7 @@ _default_args = {
     'data_overwrite':               False,
     'data_seed':                    np.random.randint(1E6),
     # Trainer
+    'trainer_restart':              False,
     'trainer_max_epochs':           10_000,
     'trainer_loss_fn_properties':   {'energy': 'MAE', 'forces': 'MAE'},
     'trainer_loss_weight':          {'energy': 1., 'forces': 50.},
@@ -112,7 +113,7 @@ _default_args = {
     'trainer_optimizer':            'AMSgrad',
     'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-5},
     'trainer_scheduler':            'ExponentialLR',
-    'trainer_scheduler_args':       {'gamma': 0.999, 'decay_steps': 1000},
+    'trainer_scheduler_args':       {'gamma': 0.999},
     'trainer_ema':                  True,
     'trainer_ema_decay':            0.999,
     'trainer_max_gradient_norm':    1000.0,

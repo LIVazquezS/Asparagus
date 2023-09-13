@@ -2,8 +2,8 @@ from .trainer import (
     Trainer
 )
 
-from .test import (
-    Testing
+from .tester import (
+    Tester
 )
 
 from .optimizer import (

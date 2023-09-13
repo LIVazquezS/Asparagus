@@ -27,6 +27,12 @@ darr_all = (tuple, list, np.ndarray, torch.Tensor)
 # Bool data types
 dbool_all = (bool, np.bool_)
 
+def is_None(x, verbose=False):
+    if verbose:
+        return (x is None), type(x), "NoneType"
+    else:
+        return (x is None)
+
 def is_string(x, verbose=False):
     if verbose:
         return isinstance(x, str), type(x), "str"
