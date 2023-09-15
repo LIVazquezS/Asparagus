@@ -150,7 +150,20 @@ class FileManager():
     ):
         """
         Save model parameters and training state to checkpoint file.
-        If 'best' True, save as best model checkpoint file.
+        
+        Parameters
+        ----------
+
+        model: object
+            Torch calculator model
+        optimizer: object
+            Torch optimizer
+        scheduler: object
+            Torch scheduler
+        best: bool, optional, default False
+            If True, save as best model checkpoint file.
+        num_checkpoint: int, optional, default None
+            Alternative checkpoint index other than epoch.
         """
         
         # Current model training state
@@ -187,9 +200,14 @@ class FileManager():
     ):
         """
         Load model parameters and training state from checkpoint file.
-        If 'best' True, load best model checkpoint file.
-        if 'num_checkpoint' is None, load checkpoint file with highest index
-        number.
+        
+        Parameters
+        ----------
+
+        best: bool, optional, default False
+            If True, load best model checkpoint file.
+        num_checkpoint: int, optional, default None
+            if None, load checkpoint file with highest index number.
         """
         
         if best:
@@ -236,197 +254,67 @@ class FileManager():
         return checkpoint
         
 
-
-
-
-
-
-
-
-
-
-#def file_managment(
-    #config: Optional[Union[str, dict, object]] = None,
-    #restart: Optional[bool] = False,
-#):
-    
-    ## Get configuration object
-    #config = settings.get_config(config)
-    
-    #if restart or config['restart']:
+    def save_config(
+        self,
+        config: object,
+        max_backup: Optional[int] = 10,
+    ):
+        """
+        Save config object in current model directory with the default file 
+        name. If such file already exist, backup the old one and overwrite.
         
-        ## Get and check model directory where the checkpoints are saved
-        #directory = config['model_directory'] 
-        #if not os.path.exists(directory):
-            #raise FileNotFoundError(
-                #f"Restart from model directory '{directory:s}' failed!"
-                #+ "Directory does not exist.")
+        Parameters
+        ----------
+
+        config: object
+            Config class object
+        max_backup: optional, int, default 100
+            Maximum number of backup config files
+        """
         
-        #logs_dir = os.path.join(directory, 'logs')
-        #best_dir = os.path.join(directory, 'best')
-        #ckpt_dir = os.path.join(directory, 'checkpoints')
+        # Config file path
+        config_file = os.path.join(
+            self.model_directory, settings._default_args['config_file'])
         
-        ## Initialize training summary writer
-        #writer = SummaryWriter(log_dir=logs_dir)
-        
-    #else:
-        
-        ## Take either deined model directory path or a generate a generic one
-        #if config['model_directory'] is None:
-            #directory = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            #config['model_directory'] = directory
-        #else:
-            #directory = config['model_directory']
-        
-        ## I would prefer if we keep the specifications of the NN model in the name of the directory...LIVS
-        ## I see your point, but the commented version seems very PhysNet specific.
-        ## Maybe add a __str__() function to the model which returns a model
-        ## tag for the directory name.
-        ##(
-            ##datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
-            ##+ "_" + id_generator() + "_F" + str(config['input_n_atombasis'])
-            ##+ "K" + str(config['input_nradialbasis']) + "b" + str(config['graph_n_blocks'])
-            ##+ "a" + str(config['graph_n_residual_atomic'])
-            ##+ "i" + str(config['graph_n_residual_interaction'])
-            ##+ "o" + str(config['output_n_residual']) + "cut" + str(config['input_cutoff_descriptor'])
-            ##+ "e" + str(config['model_electrostatic']) + "d" + str(config['model_dispersion']) + "r" + str(config['model_repulsion']))
-
-        ## Prepare model directory
-        #best_dir = os.path.join(directory, 'best')
-        #logs_dir = os.path.join(directory, 'logs')
-        #ckpt_dir = os.path.join(directory, 'checkpoints')
-        #create_model_directory(directory, ckpt_dir, logs_dir, best_dir)
-
-        ## Initialize training summary writer
-        #writer = SummaryWriter(log_dir=logs_dir)
-        
-    #return writer, best_dir, ckpt_dir
-
-
-#def id_generator(
-    #size=8, 
-    #chars=(
-        #string.ascii_uppercase
-        #+ string.ascii_lowercase
-        #+ string.digits)
-    #):
-    #"""
-    #Generate an (almost) unique id for the training session
-    #"""
-    
-    #return ''.join(random.SystemRandom().choice(chars) for _ in range(size))
-
-#def create_model_directory(
-    #directory: str, 
-    #ckpt_dir: str, 
-    #logs_dir: str, 
-    #best_dir: str,
-#):
-    #"""
-    #Create folders for checkpoints and tensorboardX
-    #"""
-    
-    ## Create model directory
-    #if not os.path.exists(directory):
-        #os.makedirs(directory)
-    ## Create directory for model parameter checkpoints
-    #if not os.path.exists(ckpt_dir):
-        #os.makedirs(ckpt_dir)
-    ## Create directory for tensorboardX/logs in previous physnet_torch version
-    #if not os.path.exists(logs_dir):
-        #os.makedirs(logs_dir)
-    ## Create directory for best model checkpoints
-    #if not os.path.exists(best_dir):
-        #os.makedirs(best_dir)
+        # Check for old config files
+        if os.path.exists(config_file):
+            
+            default_file = settings._default_args['config_file']
+            
+            # Check for backup config files
+            list_backups = []
+            for f in os.listdir(self.model_directory):
+                num_backup = re.findall(
+                    "(\d+)_" + default_file, f)
+                num_backup = (int(num_backup[0]) if num_backup else -1)
+                if num_backup >= 0:
+                    list_backups.append(num_backup)
+            list_backups = sorted(list_backups)
+            
+            # Rename old config file
+            if len(list_backups):
+                backup_file = os.path.join(
+                    self.model_directory,
+                    f"{list_backups[-1] + 1:d}_" + default_file)
+            else:
+                backup_file = os.path.join(
+                    self.model_directory,
+                    f"{1:d}_" + default_file)
+            os.rename(config_file, backup_file)
+            
+            # If maximum number of back file reached, delete the oldest
+            if len(list_backups) >= max_backup:
+                for num_backup in list_backups[:-(max_backup - 1)]:
+                    backup_file = os.path.join(
+                        self.model_directory,
+                        f"{num_backup:d}_" + default_file)
+                    os.remove(backup_file)
+            
+        # Dump config in file path
+        config.dump(config_file=config_file)
+                
 
 
-#def save_checkpoint(
-    #directory: str, 
-    #model, 
-    #optimizer, 
-    #scheduler, 
-    #epoch, 
-    #best=False
-    #num_checkpoint=None, 
-#):
-    #"""
-    #Save model parameters and training state to checkpoint file
-    #"""
-    
-    ## Current model training state
-    #state = {
-        #'model_state_dict': model.state_dict(),
-        #'optimizer_state_dict': optimizer.state_dict(),
-        #'scheduler_state_dict': scheduler.state_dict(),
-        #'epoch': epoch, 
-        #}
-    
-    ## Checkpoint file name
-    #if best:
-        #ckpt_name = os.path.join(directory, 'best_model.pt')
-    #elif num_checkpoint is None:
-        #ckpt_name = os.path.join(directory, f'model_{epoch:d}.pt')
-    #else:
-        #if utils.is_integer(num_checkpoint):
-            #ckpt_name = os.path.join(directory, f'model_{num_checkpoint:d}.pt')
-        #else:
-            #raise ValueError(
-                #"Checkpoint file index number 'num_checkpoint' is not an"
-                #+ "integer!")
-
-    ## Write checkpoint file
-    #torch.save(state, ckpt_name)
 
 
-#def load_checkpoint(
-    #path
-#):
-    
-    
-    #if path is not None:
-        #checkpoint = torch.load(path)
-        #return checkpoint
-    #else:
-        #return None
-    
-
-#def save_checkpoint_Trainer(                                                                                                  
-    #calculator: object,
-    #optimizer: object,
-    #scheduler: object, 
-    #epoch: int, 
-    #name_of_ckpt: Optional[str] = '', 
-    #best: Optional[bool] = False,
-#):
-    
-    ## Store current state dictionary data
-    #state = {
-        #'model_state_dict': model.state_dict(),
-        #'optimizer_state_dict': optimizer.state_dict(),
-        #'scheduler_state_dict': scheduler.state_dict(),
-        #'epoch': epoch}                                                                                               
-    
-    #if best:
-        #path = os.path.join(best_dir, best_file)
-    #else:
-        #path = os.path.join(checkpoint_dir, checkpoint_file.format(epoch))
-
-    ## Save checkpoint file
-    #torch.save(state, path)
-
-
-#def load_checkpoint_Trainer(
-    #ckpt_file: Optional[str] = '',
-    #best: Optional[bool] = False,
-#):
-    
-    #if best:
-        #checkpoint = torch.load(os.path.join(best_dir, best_file))                                                    
-    #elif len(ckpt_file):
-        #checkpoint = torch.load(ckpt_file)                                                                            
-        ##checkpoint = torch.load(os.path.join(checkpoint_dir, ckpt_file))
-    #else:
-        #checkpoint = torch.load(os.path.join(checkpoint_dir, checkpoint_file))                                        
-    
-    #return checkpoint
 

@@ -332,12 +332,7 @@ class Calculator_PhysNet(torch.nn.Module):
 
         # Run output model
         output = self.output_model(messages)
-        
-        # Apply output scaling and shift
-        for prop, item in self.model_scaling.items():
-            prop_scale, prop_shift = item[atomic_numbers].T
-            output[prop] = output[prop]*prop_scale + prop_shift
-
+    
         # Add repulsion model contribution
         if self.model_repulsion:
             pass
@@ -409,6 +404,14 @@ class Calculator_PhysNet(torch.nn.Module):
             output['dipole'] = utils.segment_sum(
                 output['atomic_charges'][..., None]*positions,
                 idx_seg, device=self.device).reshape(-1, 3)
+
+        ## Apply output scaling and shift
+        #for prop, item in self.model_scaling.items():
+            #prop_scale, prop_shift = item[atomic_numbers].T
+            #print(prop, prop_scale[0], prop_shift[0])
+            #print('unscaled', output[prop][0])
+            #output[prop] = output[prop]*prop_scale + prop_shift
+            #print('scaled', output[prop][0])
 
         #print('properties predicted: ', output.keys())
         #print('energy: ', output['energy'])

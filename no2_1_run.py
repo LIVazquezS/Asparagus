@@ -25,6 +25,8 @@ if True:
 
     model = Asparagus(
         data_file='data/no2_1.db',
+        model_interaction_cutoff=20.0,
+        model_cutoff_width=5.0,
         model_properties=['energy', 'atomic_charges', 'dipole'],
         output_properties=['energy','atomic_charges', 'dipole'],
         trainer_properties_weights={'energy': 100., 'dipole': 1.}

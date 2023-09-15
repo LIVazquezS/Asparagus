@@ -287,6 +287,11 @@ class Trainer:
         # # # Prepare Optimizer # # #
         #############################
         
+        #for name, param in self.model_calculator.state_dict().items():
+            #print(name)
+            #print(param)
+        #exit()
+        
         # Assign model parameter optimizer
         self.trainer_optimizer = get_optimizer(
             self.trainer_optimizer,
@@ -314,24 +319,37 @@ class Trainer:
                 self.model_calculator.parameters(),
                 decay=self.trainer_ema_decay)
 
-        ##########################
-        # # # Prepare Tester # # #
-        ##########################
-        
-        # Assign model prediction tester
-        #self.tester = Tester(
-            #config,
-            #self.data_container,
-            #self.model_calculator)
-
-        ##################################
-        # # # Load Latest Checkpoint # # #
-        ##################################
+        ################################
+        # # # Prepare File Manager # # #
+        ################################
         
         # Initialize checkpoint file manager and summary writer
         self.filemanager = utils.FileManager(
             config)
         self.summary_writer = self.filemanager.writer
+        
+        ##########################
+        # # # Prepare Tester # # #
+        ##########################
+        
+        # Assign model prediction tester
+        self.tester = Tester(
+            config,
+            self.data_container)
+
+        #############################
+        # # # Save Model Config # # #
+        #############################
+        
+        # Save a copy of the current model configuration in the model directory
+        self.filemanager.save_config(config)
+
+
+    def train(self, verbose=True, debug=False):
+        
+        ####################################
+        # # # Prepare Model and Metric # # #
+        ####################################
         
         # Load, if exists, latest model calculator and training state 
         # checkpoint file
@@ -347,9 +365,6 @@ class Trainer:
             self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
         else:
             self.trainer_epoch_start = 1
-
-        
-    def train(self, verbose=True, debug=False):
         
         # Initialize training mode for calculator 
         # (torch.nn.Module function to activate, e.g., parameter dropout)
@@ -372,7 +387,11 @@ class Trainer:
         
         # Initialize training time estimation per epoch
         train_time_estimation = np.nan
-        
+
+        ##########################
+        # # # Start Training # # #
+        ##########################
+
         # Loop over epochs
         for epoch in torch.arange(
                 self.trainer_epoch_start, self.trainer_max_epochs):
@@ -382,7 +401,7 @@ class Trainer:
             
             # Reset property metrics
             metrics_train = self.reset_metrics()
-            
+
             # Loop over training batches
             for ib, batch in enumerate(self.data_train):
                 
@@ -409,6 +428,8 @@ class Trainer:
                 # Compute total and single loss values for training properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, loss_fn=loss_fn)
+                #print('pred', prediction['energy'][0])
+                #print('ref', batch['energy'][0])
                 loss = metrics_batch['loss']
 
                 # Predict parameter gradients by backwards propagation
@@ -474,6 +495,9 @@ class Trainer:
             # Perform model validation each interval
             if not (epoch % self.trainer_validation_interval):
                 
+                # Change to evaluation mode for calculator 
+                self.model_calculator.eval()
+                
                 # Reset property metrics
                 metrics_valid = self.reset_metrics()
                 
@@ -491,6 +515,9 @@ class Trainer:
                     # Update average metrics
                     self.update_metrics(metrics_valid, metrics_batch)
                     
+                # Change back to training mode for calculator 
+                self.model_calculator.train()
+
                 # Check for model improvement and save as best model eventually
                 if (self.best_loss is None or 
                         metrics_valid['loss'] < self.best_loss):
@@ -506,11 +533,13 @@ class Trainer:
                         epoch=epoch,
                         best=True)
 
-                    #Evaluation of the test set
-                    # For the moment, it only prints the statistics for the test set and save the results in a npz file
-                    # Later we can add the option to save plots.
-                    #self.testing.test(verbose=True,save_npz=True)
-
+                    # Evaluation of the test set
+                    self.tester.test(
+                        self.model_calculator, 
+                        test_directory=self.filemanager.best_dir,
+                        test_plot_correlation=True,
+                        test_plot_histogram=True,
+                        test_plot_residual=True)
 
                     # Write to training summary
                     for prop, value in metrics_best.items():
@@ -623,6 +652,7 @@ class Trainer:
         # Initialize MAE calculator function if needed
         if not loss_only:
             mae_fn = torch.nn.L1Loss(reduction="mean")
+            mse_fn = torch.nn.MSELoss(reduction="mean")
         
         # Initialize metrics dictionary
         metrics = {}
@@ -657,6 +687,9 @@ class Trainer:
                 metrics[prop]['mae'] = mae_fn(
                     torch.flatten(prediction[prop]), 
                     torch.flatten(reference[prop]))
-                metrics[prop]['mse'] = metrics[prop]['mae']**2
+                metrics[prop]['mse'] = mse_fn(
+                    torch.flatten(prediction[prop]), 
+                    torch.flatten(reference[prop]))
+                
             
         return metrics

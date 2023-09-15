@@ -120,6 +120,8 @@ _default_args = {
     'trainer_save_interval':        5,
     'trainer_validation_interval':  5,
     'trainer_dropout_rate':         0.0,
+    # Tester
+    'tester_properties':            None,
     # Sampler
     'sample_directory':             '',
     'sample_data_file':             'sample.db',

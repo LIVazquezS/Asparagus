@@ -77,6 +77,10 @@ _dtypes_args = {
     'trainer_save_interval':        [utils.is_integer],
     'trainer_validation_interval':  [utils.is_integer],
     'trainer_dropout_rate':         [utils.is_numeric],
+    # Tester
+    'tester_properties':            [utils.is_string, 
+                                     utils.is_string_array,
+                                     utils.is_None],
     # Sampler
     'sample_directory':             [utils.is_string],
     'sample_data_file':             [utils.is_string],

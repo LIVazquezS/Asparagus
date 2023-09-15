@@ -112,32 +112,33 @@ class Configuration():
 
         # Initialize class parameter
         self.config_dict = {}
-        self.config_file = settings._global_config_file
         self.config_indent = 4
 
         # If no 'config' input given, load from global configuration file path
         if config is None:
-
             self.config_dict = self.read(settings._global_config_file)
-
         # For 'config' being file path (str), load from json file
         elif utils.is_string(config):
-
             self.config_dict = self.read(config)
-
         # For 'config' being a dictionary
         elif utils.is_dictionary(config):
-
             self.config_dict = config
-
         else:
-
             raise ValueError(
                 "Input 'config' is not of valid data type!\n" +
                 "Data type 'dict', 'str' or a config class object " +
                 f"is expected but '{type(config)}' is given.")
 
         # Check and set configuration file path.
+        if config_file is None:
+            self.config_file = settings._global_config_file
+        elif utils.is_string(config_file):
+            self.config_file = config_file
+        else:
+            raise ValueError(
+                "Input 'config_file' is not of valid data type!\n" +
+                "Data type 'str' is expected for the config file path " +
+                f"but '{type(config_file)}' is given.")
         self.set_config_file(config_file, config_global)
 
         # Update configuration dictionary with keyword arguments
@@ -334,9 +335,18 @@ class Configuration():
         return
 
 
-    def dump(self):
+    def dump(
+        self,
+        config_file: Optional[str] = None
+    ):
         """
         Save configuration dictionary to json file
+        
+        Parameters
+        ----------
+
+        config_file: str, optional, default None
+            Dump current config dictionary in this file path.
         """
 
         # Initialize dictionary with JSON compatible parameter types
@@ -367,8 +377,12 @@ class Configuration():
             else:
                 continue
 
-        with open(self.config_file, 'w') as f:
-            json.dump(config_dump, f, indent=self.config_indent)
+        if config_file is None:
+            with open(self.config_file, 'w') as f:
+                json.dump(config_dump, f, indent=self.config_indent)
+        else:
+            with open(config_file, 'w') as f:
+                json.dump(config_dump, f, indent=self.config_indent)
 
 
     def check(
