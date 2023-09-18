@@ -27,6 +27,7 @@ class FileManager():
         self,
         config: Optional[Union[str, dict, object]] = None,
         model_directory: Optional[str] = None,
+        max_checkpoints: Optional[int] = None,
     ):
         """
         Initialize file manager class.
@@ -52,39 +53,26 @@ class FileManager():
 
         # Get configuration object
         config = settings.get_config(config)
+        
+        # Get model directory from input or config dictionary
+        if model_directory is None:
+            self.model_directory = config.get('model_directory')
+        elif utils.is_string(model_directory):
+            self.model_directory = model_directory
+        else:
+            raise ValueError(
+                "Input for model directory is not as expected!\n"
+                + "A directory path in form of a string is required.")
 
-        # Check input parameter, set default values if necessary and
-        # update the configuration dictionary
-        config_update = {}
-        for arg, item in locals().items():
-
-            # Skip 'config' argument and possibly more
-            if arg in [
-                    'self', 'config', 'config_update', 'kwargs', '__class__']:
-                continue
-            
-            # Take argument from global configuration dictionary if not defined
-            # directly
-            if item is None:
-                item = config.get(arg)
-
-            # Set default value if the argument is not defined (None)
-            if arg in settings._default_args.keys() and item is None:
-                item = settings._default_args[arg]
-
-            # Check datatype of defined arguments
-            if arg in settings._dtypes_args.keys():
-                match = utils.check_input_dtype(
-                    arg, item, settings._dtypes_args, raise_error=True)
-
-            # Append to update dictionary
-            config_update[arg] = item
-
-            # Assign as class parameter
-            setattr(self, arg, item)
-
-        # Update global configuration dictionary
-        config.update(config_update)
+        # Get number of maximum checkpoints files from input or config dict.
+        if max_checkpoints is None:
+            self.max_checkpoints = None
+        elif utils.is_integer(max_checkpoints):
+            self.max_checkpoints = max_checkpoints
+        else:
+            raise ValueError(
+                "Input for maximum checkpoint files is not as expected!\n"
+                + "An integer number is required.")
 
         ###################################
         # # # Prepare Model Directory # # #
@@ -147,6 +135,7 @@ class FileManager():
         epoch: int, 
         best: Optional[bool] = False,
         num_checkpoint: Optional[int] = None,
+        max_checkpoints: Optional[int] = None,
     ):
         """
         Save model parameters and training state to checkpoint file.
@@ -164,6 +153,11 @@ class FileManager():
             If True, save as best model checkpoint file.
         num_checkpoint: int, optional, default None
             Alternative checkpoint index other than epoch.
+        max_checkpoints: int, optional, default 100
+            Maximum number of checkpoint files. If the threshold is reached and
+            a checkpoint of the best model (best=True) or specific number 
+            (num_checkpoint is not None), respectively many checkpoint files 
+            with the lowest indices will be deleted.
         """
         
         # Current model training state
@@ -180,6 +174,7 @@ class FileManager():
         elif num_checkpoint is None:
             ckpt_name = os.path.join(
                 self.ckpt_dir, f'model_{epoch:d}.pt')
+            self.check_max_checkpoints(max_checkpoints)
         else:
             if utils.is_integer(num_checkpoint):
                 ckpt_name = os.path.join(
@@ -253,6 +248,39 @@ class FileManager():
         
         return checkpoint
         
+
+    def check_max_checkpoints(
+        self,
+        max_checkpoints: Optional[int] = None,
+    ):
+        """
+        Check number of checkpoint files and in case of exceeding the 
+        maximum checkpoint threshold, delete the ones with lowest indices.
+        """
+        
+        # Skip in checkpoint threshold is None
+        if max_checkpoints is None and self.max_checkpoints is None:
+            return
+        elif max_checkpoints is None:
+            max_checkpoints = self.max_checkpoints
+
+        # Gather checkpoint files
+        num_checkpoints = []
+        for ckpt_file in os.listdir(self.ckpt_dir):
+            ckpt_num = re.findall("model_(\d+).pt", ckpt_file)
+            if ckpt_num:
+                num_checkpoints.append(int(ckpt_num[0]))
+        num_checkpoints = sorted(num_checkpoints)
+            
+        # Delete in case the lowest checkpoint files
+        if len(num_checkpoints) >= max_checkpoints:
+            for ckpt_num in num_checkpoints[:-(max_checkpoints - 1)]:
+                ckpt_name = os.path.join(
+                    self.ckpt_dir, f'model_{ckpt_num:d}.pt')
+                os.remove(ckpt_name)
+
+        return
+
 
     def save_config(
         self,

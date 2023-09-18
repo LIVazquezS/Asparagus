@@ -120,6 +120,7 @@ _default_args = {
     'trainer_save_interval':        5,
     'trainer_validation_interval':  5,
     'trainer_dropout_rate':         0.0,
+    'trainer_max_checkpoints':      50,
     # Tester
     'tester_properties':            None,
     # Sampler

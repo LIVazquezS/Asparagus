@@ -188,6 +188,7 @@ class Tester:
         test_csv_file: Optional[str] = 'test_prediction.csv',
         test_save_npz: Optional[bool] = False,
         test_npz_file: Optional[str] = 'test_prediction.npz',
+        test_scale_per_atom: Optional[Union[str, List[str]]] = ['energy'],
         verbose: Optional[bool] = True,
     ):
         """
@@ -226,6 +227,9 @@ class Tester:
             Save all model prediction results in a binary npz file.
         test_npz_file: str, optional, default 'test_prediction.npz'
             Name of the npz file
+        test_scale_per_atom: (str list(str), optional, default ['energy']
+            List of properties where the results will be scaled by the number 
+            of atoms in the particular system.
         verbose: bool, optional, default True
             Print test metrics.
         """
@@ -270,10 +274,13 @@ class Tester:
         
         # Reset property metrics
         metrics_test = self.reset_metrics(eval_properties)
-        
-        # Loop over test batches
+
+        # Prepare dictionary for property values and number of atoms per system
         test_prediction = {prop: [] for prop in test_properties}
         test_reference = {prop: [] for prop in test_properties}
+        test_prediction['atoms_number'] = []
+        
+        # Loop over test batches
         for batch in self.data_test:
             
             # Predict model properties from data batch
@@ -304,12 +311,19 @@ class Tester:
                 test_prediction[prop] += list(data_prediction)
                 test_reference[prop] += list(data_reference)
             
+            # Store atom numbers
+            test_prediction['atoms_number'] += list(batch['atoms_number'])
+
         # Change back to training mode for calculator 
         model_calculator.train()
         
         # Print metrics
         if verbose:
             self.print_metric(metrics_test, eval_properties)
+        
+        ###########################
+        # # # Save Properties # # #
+        ###########################
         
         # Save test prediction to files 
         #TODO how to save inhomogeneous data to files?
@@ -323,6 +337,21 @@ class Tester:
                     #"WARNING:\nModule 'pandas' is not available. Predicted " +
                     #"test properties are not written to a csv file!")
 
+        ###########################
+        # # # Plot Properties # # #
+        ###########################
+        
+        # Check input for scaling per atom and prepare atom number scaling
+        if utils.is_string(test_scale_per_atom):
+            test_scale_per_atom = [test_scale_per_atom]
+        test_property_scaling = {}
+        for prop in eval_properties:
+            if prop in test_scale_per_atom:
+                test_property_scaling[prop] = (
+                    1./np.array(test_prediction['atoms_number'], dtype=float)) 
+            else:
+                test_property_scaling[prop] = None
+
         # Plot correlation between model and reference properties
         if test_plot_correlation:
             for prop in eval_properties:
@@ -332,6 +361,7 @@ class Tester:
                     self.plain_data(test_reference[prop]),
                     self.data_units[prop],
                     metrics_test[prop],
+                    test_property_scaling[prop],
                     test_directory,
                     test_plot_format,
                     test_plot_dpi
@@ -360,10 +390,12 @@ class Tester:
                     self.plain_data(test_reference[prop]),
                     self.data_units[prop],
                     metrics_test[prop],
+                    test_property_scaling[prop],
                     test_directory,
                     test_plot_format,
                     test_plot_dpi
                     )
+
 
     @staticmethod
     def is_imported(module):
@@ -503,6 +535,7 @@ class Tester:
         data_reference: List[float],
         unit_property: str,
         data_metrics: Dict[str, float],
+        test_scaling: List[float],
         test_directory: str,
         test_plot_format: str,
         test_plot_dpi: int,
@@ -545,7 +578,15 @@ class Tester:
             r2 = stats.pearsonr(data_prediction, data_reference).statistic
             data_label += (
                 "\n" + r"1 - $R^2$ = " + f"{1.0 - r2:3.2e}")
-        
+
+        # Scale data if requested
+        if test_scaling is not None:
+            data_prediction = data_prediction*test_scaling
+            data_reference = data_reference*test_scaling
+            scale_label = "per atom "
+        else:
+            scale_label = ""
+
         # Plot data
         data_min = np.min(
             (np.nanmin(data_reference), np.nanmin(data_prediction)))
@@ -575,11 +616,11 @@ class Tester:
 
         # Axis labels
         axs1.set_xlabel(
-            f"Reference {label_property:s} ({unit_property:s})",
+            f"Reference {label_property:s} {scale_label:s}({unit_property:s})",
             fontweight='bold')
         axs1.get_xaxis().set_label_coords(0.5, -0.12)
         axs1.set_ylabel(
-            f"Model {label_property:s} ({unit_property:s})",
+            f"Model {label_property:s} {scale_label:s}({unit_property:s})",
             fontweight='bold')
         axs1.get_yaxis().set_label_coords(-0.18, 0.5)
 
@@ -704,6 +745,7 @@ class Tester:
         data_reference: List[float],
         unit_property: str,
         data_metrics: Dict[str, float],
+        test_scaling: List[float],
         test_directory: str,
         test_plot_format: str,
         test_plot_dpi: int,
@@ -745,7 +787,15 @@ class Tester:
             r2 = stats.pearsonr(data_prediction, data_reference).statistic
             data_label += (
                 "\n" + r"1 - $R^2$ = " + f"{1.0 - r2:3.2e}")
-        
+
+        # Scale data if requested
+        if test_scaling is not None:
+            data_prediction = data_prediction*test_scaling
+            data_reference = data_reference*test_scaling
+            scale_label = "per atom "
+        else:
+            scale_label = ""
+
         # Plot data
         data_min = np.nanmin(data_reference)
         data_max = np.nanmax(data_reference)
@@ -779,11 +829,12 @@ class Tester:
 
         # Axis labels
         axs1.set_xlabel(
-            f"Reference {label_property:s} ({unit_property:s})",
+            f"Reference {label_property:s} {scale_label:s}({unit_property:s})",
             fontweight='bold')
         axs1.get_xaxis().set_label_coords(0.5, -0.12)
         axs1.set_ylabel(
-            f"Prediction error {label_property:s} ({unit_property:s})",
+            f"Prediction error {label_property:s} {scale_label:s}" 
+            + f"({unit_property:s})",
             fontweight='bold')
         axs1.get_yaxis().set_label_coords(-0.08, 0.5)
 

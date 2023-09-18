@@ -49,6 +49,7 @@ class Trainer:
         trainer_max_gradient_norm: Optional[float] = None,
         trainer_save_interval: Optional[int] = None,
         trainer_validation_interval: Optional[int] = None,
+        trainer_max_checkpoints: Optional[int] = None,
         **kwargs
     ):
         """
@@ -105,6 +106,9 @@ class Trainer:
         trainer_validation_interval: int, optional, default 5
             Interval between epoch to evaluate model performance on
             validation data.
+        trainer_max_checkpoints: int, optional, default 50
+            Maximum number of checkpoint files stored before deleting the 
+            oldest ones up to the number threshold. 
         **kwargs: dict, optional
             Additional arguments
 
@@ -325,7 +329,8 @@ class Trainer:
         
         # Initialize checkpoint file manager and summary writer
         self.filemanager = utils.FileManager(
-            config)
+            config,
+            max_checkpoints=self.trainer_max_checkpoints)
         self.summary_writer = self.filemanager.writer
         
         ##########################
