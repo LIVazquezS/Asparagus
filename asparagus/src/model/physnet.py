@@ -253,43 +253,92 @@ class Calculator_PhysNet(torch.nn.Module):
                 device=self.device,
                 dtype=self.dtype)
 
-        # Initialize scaling and shifting factors
-        self.model_scaling = {}
-
         # Special case: 'energy', 'atomic_energies'
-        if ('energy' in self.model_properties_scaling.keys()
-            and not 'atomic_energies' in self.model_properties_scaling.keys()
-            and 'energy' in self.model_properties
+        if ('energy' in self.model_properties
+            and 'atomic_energies' in self.model_properties_scaling
             ):
-            self.model_scaling['atomic_energies'] = torch.nn.Parameter(
+            self.atomic_energies_scaling = torch.nn.Parameter(
+                torch.tensor(
+                    self.model_properties_scaling['atomic_energies'], 
+                    dtype=self.dtype,
+                    device=self.device
+                    ).expand(
+                        self.input_n_atombasis, 
+                        len(self.model_properties_scaling['atomic_energies'])
+                        ).clone()
+                    )
+        elif ('energy' in self.model_properties
+            and 'energy' in self.model_properties_scaling            
+            ):
+            self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
                     self.model_properties_scaling['energy'], 
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
                         self.input_n_atombasis, 
-                        len(self.model_properties_scaling['energy'])))
+                        len(self.model_properties_scaling['energy'])
+                        ).clone()
+                    )
+        else:
+            self.atomic_energies_scaling = torch.nn.Parameter(
+                torch.tensor(
+                    [1.0, 0.0], 
+                    dtype=self.dtype, 
+                    device=self.device
+                    ).expand(
+                        self.input_n_atombasis, 
+                        2
+                        ).clone()
+                    )
 
         # Special case: 'atomic_charges'
-        if (not 'atomic_charges' in self.model_properties_scaling.keys()
+        if ('atomic_charges' in self.model_properties_scaling.keys()
             and 'atomic_charges' in self.model_properties
             ):
-            self.model_scaling['atomic_charges'] = torch.nn.Parameter(
+            self.atomic_charges_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    [1.0, 0.0], dtype=self.dtype, device=self.device
-                    ).expand(self.input_n_atombasis, 2))
+                    self.model_properties_scaling['atomic_charges'],
+                    dtype=self.dtype, 
+                    device=self.device
+                    ).expand(
+                        self.input_n_atombasis, 
+                        len(self.model_properties_scaling['atomic_charges'])
+                        ).clone()
+                    )
+        else:
+            self.atomic_charges_scaling = torch.nn.Parameter(
+                torch.tensor(
+                    [1.0, 0.0], 
+                    dtype=self.dtype, 
+                    device=self.device
+                    ).expand(
+                        self.input_n_atombasis, 
+                        2
+                        ).clone()
+                    )
 
+        # Initialize scaling and shifting factors dictionary for properties
+        # except atomic energies and charges
+        model_scaling = {}
+        
         # Other cases
         for prop, item in self.model_properties_scaling.items():
-            # Skip certain properties
-            if prop in ['energy', 'forces', 'hessian', 'charge', 'dipole']:
+            # Skip properties derived from energy and charge
+            if prop in [
+                'energy', 'forces', 'hessian', 
+                'atomic_charges', 'charge', 'dipole'
+                ]:
                 continue
             if prop not in self.model_properties:
                 continue
-            self.model_scaling[prop] = torch.nn.Parameter(
+            model_scaling[prop] = torch.nn.Parameter(
                 torch.tensor(
                     item, dtype=self.dtype, device=self.device
                     ).expand(self.input_n_atombasis, len(item)))
+
+        # Convert model scaling to torch dictionary
+        self.model_scaling = torch.nn.ParameterDict(model_scaling)
 
         return
 
@@ -332,7 +381,11 @@ class Calculator_PhysNet(torch.nn.Module):
 
         # Run output model
         output = self.output_model(messages)
-    
+
+        # Scale atomic energies by fit parameter
+        scale, shift = self.atomic_energies_scaling[atomic_numbers].T
+        output['atomic_energies'] = output['atomic_energies']*scale + shift
+
         # Add repulsion model contribution
         if self.model_repulsion:
             pass
@@ -347,6 +400,10 @@ class Calculator_PhysNet(torch.nn.Module):
         # Add electrostatic model contribution
         if self.model_electrostatic:
 
+            # Scale atomic charges by fit parameter
+            scale, shift = self.atomic_charges_scaling[atomic_numbers].T
+            output['atomic_charges'] = output['atomic_charges']*scale + shift
+            
             # Scale atomic charges to ensure correct total charge
             charge_deviation = charge - utils.segment_sum(
                 output['atomic_charges'], idx_seg, device=self.device)
@@ -405,17 +462,14 @@ class Calculator_PhysNet(torch.nn.Module):
                 output['atomic_charges'][..., None]*positions,
                 idx_seg, device=self.device).reshape(-1, 3)
 
-        ## Apply output scaling and shift
-        #for prop, item in self.model_scaling.items():
-            #prop_scale, prop_shift = item[atomic_numbers].T
-            #print(prop, prop_scale[0], prop_shift[0])
-            #print('unscaled', output[prop][0])
-            #output[prop] = output[prop]*prop_scale + prop_shift
-            #print('scaled', output[prop][0])
+        # Apply output scaling and shift
+        for prop, item in self.model_scaling.items():
+            prop_scale, prop_shift = item[atomic_numbers].T
+            output[prop] = output[prop]*prop_scale + prop_shift
 
         #print('properties predicted: ', output.keys())
         #print('energy: ', output['energy'])
-        #print('forces: ', output['forces'])
+        ##print('forces: ', output['forces'])
         #print('atomic charges: ', output['atomic_charges'])
         #print('dipole: ', output['dipole'])
 

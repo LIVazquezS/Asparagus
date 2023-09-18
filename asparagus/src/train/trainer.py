@@ -291,11 +291,6 @@ class Trainer:
         # # # Prepare Optimizer # # #
         #############################
         
-        #for name, param in self.model_calculator.state_dict().items():
-            #print(name)
-            #print(param)
-        #exit()
-        
         # Assign model parameter optimizer
         self.trainer_optimizer = get_optimizer(
             self.trainer_optimizer,
@@ -370,7 +365,7 @@ class Trainer:
             self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
         else:
             self.trainer_epoch_start = 1
-        
+
         # Initialize training mode for calculator 
         # (torch.nn.Module function to activate, e.g., parameter dropout)
         self.model_calculator.train()

@@ -29,7 +29,7 @@ def data_collate_fn(batch):
         dict
             Collated data batch with additional properties
             Properties:
-                atom_number: (N,) torch.Tensor
+                atoms_number: (N,) torch.Tensor
                 atomic_numbers: (N,) torch.Tensor
                 positions: (N,3) torch.Tensor
                 forces: (N,3) torch.Tensor

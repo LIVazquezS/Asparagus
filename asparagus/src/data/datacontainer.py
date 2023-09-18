@@ -448,6 +448,7 @@ class DataContainer():
     def get_property_scaling(
         self,
         overwrite: Optional[bool] = False,
+        property_atom_scaled: Optional[List[str]] = ['energy'],
     ) -> Dict[str, List[float]]:
         """
         Get property scaling factors and shift terms equivalent to
@@ -476,13 +477,20 @@ class DataContainer():
 
             # Iterate over sample properties
             for prop in metadata.get('load_properties'):
+                
+                vals = sample.get(prop).numpy().reshape(-1)
+                
+                # Scale by atom number if requested
+                if prop in property_atom_scaled:
+                    Natoms = sample.get('atoms_number').numpy().reshape(-1)
+                    vals /= Natoms.astype(float)
 
-                scalar = np.mean(sample.get(prop).numpy().reshape(-1))
+                scalar = np.mean(vals)
                 property_scaling[prop][1] = (
                     property_scaling[prop][1]
                     + (scalar - property_scaling[prop][1])/(Nsamples + 1.0)
                     ).item()
-
+            
             # Increment sample counter
             Nsamples += 1.0
 
@@ -497,6 +505,11 @@ class DataContainer():
 
                 vals = sample.get(prop).numpy().reshape(-1)
                 Nvals = len(vals)
+                
+                # Scale by atom number if requested
+                if prop in property_atom_scaled:
+                    Natoms = sample.get('atoms_number').numpy().reshape(-1)
+                    vals /= Natoms.astype(float)
 
                 for scalar in vals:
 

@@ -246,8 +246,7 @@ class Input_PhysNetRBF(torch.nn.Module):
                 positions[idx_j] - positions[idx_i] + pbc_offset,
                 dim=-1
                 )
-        #cutoffs = self.input_cutoff_fn(distances)
-        
+
         # Compute radial fingerprint
         rbfs = self.input_descriptor_fn(distances)
         
