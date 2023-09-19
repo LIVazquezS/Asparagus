@@ -38,3 +38,12 @@ if True:
         test_datasets='all',
         test_directory=model.get('model_directory'))
     
+if True:
+    
+    import ase
+    model = Asparagus(
+        config="config.json"
+        )
+    calc = model.ase_calculator()
+    no2_atoms = ase.io.read("data/no2.xyz")
+    calc.calculate(no2_atoms)

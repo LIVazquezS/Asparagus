@@ -15,6 +15,7 @@ from .src import utils
 from .src import data
 from .src import model
 from .src import train
+from .src import interface
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -440,3 +441,71 @@ class Asparagus(torch.nn.Module):
                 config=config,
                 **kwargs)
 
+
+    def ase_calculator(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        config_file: Optional[str] = None,
+        model_checkpoint: Optional[int] = None,
+        **kwargs,
+    ) -> Callable:
+        """
+        initialize ASE calculator class object of the model calculator
+        """
+
+        ######################################
+        # # # Check ASE Calculator Input # # #
+        ######################################
+
+        # Assign model parameter configuration library
+        if config is None:
+            config_ase = settings.get_config(
+                self.config, config_file, **kwargs)
+        else:
+            config_ase = settings.get_config(
+                config, config_file, **kwargs)
+
+        # Check model parameter configuration and set default
+        config_ase.check()
+
+        ##################################
+        # # # Prepare NNP Calculator # # #
+        ##################################
+
+        # Assign NNP calculator
+        if self.model_calculator is None:
+
+            # Assign NNP calculator model
+            self.model_calculator = self._get_Calculator(
+                config_ase,
+                **kwargs)
+
+        # Add calculator info to configuration dictionary
+        if hasattr(self.model_calculator, "get_info"):
+            config_ase.update(
+                self.model_calculator.get_info(),
+                verbose=False)
+
+        # Initialize checkpoint file manager and load best model
+        filemanager = utils.FileManager(config, **kwargs)
+        if model_checkpoint is None:
+            latest_checkpoint = filemanager.load_checkpoint(best=True)
+        elif utils.is_integer(model_checkpoint):
+            latest_checkpoint = filemanager.load_checkpoint(
+                num_checkpoint=model_checkpoint)
+        else:
+            raise ValueError(
+                "Input 'model_checkpoint' must be either None to load best "
+                + "model checkpoint or an integer of a respective checkpoint "
+                + "file.")
+        self.model_calculator.load_state_dict(
+            latest_checkpoint['model_state_dict'])
+
+        ##################################
+        # # # Prepare ASE Calculator # # #
+        ##################################
+
+        self.ase_calculator = interface.ASE_Calculator(
+            self.model_calculator)
+
+        return self.ase_calculator

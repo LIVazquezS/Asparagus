@@ -105,7 +105,7 @@ if False:
 if True:
 
     model = Asparagus(
-        config='20230913202834/config.json'
+        config='20230913202834/config.json',
         data_file='data/h2co_b3lyp.db',
         data_source=['data/h2co_B3LYP_cc_pVDZ_4001.npz'],
         data_load_properties=['energy', 'force', 'dipole'],
