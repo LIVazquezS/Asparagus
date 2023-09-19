@@ -84,14 +84,28 @@ class Asparagus(torch.nn.Module):
 
         # DataContainer of reference data
         self.data_container = None
-        # NN Calculator
-        self.calculator = None
-        # NN trainer
+        # Model calculator
+        self.model_calculator = None
+        # Model trainer
         self.trainer = None
-        # NN testing
+        # Model testing
         self.tester = None
 
         return
+
+
+    def __getitem__(self, args):
+        """
+        Return item(s) from configuration dictionary
+        """
+        return self.config.get(args)
+
+
+    def get(self, args):
+        """
+        Return item(s) from configuration dictionary
+        """
+        return self.config.get(args)
 
 
     def train(
@@ -101,7 +115,7 @@ class Asparagus(torch.nn.Module):
         **kwargs,
     ):
         """
-        Initialize and start NN training
+        Initialize and start model training
         """
 
         ################################
@@ -150,7 +164,7 @@ class Asparagus(torch.nn.Module):
             settings.set_global_rate(config_train.get("trainer_dropout_rate"))
 
         # Assign NNP calculator
-        if self.calculator is None:
+        if self.model_calculator is None:
 
             # Get property scaling guess from reference data to link
             # 'normalized' output to average reference data shift and
@@ -165,27 +179,21 @@ class Asparagus(torch.nn.Module):
                     {'model_properties_scaling': model_properties_scaling})
 
             # Assign NNP calculator model
-            self.calculator = self._get_Calculator(
+            self.model_calculator = self._get_Calculator(
                 config_train,
                 **kwargs)
 
         # Add calculator info to configuration dictionary
-        if hasattr(self.calculator, "get_info"):
+        if hasattr(self.model_calculator, "get_info"):
             config_train.update(
-                self.calculator.get_info(),
+                self.model_calculator.get_info(),
                 verbose=False)
 
         ## Example run of calculator
         #for batch in self.data_train:
 
-            #result = self.calculator(
-                #batch['atoms_number'], 
-                #batch['atomic_numbers'], 
-                #batch['positions'], 
-                #batch['idx_i'], 
-                #batch['idx_j'],
-                #batch['charge'],
-                #batch['atoms_seg'])
+            #result = self.model_calculator(
+                #batch)
             #print(result)
 
         ###############################
@@ -198,7 +206,7 @@ class Asparagus(torch.nn.Module):
             self.trainer = train.Trainer(
                 config_train,
                 self.data_container,
-                self.calculator,
+                self.model_calculator,
                 **kwargs
                 )
 
@@ -206,6 +214,118 @@ class Asparagus(torch.nn.Module):
         self.trainer.train()
 
         return
+
+
+    def test(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        config_file: Optional[str] = None,
+        test_datasets: Optional[Union[str, List[str]]] = None,
+        test_directory: Optional[str] = None,
+        test_checkpoint: Optional[int] = None,
+        **kwargs,
+    ):
+        """
+        Initialize and start model testing
+
+        Parameters
+        ----------
+
+        test_datasets: (str, list(str)) optional, default ['test']
+            A string or list of strings to define the data sets ('train', 
+            'valid', 'test') of which the evaluation will be performed.
+            By default it is just the test set of the data container object.
+            Inputs 'full' or 'all' requests the evaluation of all sets.
+        test_directory: str, optional, default '.'
+            Directory to store evaluation graphics and data.
+        test_checkpoint: int, optional, default None
+            If None, load best model checkpoint. Otherwise define a checkpoint
+            index number of the respective checkpoint file.
+        """
+        
+        ################################
+        # # # Check Training Input # # #
+        ################################
+
+        # Assign model parameter configuration library
+        if config is None:
+            config_test = settings.get_config(
+                self.config, config_file, **kwargs)
+        else:
+            config_test = settings.get_config(
+                config, config_file, **kwargs)
+
+        # Check model parameter configuration and set default
+        config_test.check()
+
+        ##################################
+        # # # Prepare Reference Data # # #
+        ##################################
+
+        # Assign DataContainer
+        if self.data_container is None:
+
+            self.data_container = self._get_DataContainer(
+                config_test,
+                **kwargs)
+
+        # Add data container info to configuration dictionary
+        if hasattr(self.data_container, "get_info"):
+            config_test.update(
+                self.data_container.get_info(),
+                verbose=False)
+
+        ##################################
+        # # # Prepare NNP Calculator # # #
+        ##################################
+
+        # Assign NNP calculator
+        if self.model_calculator is None:
+
+            # Assign NNP calculator model
+            self.model_calculator = self._get_Calculator(
+                config_test,
+                **kwargs)
+
+        # Add calculator info to configuration dictionary
+        if hasattr(self.model_calculator, "get_info"):
+            config_test.update(
+                self.model_calculator.get_info(),
+                verbose=False)
+
+        # Initialize checkpoint file manager and load best model
+        filemanager = utils.FileManager(config, **kwargs)
+        if test_checkpoint is None:
+            latest_checkpoint = filemanager.load_checkpoint(best=True)
+        elif utils.is_integer(test_checkpoint):
+            latest_checkpoint = filemanager.load_checkpoint(
+                num_checkpoint=test_checkpoint)
+        else:
+            raise ValueError(
+                "Input 'test_checkpoint' must be either None to load best "
+                + "model checkpoint or an integer of a respective checkpoint "
+                + "file.")
+        self.model_calculator.load_state_dict(
+            latest_checkpoint['model_state_dict'])
+        
+        ######################################
+        # # # Prepare and Run NNP Tester # # #
+        ######################################
+        
+        # Assign model prediction tester
+        self.tester = train.Tester(
+            config_test,
+            self.data_container,
+            test_datasets=test_datasets)
+        
+        # Evaluation of the test set
+        self.tester.test(
+            self.model_calculator, 
+            test_directory=test_directory,
+            **kwargs)
+
+        return
+
 
     def test_model(
         self, 
@@ -218,9 +338,7 @@ class Asparagus(torch.nn.Module):
         **kwargs):
         """
         Testing model in the test set.
-        
         I am not sure if checking the config file is required here.
-
         """
         ##################################
         # # # Prepare Reference Data # # #
@@ -237,7 +355,7 @@ class Asparagus(torch.nn.Module):
             self.checkpoint = checkpoint
 
         # Assign NNP calculator
-        if self.calculator is None:
+        if self.model_calculator is None:
 
             # Get property scaling guess from reference data to link
             # 'normalized' output to average reference data shift and
@@ -251,14 +369,14 @@ class Asparagus(torch.nn.Module):
                         {'model_properties_scaling': model_properties_scaling})
 
             # Assign NNP calculator model
-            self.calculator = self._get_Calculator(self.config)
+            self.model_calculator = self._get_Calculator(self.config)
 
         # Assign NNP Tester
         if self.tester is None:
             self.tester = train.Testing(
                 self.config, 
                 self.data_container,
-                self.calculator, 
+                self.model_calculator, 
                 self.checkpoint)
         
         # Run testing
@@ -269,6 +387,7 @@ class Asparagus(torch.nn.Module):
              histogram_plots=histogram_plots, histograms_to_show=histograms_to_show, save_histograms=save_histograms, show_histograms=show_histograms)
         
         return
+
 
     def _get_DataContainer(
         self,
@@ -321,20 +440,3 @@ class Asparagus(torch.nn.Module):
                 config=config,
                 **kwargs)
 
-
-    def get_directory_generic(
-        self,
-        directory_tag: Optional[str] = '',
-    ) -> str:
-
-        # Check directory label tag
-        if not utils.is_string(directory_tag):
-            raise SyntaxError(
-                f"Model directory label 'directory_tag' is not " +
-                f"of type string but of type '{type(directory_tag)}'!")
-
-        # Get generic label
-        label = (
-            directory_tag + datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
-
-        return label

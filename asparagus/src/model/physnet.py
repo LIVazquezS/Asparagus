@@ -467,10 +467,4 @@ class Calculator_PhysNet(torch.nn.Module):
             prop_scale, prop_shift = item[atomic_numbers].T
             output[prop] = output[prop]*prop_scale + prop_shift
 
-        #print('properties predicted: ', output.keys())
-        #print('energy: ', output['energy'])
-        ##print('forces: ', output['forces'])
-        #print('atomic charges: ', output['atomic_charges'])
-        #print('dipole: ', output['dipole'])
-
         return output

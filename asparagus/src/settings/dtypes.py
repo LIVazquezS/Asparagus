@@ -77,8 +77,10 @@ _dtypes_args = {
     'trainer_save_interval':        [utils.is_integer],
     'trainer_validation_interval':  [utils.is_integer],
     'trainer_dropout_rate':         [utils.is_numeric],
+    'trainer_evaluate_testset':     [utils.is_bool],
     'trainer_max_checkpoints':      [utils.is_integer],
     # Tester
+    'test_datasets':                [utils.is_string, utils.is_string_array],
     'tester_properties':            [utils.is_string, 
                                      utils.is_string_array,
                                      utils.is_None],

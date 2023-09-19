@@ -114,21 +114,6 @@ class Configuration():
         self.config_dict = {}
         self.config_indent = 4
 
-        # If no 'config' input given, load from global configuration file path
-        if config is None:
-            self.config_dict = self.read(settings._global_config_file)
-        # For 'config' being file path (str), load from json file
-        elif utils.is_string(config):
-            self.config_dict = self.read(config)
-        # For 'config' being a dictionary
-        elif utils.is_dictionary(config):
-            self.config_dict = config
-        else:
-            raise ValueError(
-                "Input 'config' is not of valid data type!\n" +
-                "Data type 'dict', 'str' or a config class object " +
-                f"is expected but '{type(config)}' is given.")
-
         # Check and set configuration file path.
         if config_file is None:
             self.config_file = settings._global_config_file
@@ -140,6 +125,21 @@ class Configuration():
                 "Data type 'str' is expected for the config file path " +
                 f"but '{type(config_file)}' is given.")
         self.set_config_file(config_file, config_global)
+
+        # If no 'config' input given, load from global configuration file path
+        if config is None:
+            self.config_dict = self.read(self.config_file)
+        # For 'config' being file path (str), load from json file
+        elif utils.is_string(config):
+            self.config_dict = self.read(config)
+        # For 'config' being a dictionary
+        elif utils.is_dictionary(config):
+            self.config_dict = config
+        else:
+            raise ValueError(
+                "Input 'config' is not of valid data type!\n" +
+                "Data type 'dict', 'str' or a config class object " +
+                f"is expected but '{type(config)}' is given.")
 
         # Update configuration dictionary with keyword arguments
         if len(kwargs):
@@ -189,6 +189,9 @@ class Configuration():
 
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
+                config_dict = json.load(f)
+        elif os.path.exists(os.path.join(config_file, self.config_file)):
+            with open(os.path.join(config_file, self.config_file), 'r') as f:
                 config_dict = json.load(f)
         else:
             config_dict = {}

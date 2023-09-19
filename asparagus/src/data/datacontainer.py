@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from typing import Optional, List, Dict, Tuple, Union, Any
+from typing import Optional, List, Dict, Tuple, Union, Any, Callable
 
 import numpy as np
 
@@ -441,6 +441,17 @@ class DataContainer():
             False,
             self.data_num_workers)
 
+        # Prepare dictionaries as pointers between dataset label and the 
+        # respective DataSubSet and DataLoader objects
+        self.all_data_sets = {
+            'train': self.train_set,
+            'valid': self.valid_set,
+            'test': self.test_set}
+        self.all_data_loder = {
+            'train': self.train_loader,
+            'valid': self.valid_loader,
+            'test': self.test_loader}
+
         # Set data flag
         self.data_avaiable = True
 
@@ -531,6 +542,29 @@ class DataContainer():
         self.dataset.set_metadata(metadata=metadata)
 
         return property_scaling
+
+
+    def get_datalabels(self) -> List[str]:
+        """
+        Return the list of all available data set labels which return 
+        DataSubSet or DataLoader objects with the respective function
+        (get_dataset and get_dataloader).
+        """
+        return self.all_data_sets.keys()
+        
+    
+    def get_dataset(self, label) -> Callable:
+        """
+        Return as specific DataSubSet object ('train', 'valid' or 'test')
+        """
+        return self.all_data_sets.get(label)
+
+
+    def get_dataloader(self, label) -> Callable:
+        """
+        Return as specific DataLoader object ('train', 'valid' or 'test')
+        """
+        return self.all_data_loder.get(label)
 
 
     def get_metadata(self) -> Dict[str, Any]:

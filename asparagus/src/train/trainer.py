@@ -49,6 +49,7 @@ class Trainer:
         trainer_max_gradient_norm: Optional[float] = None,
         trainer_save_interval: Optional[int] = None,
         trainer_validation_interval: Optional[int] = None,
+        trainer_evaluate_testset: Optional[bool] = None,
         trainer_max_checkpoints: Optional[int] = None,
         **kwargs
     ):
@@ -209,7 +210,7 @@ class Trainer:
                 config=config,
                 **kwargs)
             
-        # Get reference data properties
+        # Get model properties
         self.model_properties = self.model_calculator.model_properties
         
         ####################################
@@ -332,10 +333,12 @@ class Trainer:
         # # # Prepare Tester # # #
         ##########################
         
-        # Assign model prediction tester
-        self.tester = Tester(
-            config,
-            self.data_container)
+        # Assign model prediction tester if test set evaluation is requested
+        if self.trainer_evaluate_testset:
+            self.tester = Tester(
+                config,
+                data_container=self.data_container,
+                test_datasets='test')
 
         #############################
         # # # Save Model Config # # #
@@ -533,13 +536,14 @@ class Trainer:
                         epoch=epoch,
                         best=True)
 
-                    # Evaluation of the test set
-                    self.tester.test(
-                        self.model_calculator, 
-                        test_directory=self.filemanager.best_dir,
-                        test_plot_correlation=True,
-                        test_plot_histogram=True,
-                        test_plot_residual=True)
+                    # Evaluation of the test set if requested
+                    if self.trainer_evaluate_testset:
+                        self.tester.test(
+                            self.model_calculator, 
+                            test_directory=self.filemanager.best_dir,
+                            test_plot_correlation=True,
+                            test_plot_histogram=True,
+                            test_plot_residual=True)
 
                     # Write to training summary
                     for prop, value in metrics_best.items():

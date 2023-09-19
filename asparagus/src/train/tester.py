@@ -52,6 +52,7 @@ class Tester:
     def __init__(self,
         config: Optional[Union[str, dict, object]] = None,
         data_container: Optional[object] = None,
+        test_datasets: Optional[Union[str, List[str]]] = None,
         test_properties: Optional[Union[str, List[str]]] = None,
         **kwargs
     ):
@@ -68,6 +69,11 @@ class Tester:
             Data container object of the reference test data set. 
             If not provided, the data container will be initialized according 
             to config input.
+        test_datasets: (str, list(str)) optional, default ['test']
+            A string or list of strings to define the data sets ('train', 
+            'valid', 'test') of which the evaluation will be performed.
+            By default it is just the test set of the data container object.
+            Inputs 'full' or 'all' requests the evaluation of all sets.
         test_properties: (str, list(str)), optional, default None
             Model properties to evaluate which must be available in the 
             model prediction and the reference test data set. If None, all 
@@ -123,7 +129,17 @@ class Tester:
             self.data_container = data.DataContainer(
                 config=config,
                 **kwargs)
-        self.data_test = self.data_container.test_loader
+        
+        # Prepare list of data set definition for evaluation
+        if utils.is_string(self.test_datasets):
+            self.test_datasets = [self.test_datasets]
+        if 'full' in self.test_datasets or 'all' in self.test_datasets:
+            self.test_datasets = self.data_container.get_datalabels()
+        
+        # Collect requested data loader
+        self.test_data = {
+            label: self.data_container.get_dataloader(label)
+            for label in self.test_datasets}
 
         # Get reference data properties
         self.data_properties = self.data_container.data_load_properties
@@ -185,9 +201,9 @@ class Tester:
         test_plot_format: Optional[str] = 'pdf',
         test_plot_dpi: Optional[int] = 300,
         test_save_csv: Optional[bool] = False,
-        test_csv_file: Optional[str] = 'test_prediction.csv',
+        test_csv_file: Optional[str] = 'model_prediction.csv',
         test_save_npz: Optional[bool] = False,
-        test_npz_file: Optional[str] = 'test_prediction.npz',
+        test_npz_file: Optional[str] = 'model_prediction.npz',
         test_scale_per_atom: Optional[Union[str, List[str]]] = ['energy'],
         verbose: Optional[bool] = True,
     ):
@@ -221,12 +237,14 @@ class Tester:
             Plot figure dpi.
         test_save_csv: bool, optional, default False
             Save all model prediction results in a csv file.
-        test_csv_file: str, optional, default 'test_prediction.csv'
-            Name of the csv file
+        test_csv_file: str, optional, default 'model_prediction.csv'
+            Name tag of the csv file. The respective data set label will be
+            added as prefix to the tag ("{label:s}_{test_csv_file:s}").
         test_save_npz: bool, optional, default False
             Save all model prediction results in a binary npz file.
-        test_npz_file: str, optional, default 'test_prediction.npz'
-            Name of the npz file
+        test_npz_file: str, optional, default 'model_prediction.npz'
+            Name tag of the npz file. The respective data set label will be
+            added as prefix to the tag ("{label:s}_{test_npz_file:s}").
         test_scale_per_atom: (str list(str), optional, default ['energy']
             List of properties where the results will be scaled by the number 
             of atoms in the particular system.
@@ -272,129 +290,143 @@ class Tester:
         # Change to evaluation mode for calculator
         model_calculator.eval()
         
-        # Reset property metrics
-        metrics_test = self.reset_metrics(eval_properties)
+        # Loop over all requested data set
+        for label, data in self.test_data.items():
 
-        # Prepare dictionary for property values and number of atoms per system
-        test_prediction = {prop: [] for prop in test_properties}
-        test_reference = {prop: [] for prop in test_properties}
-        test_prediction['atoms_number'] = []
-        
-        # Loop over test batches
-        for batch in self.data_test:
-            
-            # Predict model properties from data batch
-            prediction = model_calculator(batch)
+            # Prepare dictionary for property values and number of atoms per 
+            # system
+            test_prediction = {prop: [] for prop in test_properties}
+            test_reference = {prop: [] for prop in test_properties}
+            test_prediction['atoms_number'] = []
 
-            # Compute metrics for test properties
-            metrics_batch = self.compute_metrics(
-                prediction, batch, eval_properties)
+            # Reset property metrics
+            metrics_test = self.reset_metrics(eval_properties)
+
+            # Loop over data batches
+            for batch in data:
+
+                # Predict model properties from data batch
+                prediction = model_calculator(batch)
+
+                # Compute metrics for test properties
+                metrics_batch = self.compute_metrics(
+                    prediction, batch, eval_properties)
+                
+                # Update average metrics
+                self.update_metrics(
+                    metrics_test, metrics_batch, eval_properties)
+                
+                # Store prediction and reference data
+                Nsys = len(batch['atoms_number'])
+                for prop in eval_properties:
+                    data_prediction = prediction[prop].detach().numpy()
+                    data_reference = batch[prop].detach().numpy()
+                    if data_prediction.shape[0] == len(batch['atoms_seg']):
+                        data_prediction = [
+                            list(data_prediction[isys]) 
+                            for isys in range(Nsys)]
+                        data_reference = [
+                            list(data_reference[isys]) for isys in range(Nsys)]
+                    elif data_prediction.shape[0] == len(batch['pairs_seg']):
+                        data_prediction = [
+                            list(data_prediction[isys]) 
+                            for isys in range(Nsys)]
+                        data_reference = [
+                            list(data_reference[isys]) for isys in range(Nsys)]
+                    test_prediction[prop] += list(data_prediction)
+                    test_reference[prop] += list(data_reference)
+                
+                # Store atom numbers
+                test_prediction['atoms_number'] += list(batch['atoms_number'])
+
+            # Print metrics
+            if verbose:
+                self.print_metric(metrics_test, eval_properties, label)
+
+            ###########################
+            # # # Save Properties # # #
+            ###########################
             
-            # Update average metrics
-            self.update_metrics(metrics_test, metrics_batch, eval_properties)
+            # Save test prediction to files 
+            #TODO how to save inhomogeneous data to files?
+            #if test_save_csv:
+                #csv_file = os.path.join(test_directory, test_csv_file)
+                #if self.is_imported("pandas"):
+                    #df = pd.DataFrame(test_prediction)
+                    #df.to_csv(csv_file, index=True)
+                #else:
+                    #logger.warning(
+                        #"WARNING:\nModule 'pandas' is not available. " +
+                        #"Test properties are not written to a csv file!")
+
+            ###########################
+            # # # Plot Properties # # #
+            ###########################
             
-            # Store prediction and reference data
-            Nsys = len(batch['atoms_number'])
+            # Check input for scaling per atom and prepare atom number scaling
+            if utils.is_string(test_scale_per_atom):
+                test_scale_per_atom = [test_scale_per_atom]
+            test_property_scaling = {}
             for prop in eval_properties:
-                data_prediction = prediction[prop].detach().numpy()
-                data_reference = batch[prop].detach().numpy()
-                if data_prediction.shape[0] == len(batch['atoms_seg']):
-                    data_prediction = [
-                        list(data_prediction[isys]) for isys in range(Nsys)]
-                    data_reference = [
-                        list(data_reference[isys]) for isys in range(Nsys)]
-                elif data_prediction.shape[0] == len(batch['pairs_seg']):
-                    data_prediction = [
-                        list(data_prediction[isys]) for isys in range(Nsys)]
-                    data_reference = [
-                        list(data_reference[isys]) for isys in range(Nsys)]
-                test_prediction[prop] += list(data_prediction)
-                test_reference[prop] += list(data_reference)
-            
-            # Store atom numbers
-            test_prediction['atoms_number'] += list(batch['atoms_number'])
+                if prop in test_scale_per_atom:
+                    test_property_scaling[prop] = (
+                        1./np.array(
+                            test_prediction['atoms_number'], dtype=float)
+                        )
+                else:
+                    test_property_scaling[prop] = None
+
+            # Plot correlation between model and reference properties
+            if test_plot_correlation:
+                for prop in eval_properties:
+                    self.plot_correlation(
+                        label,
+                        prop,
+                        self.plain_data(test_prediction[prop]),
+                        self.plain_data(test_reference[prop]),
+                        self.data_units[prop],
+                        metrics_test[prop],
+                        test_property_scaling[prop],
+                        test_directory,
+                        test_plot_format,
+                        test_plot_dpi,
+                        )
+                    
+            # Plot histogram of the prediction error
+            if test_plot_histogram:
+                for prop in eval_properties:
+                    self.plot_histogram(
+                        label,
+                        prop,
+                        self.plain_data(test_prediction[prop]),
+                        self.plain_data(test_reference[prop]),
+                        self.data_units[prop],
+                        metrics_test[prop],
+                        test_directory,
+                        test_plot_format,
+                        test_plot_dpi
+                        )
+
+            # Plot histogram of the prediction error
+            if test_plot_residual:
+                for prop in eval_properties:
+                    self.plot_residual(
+                        label,
+                        prop,
+                        self.plain_data(test_prediction[prop]),
+                        self.plain_data(test_reference[prop]),
+                        self.data_units[prop],
+                        metrics_test[prop],
+                        test_property_scaling[prop],
+                        test_directory,
+                        test_plot_format,
+                        test_plot_dpi
+                        )
 
         # Change back to training mode for calculator 
         model_calculator.train()
-        
-        # Print metrics
-        if verbose:
-            self.print_metric(metrics_test, eval_properties)
-        
-        ###########################
-        # # # Save Properties # # #
-        ###########################
-        
-        # Save test prediction to files 
-        #TODO how to save inhomogeneous data to files?
-        #if test_save_csv:
-            #csv_file = os.path.join(test_directory, test_csv_file)
-            #if self.is_imported("pandas"):
-                #df = pd.DataFrame(test_prediction)
-                #df.to_csv(csv_file, index=True)
-            #else:
-                #logger.warning(
-                    #"WARNING:\nModule 'pandas' is not available. Predicted " +
-                    #"test properties are not written to a csv file!")
 
-        ###########################
-        # # # Plot Properties # # #
-        ###########################
-        
-        # Check input for scaling per atom and prepare atom number scaling
-        if utils.is_string(test_scale_per_atom):
-            test_scale_per_atom = [test_scale_per_atom]
-        test_property_scaling = {}
-        for prop in eval_properties:
-            if prop in test_scale_per_atom:
-                test_property_scaling[prop] = (
-                    1./np.array(test_prediction['atoms_number'], dtype=float)) 
-            else:
-                test_property_scaling[prop] = None
-
-        # Plot correlation between model and reference properties
-        if test_plot_correlation:
-            for prop in eval_properties:
-                self.plot_correlation(
-                    prop,
-                    self.plain_data(test_prediction[prop]),
-                    self.plain_data(test_reference[prop]),
-                    self.data_units[prop],
-                    metrics_test[prop],
-                    test_property_scaling[prop],
-                    test_directory,
-                    test_plot_format,
-                    test_plot_dpi
-                    )
-                
-        # Plot histogram of the prediction error
-        if test_plot_histogram:
-            for prop in eval_properties:
-                self.plot_histogram(
-                    prop,
-                    self.plain_data(test_prediction[prop]),
-                    self.plain_data(test_reference[prop]),
-                    self.data_units[prop],
-                    metrics_test[prop],
-                    test_directory,
-                    test_plot_format,
-                    test_plot_dpi
-                    )
-
-        # Plot histogram of the prediction error
-        if test_plot_residual:
-            for prop in eval_properties:
-                self.plot_residual(
-                    prop,
-                    self.plain_data(test_prediction[prop]),
-                    self.plain_data(test_reference[prop]),
-                    self.data_units[prop],
-                    metrics_test[prop],
-                    test_property_scaling[prop],
-                    test_directory,
-                    test_plot_format,
-                    test_plot_dpi
-                    )
+        return
 
 
     @staticmethod
@@ -471,7 +503,7 @@ class Tester:
         self, 
         metrics: Dict[str, float],
         metrics_update: Dict[str, float], 
-        test_properties: List[str] = None
+        test_properties: Optional[List[str]] = None,
     ) -> Dict[str, float]:
         
         # Check property input
@@ -499,15 +531,18 @@ class Tester:
     def print_metric(
         self, 
         metrics: Dict[str, float],
-        test_properties: List[str] = None,
+        test_properties: Optional[List[str]] = None,
+        test_label: Optional[str] = '',
     ):
 
-        # Check property input
+        # Check property and label input
         if test_properties is None:
             test_properties = self.test_properties
+        if len(test_label):
+            msg_label = f" for {test_label:s} set"
 
         msg = (
-            f"Summary Test:\n" +
+            f"Summary{msg_label:s}:\n" +
             f"  Property Metrics    MAE,       RMSE\n")
         for prop in test_properties:
             msg += f"   {prop:<16s} "
@@ -530,6 +565,7 @@ class Tester:
 
     def plot_correlation(
         self,
+        label_dataset: str,
         label_property: str,
         data_prediction: List[float],
         data_reference: List[float],
@@ -571,12 +607,12 @@ class Tester:
             [left + 0.*np.sum(column), bottom, column[0], row[0]])
         
         # Data label
-        data_label = (
-            f"{label_property:s}\n" +
+        metrics_label = (
+            f"{label_property:s} ({label_dataset:s})\n" +
             f"RMSE = {np.sqrt(data_metrics['mse']):3.2e} {unit_property:s}")
         if self.is_imported("scipy"):
             r2 = stats.pearsonr(data_prediction, data_reference).statistic
-            data_label += (
+            metrics_label += (
                 "\n" + r"1 - $R^2$ = " + f"{1.0 - r2:3.2e}")
 
         # Scale data if requested
@@ -603,7 +639,7 @@ class Tester:
             data_prediction, 
             color='blue', markerfacecolor='None',
             marker='o', linestyle='None',
-            label=data_label)
+            label=metrics_label)
 
         # Axis range
         axs1.set_xlim(data_min - data_dif*0.05, data_max + data_dif*0.05)
@@ -611,7 +647,7 @@ class Tester:
         
         # Figure title
         axs1.set_title(
-            f"Correlation plot - {label_property:s}",
+            f"Correlation plot - {label_property:s} ({label_dataset:s})",
             fontweight='bold')
 
         # Axis labels
@@ -626,12 +662,13 @@ class Tester:
 
         # Figure legend
         axs1.legend(loc='upper left')
-        
+
         # Save figure
         plt.savefig(
             os.path.join(
                 test_directory,
-                f"test_correlation_{label_property:s}.{test_plot_format:s}"),
+                f"{label_dataset:s}_correlation_{label_property:s}"
+                + f".{test_plot_format:s}"),
             format=test_plot_format, 
             dpi=test_plot_dpi)
         plt.close()
@@ -639,6 +676,7 @@ class Tester:
 
     def plot_histogram(
         self,
+        label_dataset: str,
         label_property: str,
         data_prediction: List[float],
         data_reference: List[float],
@@ -680,12 +718,12 @@ class Tester:
             [left + 0.*np.sum(column), bottom, column[0], row[0]])
         
         # Data label
-        data_label = (
-            f"{label_property:s}\n" +
+        metrics_label = (
+            f"{label_property:s} ({label_dataset:s})\n" +
             f"RMSE = {np.sqrt(data_metrics['mse']):3.2e} {unit_property:s}")
         if self.is_imported("scipy"):
             r2 = stats.pearsonr(data_prediction, data_reference).statistic
-            data_label += (
+            metrics_label += (
                 "\n" + r"1 - $R^2$ = " + f"{1.0 - r2:3.2e}")
         
         # Plot data
@@ -701,14 +739,15 @@ class Tester:
             density=True,
             color='red',
             log=test_histlog,
-            label=data_label)
+            label=metrics_label)
 
         # Axis range
         axs1.set_xlim(-data_absmax, data_absmax)
         
         # Figure title
         axs1.set_title(
-            f"Prediction error distribution - {label_property:s}",
+            f"Prediction error distribution - {label_property:s} "
+            + f"({label_dataset:s})",
             fontweight='bold')
 
         # Axis labels
@@ -732,7 +771,8 @@ class Tester:
         plt.savefig(
             os.path.join(
                 test_directory,
-                f"test_histogram_{label_property:s}.{test_plot_format:s}"),
+                f"{label_dataset:s}_histogram_{label_property:s}"
+                + f".{test_plot_format:s}"),
             format=test_plot_format, 
             dpi=test_plot_dpi)
         plt.close()
@@ -740,6 +780,7 @@ class Tester:
 
     def plot_residual(
         self,
+        label_dataset: str,
         label_property: str,
         data_prediction: List[float],
         data_reference: List[float],
@@ -780,12 +821,12 @@ class Tester:
             [left + 0.*np.sum(column), bottom, column[0], row[0]])
         
         # Data label
-        data_label = (
-            f"{label_property:s}\n" +
+        metrics_label = (
+            f"{label_property:s} ({label_dataset:s})\n" +
             f"RMSE = {np.sqrt(data_metrics['mse']):3.2e} {unit_property:s}")
         if self.is_imported("scipy"):
             r2 = stats.pearsonr(data_prediction, data_reference).statistic
-            data_label += (
+            metrics_label += (
                 "\n" + r"1 - $R^2$ = " + f"{1.0 - r2:3.2e}")
 
         # Scale data if requested
@@ -814,7 +855,7 @@ class Tester:
             data_deviation, 
             color='darkgreen', markerfacecolor='None',
             marker='o', linestyle='None',
-            label=data_label)
+            label=metrics_label)
 
         # Axis range
         axs1.set_xlim(
@@ -824,7 +865,7 @@ class Tester:
         
         # Figure title
         axs1.set_title(
-            f"Residual plot - {label_property:s}",
+            f"Residual plot - {label_property:s} ({label_dataset:s})",
             fontweight='bold')
 
         # Axis labels
@@ -845,7 +886,8 @@ class Tester:
         plt.savefig(
             os.path.join(
                 test_directory,
-                f"test_residual_{label_property:s}.{test_plot_format:s}"),
+                f"{label_dataset:s}_residual_{label_property:s}"
+                + f".{test_plot_format:s}"),
             format=test_plot_format, 
             dpi=test_plot_dpi)
         plt.close()

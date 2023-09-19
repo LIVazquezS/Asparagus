@@ -33,5 +33,8 @@ if True:
         trainer_max_epochs=100_000,
         trainer_properties_weights={'energy': 100., 'dipole': 1.}
         )
-    model.train()
+    #model.train()
+    model.test(
+        test_datasets='all',
+        test_directory=model.get('model_directory'))
     

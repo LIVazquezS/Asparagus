@@ -28,6 +28,7 @@ class FileManager():
         config: Optional[Union[str, dict, object]] = None,
         model_directory: Optional[str] = None,
         max_checkpoints: Optional[int] = None,
+        **kwargs
     ):
         """
         Initialize file manager class.
