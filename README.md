@@ -1,6 +1,6 @@
 # Project Asparagus
 
-**Authors**: L.I. Vazquez-Salazar, K. Toepfer
+**Authors**: K. Toepfer,L.I. Vazquez-Salazar
 
 ## What is this?
  - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch. 
@@ -116,8 +116,8 @@ Additional examples will be added in the future.
 - [ ] Read parameters from older PhysNet Versions (i.e. TF1 and TF2) (Luis)
 - [ ] Add sampling methods:
     - [x] MD with XTB
-    - [ ] MC with XTB
-    - [ ] Normal Model Sampling (Vanilla with random generation) (Luis)
+    - [x] MC with XTB
+    - [x] Normal Model Sampling (Vanilla with random generation) (Luis)
     - [x] Normal Model Scanning (Kai)
     - [ ] Umbrella Sampling
     - [x] Metadynamics Sampling (Kai)
