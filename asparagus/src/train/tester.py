@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 import numpy as np
 
 import torch
+from numpy import ndarray, dtype
 
 from .. import data
 from .. import settings
@@ -555,7 +556,7 @@ class Tester:
     def plain_data(
         self, 
         data: List[Any],
-    ) -> List[float]:
+    ) -> ndarray[Any, dtype[Any]]:
 
         return np.array([
             data_i 
