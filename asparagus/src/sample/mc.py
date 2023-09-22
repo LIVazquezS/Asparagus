@@ -23,7 +23,7 @@ __all__ = ['MCSampler']
 
 class MCSampler(sample.Sampler):
     """
-    A very simple Monte Carlo sampler class.
+    A very simple Monte Carlo (MC) sampler class.
 
     Uses the Metropolis algorithm to generate samples for a molecule.
 
@@ -94,13 +94,13 @@ class MCSampler(sample.Sampler):
                 f"of a valid file path but is of type " +
                 f"'{type(self.mc_data_file)}'.")
 
-        # Define mc log file path
+        # Define MC log file path
         self.mc_log_file = os.path.join(
             self.sample_directory,
             f'{self.sample_counter:d}_{self.sample_tag:s}.log')
 
         # Check sample properties for energy and forces properties which are
-        # required for mc sampling
+        # required for MC sampling
         if 'energy' not in self.sample_properties:
             self.sample_properties.append('energy')
         if 'forces' not in self.sample_properties:
@@ -155,7 +155,7 @@ class MCSampler(sample.Sampler):
         #         temperature_K=self.md_initial_temperature)
 
 
-        # Perform mc equilibration simulation if requested
+        # Perform MC equilibration simulation if requested
         if (
                 self.mc_equilibration_time is not None
                 and self.mc_equilibration_time > 0.
@@ -165,11 +165,11 @@ class MCSampler(sample.Sampler):
         #  Set the equilibrated system as the new initial system
             initial_system = traj_eq[-1]
 
-        # Perform mc simulation
+        # Perform MC simulation
         traj_steps = int(self.mc_simulation_time / self.mc_time_step)
         traj = self.monte_carlo_steps(initial_system, traj_steps)
         if save_trajectory:
-            write('mc_trajectory.traj',traj)
+            write('mc_trajectory.traj', traj)
 
 
     def monte_carlo_steps(self,system,steps):
@@ -212,6 +212,7 @@ class MCSampler(sample.Sampler):
             else:
                 # Reset the position of the atom
                 system[atom].position = old_position
+
         return trajectory
 
 

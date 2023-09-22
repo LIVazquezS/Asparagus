@@ -5,7 +5,7 @@ from asparagus import MDSampler, NormalModeScanner, MetaSampler, ReCalculator
 
 from asparagus import Asparagus
 
-if True:
+if False:
 
     data = DataContainer(
         data_file='data/no2_1.db',
@@ -21,7 +21,7 @@ if True:
             'energy':   ['V', 'E']},
         data_overwrite=False)
 
-if True:
+if False:
 
     model = Asparagus(
         data_file='data/no2_1.db',
@@ -44,6 +44,23 @@ if True:
     model = Asparagus(
         config="config.json"
         )
-    calc = model.ase_calculator()
+
+    #calc = model.get_ase_calculator()
     no2_atoms = ase.io.read("data/no2.xyz")
-    calc.calculate(no2_atoms)
+    #calc.calculate(no2_atoms)
+    #calc.calculate(no2_atoms)
+
+    #calc = model.get_ase_calculator()
+    no2_atoms_copy = ase.io.read("data/no2.xyz")
+    #calc.calculate([no2_atoms, no2_atoms_copy])
+    
+    #calc = model.get_ase_calculator(atoms=no2_atoms)
+    #calc.calculate()
+    #calc.calculate(no2_atoms)
+    
+    calc = model.get_ase_calculator(atoms=[no2_atoms, no2_atoms_copy])
+    calc.calculate()
+    calc.calculate([no2_atoms, no2_atoms_copy])
+    
+    
+    

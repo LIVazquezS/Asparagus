@@ -442,11 +442,16 @@ class Asparagus(torch.nn.Module):
                 **kwargs)
 
 
-    def ase_calculator(
+    def get_ase_calculator(
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
         model_checkpoint: Optional[int] = None,
+        atoms: Optional[Union[object, List[object]]] = None,
+        atoms_charge: Optional[Union[float, List[float]]] = None,
+        implemented_properties: Optional[List[str]] = None,
+        use_neighbor_list: Optional[bool] = None,
+        label: Optional[str] = 'asparagus',
         **kwargs,
     ) -> Callable:
         """
@@ -506,6 +511,12 @@ class Asparagus(torch.nn.Module):
         ##################################
 
         self.ase_calculator = interface.ASE_Calculator(
-            self.model_calculator)
+            self.model_calculator,
+            atoms=atoms,
+            atoms_charge=atoms_charge,
+            implemented_properties=implemented_properties,
+            use_neighbor_list=use_neighbor_list,
+            label=label,
+            )
 
         return self.ase_calculator

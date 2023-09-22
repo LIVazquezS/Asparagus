@@ -7,23 +7,6 @@ from asparagus import Asparagus
 
 if False:
 
-    data = DataContainer(
-        data_file='data/fad_set3.db',
-        data_source=[
-            'data/fad.set3.58069.qmmm.mp2.avtz.npz'],
-        data_load_properties=[
-            'energy', 'force', 'total_charge', 'dipole'],
-        data_unit_properties={
-            'energy':   'eV',
-            'forces':   'eV/Ang',
-            'charge':   'e',
-            'dipole':   'eAng'},
-        data_alt_property_labels={
-            'energy':   ['V', 'E']},
-        data_overwrite=False)
-
-if False:
-
     #sampler = NormalModeScanner(
         #sample_directory='test_samples',
         #sample_systems='data/hono.xyz',
@@ -101,6 +84,22 @@ if False:
         )
     recalculator.run()    
         
+if True:
+
+    data = DataContainer(
+        data_file='data/fad_set3.db',
+        data_source=[
+            'data/fad.set3.58069.qmmm.mp2.avtz.npz'],
+        data_load_properties=[
+            'energy', 'force', 'total_charge', 'dipole'],
+        data_unit_properties={
+            'energy':   'eV',
+            'forces':   'eV/Ang',
+            'charge':   'e',
+            'dipole':   'eAng'},
+        data_alt_property_labels={
+            'energy':   ['V', 'E']},
+        data_overwrite=False)
 
 if True:
 
