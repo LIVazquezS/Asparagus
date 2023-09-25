@@ -21,7 +21,7 @@ if False:
             'energy':   ['V', 'E']},
         data_overwrite=False)
 
-if False:
+if True:
 
     model = Asparagus(
         data_file='data/no2_1.db',
@@ -45,22 +45,43 @@ if True:
         config="config.json"
         )
 
-    #calc = model.get_ase_calculator()
+    print("\n\n1")
+    calc = model.get_ase_calculator()
     no2_atoms = ase.io.read("data/no2.xyz")
-    #calc.calculate(no2_atoms)
-    #calc.calculate(no2_atoms)
+    calc.calculate(no2_atoms)
+    calc.calculate(no2_atoms)
 
-    #calc = model.get_ase_calculator()
+    print("\n\n2")
+    calc = model.get_ase_calculator()
     no2_atoms_copy = ase.io.read("data/no2.xyz")
-    #calc.calculate([no2_atoms, no2_atoms_copy])
-    
-    #calc = model.get_ase_calculator(atoms=no2_atoms)
-    #calc.calculate()
-    #calc.calculate(no2_atoms)
-    
-    calc = model.get_ase_calculator(atoms=[no2_atoms, no2_atoms_copy])
+    calc.calculate([no2_atoms, no2_atoms_copy])
+
+    print("\n\n3")
+    calc = model.get_ase_calculator(atoms=no2_atoms)
+    calc.calculate()
+    calc.calculate(no2_atoms)
+
+    print("\n\n4")
+    calc = model.get_ase_calculator(atoms=no2_atoms)
     calc.calculate()
     calc.calculate([no2_atoms, no2_atoms_copy])
-    
-    
-    
+    calc.calculate()
+
+    print("\n\n5")
+    no2_atoms = ase.io.read("data/no2.xyz")
+    calc = model.get_ase_calculator(atoms_charge=0.0)
+    print(calc)
+    no2_atoms.calc = calc
+    print(no2_atoms)
+    print(calc.calculate())
+    print(no2_atoms.get_potential_energy())
+    print(no2_atoms.get_forces())
+    from ase.optimize import BFGS
+    no2_atoms_list = [no2_atoms.copy()]
+    dyn = BFGS(no2_atoms)
+    dyn.run(fmax=0.01)
+    no2_atoms_list.append(no2_atoms)
+    from ase.visualize import view
+    view(no2_atoms_list)
+
+

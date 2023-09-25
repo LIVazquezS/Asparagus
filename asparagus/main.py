@@ -269,6 +269,8 @@ class Asparagus(torch.nn.Module):
             self.data_container = self._get_DataContainer(
                 config_test,
                 **kwargs)
+            print(self.data_container)
+            exit()
 
         # Add data container info to configuration dictionary
         if hasattr(self.data_container, "get_info"):
@@ -472,6 +474,12 @@ class Asparagus(torch.nn.Module):
 
         # Check model parameter configuration and set default
         config_ase.check()
+
+        # Check for empty config dictionary
+        if "model_calculator" not in config_ase:
+            raise SyntaxError(
+                "Configuration does not provide information for a model"
+                + "calculator. Please check the input in 'config'.")
 
         ##################################
         # # # Prepare NNP Calculator # # #
