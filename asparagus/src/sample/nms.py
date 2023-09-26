@@ -341,201 +341,198 @@ class NormalModeScanner(sample.Sampler):
         return
 
 
-#class NormalModeSampling(sample.Sample):
-    #"""
-        #Normal Mode Sampling class.
+class NormalModeSampler(sample.Sampler):
+    """
+        Normal Mode Sampling class.
 
-        #This is the vanilla version of the normal mode class.
+        This is the vanilla version of the normal mode class.
 
-    #"""
+    """
 
-    #def __init__(
-        #self,
-        #nms_data_file: Optional[str] = None,
-        #nms_temperature: Optional[float] = None,
-        #nms_nsamples: Optional[int] = None,
-        #**kwargs
-    #):
+    def __init__(
+        self,
+        nms_data_file: Optional[str] = None,
+        nms_temperature: Optional[float] = None,
+        nms_nsamples: Optional[int] = None,
+        **kwargs
+    ):
 
-        #super().__init__(**kwargs)
+        super().__init__(**kwargs)
 
-        ##################################
-        ## # # Check NMS Class Input # # #
-        ##################################
+        #################################
+        # # # Check NMS Class Input # # #
+        #################################
 
-        ## Check input parameter, set default values if necessary and
-        ## update the configuration dictionary
-        ## config_update = {}
-        #for arg, item in locals().items():
+        # Check input parameter, set default values if necessary and
+        # update the configuration dictionary
+        # config_update = {}
+        for arg, item in locals().items():
 
-            ## Skip 'config' argument and possibly more
-            #if arg in [
-                #'self', 'config', 'config_update', 'kwargs', '__class__']:
-                #continue
+            # Skip 'config' argument and possibly more
+            if arg in [
+                'self', 'config', 'config_update', 'kwargs', '__class__']:
+                continue
 
-            ## Take argument from global configuration dictionary if not defined
-            ## directly
-            #if item is None:
-                #item = self.config.get(arg)
+            # Take argument from global configuration dictionary if not defined
+            # directly
+            if item is None:
+                item = self.config.get(arg)
 
-            ## Set default value if the argument is not defined (None)
-            #if arg in settings._default_args.keys() and item is None:
-                #item = settings._default_args[arg]
+            # Set default value if the argument is not defined (None)
+            if arg in settings._default_args.keys() and item is None:
+                item = settings._default_args[arg]
 
-            ## Check datatype of defined arguments
-            #if arg in settings._dtypes_args.keys():
-                #match = utils.check_input_dtype(
-                    #arg, item, settings._dtypes_args, raise_error=True)
+            # Check datatype of defined arguments
+            if arg in settings._dtypes_args.keys():
+                match = utils.check_input_dtype(
+                    arg, item, settings._dtypes_args, raise_error=True)
 
-            ## Append to update dictionary
-            ## config_update[arg] = item
+            # Append to update dictionary
+            # config_update[arg] = item
 
-            ## Assign as class parameter
-            #setattr(self, arg, item)
+            # Assign as class parameter
+            setattr(self, arg, item)
 
-        ## Update global configuration dictionary
-        ## self.config.update(config_update)
+        # Update global configuration dictionary
+        # self.config.update(config_update)
 
-        ## Check sample data file
-        #if self.nmsamp_data_file is None:
-            #self.nmsamp_data_file = os.path.join(
-                #self.sample_directory, f'{self.sample_counter:d}_nmsamp.db')
-        #elif not utils.is_string(self.nmsamp_data_file):
-            #raise ValueError(
-                #f"Sample data file 'nmsamp_data_file' must be a string " +
-                #f"of a valid file path but is of type " +
-                #f"'{type(self.nmsamp_data_file)}'.")
+        # Check sample data file
+        if self.nmsamp_data_file is None:
+            self.nmsamp_data_file = os.path.join(
+                self.sample_directory, f'{self.sample_counter:d}_nmsamp.db')
+        elif not utils.is_string(self.nmsamp_data_file):
+            raise ValueError(
+                f"Sample data file 'nmsamp_data_file' must be a string " +
+                f"of a valid file path but is of type " +
+                f"'{type(self.nmsamp_data_file)}'.")
 
-        ## Sampler class label
-        #self.sample_tag = 'nmsamp'
+        # Sampler class label
+        self.sample_tag = 'nmsamp'
 
-        ## Check sample properties for energy property which is required for
-        ## normal mode scanning
-        #if 'energy' not in self.sample_properties:
-            #self.sample_properties.append('energy')
-
-
-        ######################################
-        ## # # Initialize Sample DataSet # # #
-        ######################################
-
-        #self.nmsamp_dataset = data.DataSet(
-            #self.nmsamp_data_file,
-            #self.sample_unit_positions,
-            #self.sample_properties,
-            #self.sample_unit_properties,
-            #data_overwrite=True)
-
-        #return
-
-    #def get_info(self):
-
-        #return {
-            #'sample_directory': self.sample_directory,
-            ## 'sample_data_file': self.sample_data_file,
-            #'sample_systems': self.sample_systems,
-            #'sample_systems_format': self.sample_systems_format,
-            #'sample_calculator': self.sample_calculator_tag,
-            #'sample_calculator_args': self.sample_calculator_args,
-            #'sample_properties': self.sample_properties,
-            #'sample_systems_optimize': self.sample_systems_optimize,
-            #'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
-            #'nms_data_file': self.nmsamp_data_file,
-            #'nms_temperature': self.nmsamp_temperature,
-            #'nms_nsamples': self.nmsamp_nsamples,
-        #}
-
-    #def R(self,fct, nmodes, T=300):
-        #random_num = np.random.uniform(size=nmodes) ** 2
-        #sign = [-1 if i < 0.5 else 1 for i in random_num]
-        #fix_fcts = [0.05 if i < 0.05 else i for i in fct]
-        #R = []
-        #for i, j in enumerate(fix_fcts):
-            #R_i = sign[i] * np.sqrt((3 * random_num[i] * units.kB * T) / j)
-            #R.append(R_i)
-        #R_vec = np.array(R)
-        #return R_vec
-
-    #def new_coord(self,nmodes,vib_disp, mass_sqrt, fcts, T=300):
-        #Rx = self.R(nmodes, fcts, T)
-        #new_disp = []
-        #for i, j in enumerate(vib_disp):
-            #disp_i = mass_sqrt[i] * Rx[i] * j
-            #new_disp.append(disp_i)
-        #disp = np.sum(new_disp, axis=0)
-        #return disp
-    #def save_properties(self, system):
-        #"""
-        #Save system properties
-        #"""
-
-        #system_properties = self.get_properties(system)
-        #self.nmsamp_dataset.add_atoms(system, system_properties)
-    #def run(self,system):
-        #'''
-        #Running the system
-        #This only considers vibrational degrees of freedom. Rotational and translational degrees of freedom are not considered.
-
-        #'''
-
-        #print('You are doing normal mode sampling, we recommend you to use the normal mode sampling class')
-        ## Prepare system parameter
-        #Natoms = system.get_global_number_of_atoms()
-        #Nmodes = 3 * Natoms
-
-        ## Compute initial state properties
-        #self.sample_calculator.calculate(system)
-
-        ## Add initial state properties to dataset
-        #system_properties = self.get_properties(system)
-        #self.nmsamp_dataset.add_atoms(system, system_properties)
-
-        ## Perform numerical normal mode analysis
-        #ase_vibrations = vibrations.Vibrations(
-            #system,
-            #name=os.path.join(self.sample_directory, f"vib"))
-        #ase_vibrations.clean()
-        #ase_vibrations.run()
-        #ase_vibrations.summary()
-
-        ## (Trans. + Rot. + ) Vibrational frequencies in cm**-1
-        #system_frequencies = ase_vibrations.get_frequencies()
-
-        ## (Trans. + Rot. + ) Vibrational modes normalized to 1
-        #system_modes = np.array([
-            #ase_vibrations.get_mode(imode).reshape(Natoms, 3)
-            #/ np.sqrt(np.sum(
-                #ase_vibrations.get_mode(imode).reshape(Natoms, 3) ** 2))
-            #for imode in range(Nmodes)])
-
-        ## Reduced mass per mode (in amu)
-        #system_redmass = np.array([
-            #1. / np.sum(
-                #system_modes[imode] ** 2 / system.get_masses().reshape(
-                    #Natoms, 1))
-            #for imode in range(Nmodes)])
-
-        ## Force constant per mode (in eV/Angstrom**2)
-        #system_forceconst = (
-                #4.0 * np.pi ** 2 * (np.abs(system_frequencies) * 1.e2 * units._c) ** 2
-                #* system_redmass * units._amu * units.J * 1.e-20)
-
-        ## Compute and store equilibrium positions and center of mass,
-        ## moments of inertia and principle axis of inertia
-        #system_init_positions = system.get_positions()
-        #for _ in range(self.nmsamp_nsamples):
-            #new_position = system_init_positions + self.new_coord(Nmodes, system_modes, system_redmass, system_forceconst
-                                                                  #, self.nmsamp_temperature)
-            #system.set_positions(new_position)
-            #try:
-                #self.sample_calculator.calculate(system)
-                #self.save_properties(system)
-            #except:
-                #print('This configuration is not stable')
-                #pass
+        # Check sample properties for energy property which is required for
+        # normal mode scanning
+        if 'energy' not in self.sample_properties:
+            self.sample_properties.append('energy')
 
 
+        #####################################
+        # # # Initialize Sample DataSet # # #
+        #####################################
 
+        self.nmsamp_dataset = data.DataSet(
+            self.nmsamp_data_file,
+            self.sample_unit_positions,
+            self.sample_properties,
+            self.sample_unit_properties,
+            data_overwrite=True)
+
+        return
+
+    def get_info(self):
+
+        return {
+            'sample_directory': self.sample_directory,
+            # 'sample_data_file': self.sample_data_file,
+            'sample_systems': self.sample_systems,
+            'sample_systems_format': self.sample_systems_format,
+            'sample_calculator': self.sample_calculator_tag,
+            'sample_calculator_args': self.sample_calculator_args,
+            'sample_properties': self.sample_properties,
+            'sample_systems_optimize': self.sample_systems_optimize,
+            'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
+            'nms_data_file': self.nmsamp_data_file,
+            'nms_temperature': self.nmsamp_temperature,
+            'nms_nsamples': self.nmsamp_nsamples,
+        }
+
+    def R(self,fct, nmodes, T=300):
+        random_num = np.random.uniform(size=nmodes) ** 2
+        sign = [-1 if i < 0.5 else 1 for i in random_num]
+        fix_fcts = [0.05 if i < 0.05 else i for i in fct]
+        R = []
+        for i, j in enumerate(fix_fcts):
+            R_i = sign[i] * np.sqrt((3 * random_num[i] * units.kB * T) / j)
+            R.append(R_i)
+        R_vec = np.array(R)
+        return R_vec
+
+    def new_coord(self,nmodes,vib_disp, mass_sqrt, fcts, T=300):
+        Rx = self.R(nmodes, fcts, T)
+        new_disp = []
+        for i, j in enumerate(vib_disp):
+            disp_i = mass_sqrt[i] * Rx[i] * j
+            new_disp.append(disp_i)
+        disp = np.sum(new_disp, axis=0)
+        return disp
+    def save_properties(self, system):
+        """
+        Save system properties
+        """
+
+        system_properties = self.get_properties(system)
+        self.nmsamp_dataset.add_atoms(system, system_properties)
+    def run(self,system):
+        '''
+        Running the system
+        This only considers vibrational degrees of freedom. Rotational and translational degrees of freedom are not considered.
+
+        '''
+
+        print('You are doing normal mode sampling, we recommend you to use the normal mode sampling class')
+        # Prepare system parameter
+        Natoms = system.get_global_number_of_atoms()
+        Nmodes = 3 * Natoms
+
+        # Compute initial state properties
+        self.sample_calculator.calculate(system)
+
+        # Add initial state properties to dataset
+        system_properties = self.get_properties(system)
+        self.nmsamp_dataset.add_atoms(system, system_properties)
+
+        # Perform numerical normal mode analysis
+        ase_vibrations = vibrations.Vibrations(
+            system,
+            name=os.path.join(self.sample_directory, f"vib"))
+        ase_vibrations.clean()
+        ase_vibrations.run()
+        ase_vibrations.summary()
+
+        # (Trans. + Rot. + ) Vibrational frequencies in cm**-1
+        system_frequencies = ase_vibrations.get_frequencies()
+
+        # (Trans. + Rot. + ) Vibrational modes normalized to 1
+        system_modes = np.array([
+            ase_vibrations.get_mode(imode).reshape(Natoms, 3)
+            / np.sqrt(np.sum(
+                ase_vibrations.get_mode(imode).reshape(Natoms, 3) ** 2))
+            for imode in range(Nmodes)])
+
+        # Reduced mass per mode (in amu)
+        system_redmass = np.array([
+            1. / np.sum(
+                system_modes[imode] ** 2 / system.get_masses().reshape(
+                    Natoms, 1))
+            for imode in range(Nmodes)])
+
+        # Force constant per mode (in eV/Angstrom**2)
+        system_forceconst = (
+                4.0 * np.pi ** 2 * (np.abs(system_frequencies) * 1.e2 * units._c) ** 2
+                * system_redmass * units._amu * units.J * 1.e-20)
+
+        # Compute and store equilibrium positions and center of mass,
+        # moments of inertia and principle axis of inertia
+        system_init_positions = system.get_positions()
+        for _ in range(self.nmsamp_nsamples):
+            new_position = system_init_positions + self.new_coord(Nmodes, system_modes, system_redmass, system_forceconst
+                                                                  , self.nmsamp_temperature)
+            system.set_positions(new_position)
+            try:
+                self.sample_calculator.calculate(system)
+                self.save_properties(system)
+            except:
+                print('This configuration is not stable')
+                pass
 
 
 

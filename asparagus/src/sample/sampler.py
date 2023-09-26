@@ -17,7 +17,7 @@ from .. import model
 from .. import settings
 from .. import utils
 from .. import interface
-from .. import sample
+#from .. import sample
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

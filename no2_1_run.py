@@ -21,10 +21,11 @@ if False:
             'energy':   ['V', 'E']},
         data_overwrite=False)
 
-if True:
+if False:
 
     model = Asparagus(
         data_file='data/no2_1.db',
+        data_load_properties=['energy', 'total_charge', 'dipole'],
         model_interaction_cutoff=20.0,
         model_cutoff_width=5.0,
         input_cutoff_descriptor=14.0,
@@ -42,30 +43,31 @@ if True:
     
     import ase
     model = Asparagus(
-        config="config.json"
+        config="config.json",
+        model_directory="20230918142745"
         )
 
     print("\n\n1")
     calc = model.get_ase_calculator()
     no2_atoms = ase.io.read("data/no2.xyz")
-    calc.calculate(no2_atoms)
-    calc.calculate(no2_atoms)
+    print(calc.calculate(no2_atoms))
+    print(calc.calculate(no2_atoms))
 
     print("\n\n2")
     calc = model.get_ase_calculator()
     no2_atoms_copy = ase.io.read("data/no2.xyz")
-    calc.calculate([no2_atoms, no2_atoms_copy])
+    print(calc.calculate([no2_atoms, no2_atoms_copy]))
 
     print("\n\n3")
     calc = model.get_ase_calculator(atoms=no2_atoms)
-    calc.calculate()
-    calc.calculate(no2_atoms)
+    print(calc.calculate())
+    print(calc.calculate(no2_atoms))
 
     print("\n\n4")
     calc = model.get_ase_calculator(atoms=no2_atoms)
-    calc.calculate()
-    calc.calculate([no2_atoms, no2_atoms_copy])
-    calc.calculate()
+    print(calc.calculate())
+    print(calc.calculate([no2_atoms, no2_atoms_copy]))
+    print(calc.calculate())
 
     print("\n\n5")
     no2_atoms = ase.io.read("data/no2.xyz")

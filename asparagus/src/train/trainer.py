@@ -357,7 +357,7 @@ class Trainer:
         # Load, if exists, latest model calculator and training state 
         # checkpoint file
         latest_checkpoint = self.filemanager.load_checkpoint(best=False)
-        
+
         if latest_checkpoint is not None:
             self.model_calculator.load_state_dict(
                 latest_checkpoint['model_state_dict'])

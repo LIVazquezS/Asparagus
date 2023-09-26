@@ -7,7 +7,7 @@ from .md import (
 )
 
 from .nms import (
-    NormalModeScanner#, NormalModeSampler
+    NormalModeScanner, NormalModeSampler
 )
 
 from .meta import (

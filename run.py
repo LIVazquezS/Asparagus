@@ -104,7 +104,6 @@ if True:
 if True:
 
     model = Asparagus(
-        config='20230913202834/config.json',
         data_file='data/h2co_b3lyp.db',
         data_source=['data/h2co_B3LYP_cc_pVDZ_4001.npz'],
         data_load_properties=['energy', 'force', 'dipole'],
@@ -113,6 +112,4 @@ if True:
         trainer_optimizer_args={'lr': 0.0001},
         data_container=None)
     model.train()
-    #
-    #ckpt = '20230525163715_YQO817Vk_F128KNoneb5a2i3o1cut8.0eTruedTruerFalse/best/best_model.pt'
-    #model.test_model(ckpt,plot=True,show_plots=True,save_plots=True)#,residual_plots=True,show_residuals=True,histogram_plots=True,show_histograms=True)
+    
