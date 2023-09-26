@@ -112,18 +112,30 @@ Additional examples will be added in the future.
 
 ## What needs to be added?
 
-- [ ] Add more NN architectures
+- [ ] Add more NN architectures (Low priority)
 - [ ] Read parameters from older PhysNet Versions (i.e. TF1 and TF2) (Luis)
 - [ ] Add sampling methods:
     - [x] MD with XTB
     - [x] MC with XTB
-    - [x] Normal Model Sampling (Vanilla with random generation) (Luis)
-    - [x] Normal Model Scanning (Kai)
-    - [ ] Umbrella Sampling
-    - [x] Metadynamics Sampling (Kai)
-    - [ ] Adaptive Sampling
+    - [x] Normal Model Sampling (Vanilla with random generation) 
+    - [x] Normal Model Scanning 
+    - [ ] Umbrella Sampling (Low priority)
+    - [x] Metadynamics Sampling 
+- [ ] Active learning
+   - [ ] Adaptive Sampling
 - [ ] Electronic structure calculations:
+   - [x] ASE calculator (As good as it can be)
    - [ ] Automatic generation of input files for common used codes (e.g. Gaussian, Orca, MOLPRO, etc.)
    - [ ] Automatic extraction of information from output files
    - [ ] Preparation of training/ input files for the NN
-- [x] Finish automatic evaluation (Luis)
+- Tester class: 
+  - [x] Finish automatic evaluation (Luis)
+  - [ ] Normal mode calculation (Luis)
+- Production: 
+  - [ ] PyCharmm 
+  - [ ] ASE calculator for dynamics
+- Documentation:
+  - [ ] Improve documentation
+  - [ ] Add examples
+  - [ ] Add tutorials
+  
