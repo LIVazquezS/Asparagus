@@ -2,22 +2,22 @@ import numpy as np
 import torch
 import tensorflow as tf
 from NNCalculator.neural_network.NeuralNetwork import *
-# import argparse
-#
-# parser = argparse.ArgumentParser(description='Convert tensorflow model to pytorch model')
-# parser.add_argument('--checkpoint', type=str, help='path to tensorflow checkpoint')
-# parser.add_argument('--output', type=str, help='path to output pytorch model')
-# args = parser.parse_args()
-#
-# print('The initial tensorflow model: {}'.format(args.checkpoint))
-# print('The output pytorch model: {}'.format(args.output))
+import argparse
+
+parser = argparse.ArgumentParser(description='Convert tensorflow model to pytorch model')
+parser.add_argument('-cpt','--checkpoint', type=str, help='path to tensorflow checkpoint')
+parser.add_argument('-o','--output', type=str, help='path to output pytorch model')
+args = parser.parse_args()
+
+print('The initial tensorflow model: {}'.format(args.checkpoint))
+print('The output pytorch model: {}'.format(args.output))
 
 # This part is needed to load the tensorflow model
 
 tf.compat.v1.disable_eager_execution()
 tf.compat.v1.reset_default_graph()
 
-checkpoint = "hf_models/betadiketones_hf_vdz_71208_a"
+checkpoint = args.checkpoint
 nn = NeuralNetwork(F=128,K=64,num_blocks=5,num_residual_atomic=2,num_residual_interaction=3,num_residual_output=1,
                    sr_cut=10.0,scope="neural_network")
 
@@ -72,12 +72,12 @@ dct_to_torch['electrostatic_model.switch_fn.cutoff'] = 14.0
 dct_to_torch['input_model.input_cutoff_fn.cutoff'] = 14.0
 dct_to_torch['input_model.input_descriptor_fn.rbf_cutoff_fn.cutoff'] = 14.0
 
-dct_to_torch['input_model.atom_features'] = np.zeros((95, 128))
+# dct_to_torch['input_model.atom_features'] = np.zeros((95, 128))
 
 for i in dct_to_torch.keys():
     dct_to_torch[i] = torch.tensor(dct_to_torch[i])
 
-torch.save({'model_state_dict': dct_to_torch}, 'best_model.pt')
+torch.save({'model_state_dict': dct_to_torch}, args.output)
 
 
 

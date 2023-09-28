@@ -113,7 +113,7 @@ Additional examples will be added in the future.
 ## What needs to be added?
 
 - [ ] Add more NN architectures (Low priority)
-- [ ] Read parameters from older PhysNet Versions (i.e. TF1 and TF2) (Luis)
+- [x] Read parameters from older PhysNet Versions (i.e. TF1 and TF2) (Luis)
 - [ ] Add sampling methods:
     - [x] MD with XTB
     - [x] MC with XTB
