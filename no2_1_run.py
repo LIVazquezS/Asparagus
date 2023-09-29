@@ -43,7 +43,7 @@ if True:
     
     import ase
     model = Asparagus(
-        config="config.json",
+        config="20230918142745/config.json",
         model_directory="20230918142745"
         )
 

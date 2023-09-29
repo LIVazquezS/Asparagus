@@ -2,7 +2,10 @@ from .datacontainer import (
     DataContainer
 )
 from .dataset import (
-    DataSet, DataSubSet
+    DataSet, DataSubSet, get_metadata
+)
+from .datareader import (
+    DataReader
 )
 from .database import (
     DataBase, connect, lock, object_to_bytes, bytes_to_object

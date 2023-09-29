@@ -139,7 +139,6 @@ class NormalModeScanner(sample.Sampler):
         
         self.nms_dataset = data.DataSet(
             self.nms_data_file,
-            self.sample_unit_positions,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)
@@ -421,7 +420,6 @@ class NormalModeSampler(sample.Sampler):
 
         self.nmsamp_dataset = data.DataSet(
             self.nmsamp_data_file,
-            self.sample_unit_positions,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)

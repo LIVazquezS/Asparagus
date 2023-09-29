@@ -90,7 +90,7 @@ class DataBase:
             data_file = os.path.expanduser(data_file)
         self.data_file = data_file
         
-        
+        # Prepare data locker
         if data_lock_file and utils.is_string(data_file):
             self.lock = Lock(data_file + '.lock', world=DummyMPI())
         else:
@@ -289,8 +289,8 @@ class DataBase:
         
         # Count rows
         return self._count(cmps)
-        
-    
+
+
     def _count(self, cmps):
         
         n = 0

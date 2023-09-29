@@ -9,6 +9,10 @@ from .check_input import(
     check_input_dtype, check_property_label, combine_dictionaries
 )
 
+from .check_units import(
+    check_units
+)
+
 from .functions import(
     segment_sum, softplus_inverse, gather_nd, printProgressBar
 )

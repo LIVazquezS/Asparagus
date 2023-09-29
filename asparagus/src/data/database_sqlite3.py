@@ -513,8 +513,11 @@ class DataBase_SQLite3(data.DataBase):
 
         with self.managed_connection() as con:
             cur = con.cursor()
-            cur.execute(sql, args)
-            return cur.fetchone()[0]
+            try:
+                cur.execute(sql, args)
+                return cur.fetchone()[0]
+            except sqlite3.OperationalError:
+                return 0
 
     
     @parallel_function

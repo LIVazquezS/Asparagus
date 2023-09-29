@@ -21,6 +21,8 @@ from .. import settings
 from .. import utils
 from .. import sample
 
+from ase.db import connect
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -251,7 +253,6 @@ class MetaSampler(sample.Sampler):
         
         self.meta_dataset = data.DataSet(
             self.meta_data_file,
-            self.sample_unit_positions,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)
@@ -308,7 +309,7 @@ class MetaSampler(sample.Sampler):
             mode='a', properties=self.sample_properties)
         meta_dyn.attach(
             self.write_trajectory, 
-            interval=self.meta_gaussian_interval,
+            interval=self.meta_save_interval,
             system=system)
         
         # Attach collective variables writer
@@ -339,7 +340,7 @@ class MetaSampler(sample.Sampler):
         system_noconstraint = system.copy()
         system_noconstraint.set_constraint()
         self.meta_trajectory.write(system_noconstraint)
-
+        
 
 class MetaConstraint:
     """

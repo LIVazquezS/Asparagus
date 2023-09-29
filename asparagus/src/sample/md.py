@@ -153,7 +153,6 @@ class MDSampler(sample.Sampler):
         
         self.md_dataset = data.DataSet(
             self.md_data_file,
-            self.sample_unit_positions,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)

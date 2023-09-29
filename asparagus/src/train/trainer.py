@@ -431,8 +431,6 @@ class Trainer:
                 # Compute total and single loss values for training properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, loss_fn=loss_fn)
-                #print('pred', prediction['energy'][0])
-                #print('ref', batch['energy'][0])
                 loss = metrics_batch['loss']
 
                 # Predict parameter gradients by backwards propagation

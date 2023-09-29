@@ -66,15 +66,14 @@ class DataContainer():
         data_unit_positions: str, optional, default 'Ang'
             Unit of the atom positions ('Ang' or 'Bohr') and other unit
             cell information.
-        data_load_properties: List(str), optional, default ['energy']
-            Subset of properties to load
+        data_load_properties: List(str), optional, 
+                default ['energy', 'forces', 'charge', 'dipole']
+            Set of properties to store in the DataSet
         data_unit_properties: dictionary, optional, default {'energy':'eV'}
             Dictionary from properties (keys) to corresponding unit as a
             string (item), e.g.:
                 {property: unit}: { 'energy', 'eV',
                                     'forces', 'eV/Ang', ...}
-            If 'data_load_properties is None, all properties defined in
-            'data_unit_properties' are loaded.
         data_num_train: (int, float), optional, default 0.8 (80% of data)
             Number of training data points [absolute (>1) or relative
             (<= 1.0)].
@@ -113,9 +112,21 @@ class DataContainer():
         #####################################
         # # # Check DataContainer Input # # #
         #####################################
-
+        
         # Get configuration object
         config = settings.get_config(config)
+        
+        # Additionally, check input from existing DataSet reference file if
+        # not flagged for overwrite
+        if data_file is None:
+            data_file = config.get('data_file')
+        if data_overwrite:
+            metadata = {}
+        else:
+            if config.get('data_overwrite'):
+                metadata = {}
+            else:
+                metadata = data.get_metadata(data_file)
 
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
@@ -124,13 +135,18 @@ class DataContainer():
 
             # Skip 'config' argument and possibly more
             if arg in [
-                    'self', 'config', 'config_update', 'kwargs', '__class__']:
+                    'self', 'config', 'config_update', 'metadata', 'kwargs',
+                    '__class__']:
                 continue
 
             # Take argument from global configuration dictionary if not defined
             # directly
             if item is None:
                 item = config.get(arg)
+
+            # Get argument from data set file if defined
+            if item is None and arg in metadata:
+                item = metadata.get(arg)
 
             # Set default value if the argument is not defined (None)
             if arg in settings._default_args.keys():
@@ -150,26 +166,19 @@ class DataContainer():
 
         # Update global configuration dictionary
         config.update(config_update)
-
-        #################################
-        # # # Prepare DataContainer # # #
-        #################################
+        
+        #####################################
+        # # # Check Data Property Input # # #
+        #####################################
 
         # Initialize data flag (False until setup is finished)
         self.data_avaiable = False
-
-        ## Check for absolute paths of 'data_file'
-        #self.data_file = os.path.abspath(self.data_file)
 
         # Make defined data_source iterable if necessary
         if not utils.is_array_like(self.data_source):
             self.data_source = [self.data_source]
 
-        ## Check for absolute paths in 'data_source'
-        #for ip, path in enumerate(self.data_source):
-            #self.data_source[ip] = os.path.abspath(path)
-
-        # Get data_source file extension
+        # Check data_source file extension
         if not len(self.data_format):
             self.data_format = []
             for path in self.data_source:
@@ -188,8 +197,9 @@ class DataContainer():
             logger=logger, logger_info=(
                 "Alternative property labels 'data_alt_property_labels':\n"))
 
-        # Check for unknown property labels and replace if possible with
-        # internally used property label in data_alt_property_labels
+        # Check for unknown property labels in data_load_properties 
+        # and replace if possible with internally used property label in
+        # data_alt_property_labels
         for ip, prop in enumerate(self.data_load_properties):
             match, modified, new_prop = utils.check_property_label(
                 prop, settings._valid_properties,
@@ -203,6 +213,10 @@ class DataContainer():
             elif not match:
                 raise ValueError(
                     f"Unknown property ('{prop}') in 'data_load_properties'!")
+        
+        # Check for unknown property labels in data_unit_properties 
+        # and replace if possible with internally used property label in
+        # data_alt_property_labels
         props = list(self.data_unit_properties.keys())
         for prop in props:
             match, modified, new_prop = utils.check_property_label(
@@ -229,6 +243,17 @@ class DataContainer():
                     "will be used.\n")
                 self.data_unit_properties[prop] = settings._default_units[prop]
 
+        # Check if positions unit is defined in data_unit_properties
+        if 'positions' not in self.data_unit_properties:
+            self.data_unit_properties['positions'] = self.data_unit_positions
+        else:
+            self.data_unit_positions = self.data_unit_properties['positions']
+            config['data_unit_positions'] = self.data_unit_positions
+
+        #########################
+        # # # Check DataSet # # #
+        #########################
+        
         # Check data set parameters
         if os.path.isfile(self.data_file):
             with data.connect(self.data_file) as db:
@@ -238,41 +263,59 @@ class DataContainer():
                     f"WARNING:\nData file '{self.data_file}' is empty! " +
                     "File will be overwritten.\n")
                 self.data_overwrite = True
+                
         if self.data_overwrite and not len(self.data_source):
             logger.warning(
                 "WARNING:\nNo source files are defined in 'data_source'! " +
                 f"Data file '{self.data_file}' will not be overwritten.\n")
             self.data_overwrite = False
 
-        # Continue with setting up reference data set
-        self.setup(data_overwrite=self.data_overwrite)
+        # Set up reference data set
+        self.dataset_setup(
+            data_overwrite=self.data_overwrite,
+            **kwargs)
+        
+        # Reset data overwrite
+        self.data_overwrite = False
+        config['data_overwrite'] = False
 
         return
 
-
-    def setup(
+    def dataset_setup(
         self,
         data_overwrite: Optional[bool] = None,
+        **kwargs,
     ):
         """
         Setup the reference data set
         """
-
-        # Prepare dataset
+        
+        #########################
+        # # # DataSet Setup # # #
+        #########################
+        
+        # Check dataset overwrite parameter
+        if data_overwrite is None:
+            data_overwrite = self.data_overwrite
+        
+        # Initialize dataset
         self.dataset = data.DataSet(
             self.data_file,
-            self.data_unit_positions,
             self.data_load_properties,
             self.data_unit_properties,
-            data_overwrite=data_overwrite)
-
+            data_overwrite=data_overwrite,
+            **kwargs)
+        
         # Load reference data set(s) from defined source data path(s)
-        for ip, data_path in enumerate(self.data_source):
+        for ip, (data_path, data_format) in enumerate(
+                zip(self.data_source, self.data_format)
+            ):
             if os.path.exists(data_path):
                 self.dataset.load(
                     data_path,
-                    self.data_format[ip],
-                    self.data_alt_property_labels)
+                    data_format,
+                    self.data_alt_property_labels,
+                    **kwargs)
             else:
                 logger.warning(
                     f"WARNING:\nFile {data_path} from 'data_source' " +
@@ -280,18 +323,20 @@ class DataContainer():
 
         # Update data set metadata and datacontainer parameters
         self.metadata = self.dataset.get_metadata()
-        self.data_load_properties = self.metadata.get('load_properties')
-        self.data_unit_properties = self.metadata.get('unit_properties')
         self.data_sources = self.metadata.get('data_sources')
         self.data_format = self.metadata.get('data_format')
 
         # Prepare data split into training, validation and test set
         Ndata = len(self.dataset)
-
+        
         # Stop further setup if no data are available
         if not Ndata:
             raise ValueError(
                 f"No data are available in {self.data_file}!\n")
+
+        ###########################
+        # # # Data Separation # # #
+        ###########################
 
         # Training set size
         if self.data_num_train < 0.0:
@@ -382,6 +427,10 @@ class DataContainer():
             self.data_num_test = data_num_test
             self.rel_test = float(self.data_num_test)/float(Ndata)
 
+        ############################
+        # # # DataSubSet Setup # # #
+        ############################
+
         # Select training, validation and test data indices randomly
         np.random.seed(self.data_seed)
         idx_data = np.random.permutation(np.arange(Ndata))
@@ -396,21 +445,18 @@ class DataContainer():
         self.train_set = data.DataSubSet(
             self.data_file,
             self.idx_train,
-            self.data_unit_positions,
             self.data_load_properties,
             self.data_unit_properties,
             False)
         self.valid_set = data.DataSubSet(
             self.data_file,
             self.idx_valid,
-            self.data_unit_positions,
             self.data_load_properties,
             self.data_unit_properties,
             False)
         self.test_set = data.DataSubSet(
             self.data_file,
             self.idx_test,
-            self.data_unit_positions,
             self.data_load_properties,
             self.data_unit_properties,
             False)
@@ -423,6 +469,10 @@ class DataContainer():
             f"({len(self.valid_set)/Ndata*100: 3.1f}%)\n" +
             f"Test data:       {len(self.test_set): 6d} " +
             f"({len(self.test_set)/Ndata*100: 3.1f}%)\n")
+
+        ############################
+        # # # DataLoader Setup # # #
+        ############################
 
         # Prepare training, validation and test data loader
         self.train_loader = data.DataLoader(
@@ -580,7 +630,7 @@ class DataContainer():
         """
 
         return {
-            'data_unit_positions': self.data_unit_positions,
+            ###'data_unit_positions': self.data_unit_positions,
             'data_load_properties': self.data_load_properties,
             'data_unit_properties': self.data_unit_properties,
             'data_num_train': self.data_num_train,

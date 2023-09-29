@@ -112,7 +112,6 @@ class MCSampler(sample.Sampler):
 
         self.mc_dataset = data.DataSet(
             self.mc_data_file,
-            self.sample_unit_positions,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)

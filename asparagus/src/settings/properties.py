@@ -79,9 +79,9 @@ _default_units = {
     'energy':           'eV',
     'atomic_energies':  'eV',
     'forces':           'eV/Ang',
-    'hessian':          'eV/Ang/Ang',
+    'hessian':          'eV/Ang**2',
     'charge':           'e',
     'atomic_charges':   'e',
-    'dipole':           'eAng',
+    'dipole':           'e*Ang',
     }
 
