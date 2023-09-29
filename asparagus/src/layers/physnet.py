@@ -179,10 +179,10 @@ class InteractionLayer(torch.nn.Module):
             pxj = g * torch.gather(self.dense_j(xa), 0, j)
 
         xj = utils.segment_sum(pxj, idx_i, device=self.device)
-        
+
         # Sum of messages
         message = xi + xj
-        
+
         # Apply residual layers
         for residual_layer in self.residual_layers:
             message = residual_layer(message)

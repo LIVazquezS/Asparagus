@@ -124,30 +124,37 @@ class Configuration():
                 "Input 'config_file' is not of valid data type!\n" +
                 "Data type 'str' is expected for the config file path " +
                 f"but '{type(config_file)}' is given.")
-        self.set_config_file(config_file, config_global)
-
+        
         # If no 'config' input given, load from global configuration file path
         if config is None:
             self.config_dict = self.read(self.config_file)
-        # For 'config' being file path (str), load from json file
+        # For 'config' being file path (str), load from json file and set
+        # file path as default
         elif utils.is_string(config):
-            self.config_dict = self.read(config)
-        # For 'config' being a dictionary
+            self.config_file = config
+            self.config_dict = self.read(self.config_file)
+        # For 'config' being a dictionary, take it and look for config file
+        # path in dictionary
         elif utils.is_dictionary(config):
             self.config_dict = config
+            if config.get('config_file') is not None:
+                self.config_file = config.get('config_file')
         else:
             raise ValueError(
                 "Input 'config' is not of valid data type!\n" +
                 "Data type 'dict', 'str' or a config class object " +
                 f"is expected but '{type(config)}' is given.")
 
+        # Set config_file as 
+        self.set_config_file(self.config_file, config_global)
+        
         # Update configuration dictionary with keyword arguments
         if len(kwargs):
             self.update(kwargs)
 
         # Save current configuration dictionary to file
         self.dump()
-
+        
 
     def __getitem__(self, args):
         return self.config_dict.get(args)
@@ -419,7 +426,6 @@ class Configuration():
                 _ = utils.check_input_dtype(
                     key, self.config_dict[key], settings._dtypes_args,
                     raise_error=True)
-
 
     def get_file_path(self):
         return self.config_file

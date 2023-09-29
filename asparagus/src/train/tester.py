@@ -293,6 +293,10 @@ class Tester:
         
         # Loop over all requested data set
         for label, data in self.test_data.items():
+            
+            # Set maximum model cutoff for neighbor list calculation
+            data.init_neighbor_list(
+                cutoff=model_calculator.model_interaction_cutoff)
 
             # Prepare dictionary for property values and number of atoms per 
             # system

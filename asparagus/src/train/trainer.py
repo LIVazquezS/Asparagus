@@ -391,6 +391,12 @@ class Trainer:
         # Initialize training time estimation per epoch
         train_time_estimation = np.nan
 
+        # Set maximum model cutoff for neighbor list calculation
+        self.data_train.init_neighbor_list(
+            cutoff=self.model_calculator.model_interaction_cutoff)
+        self.data_valid.init_neighbor_list(
+            cutoff=self.model_calculator.model_interaction_cutoff)
+
         ##########################
         # # # Start Training # # #
         ##########################

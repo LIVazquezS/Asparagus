@@ -194,8 +194,8 @@ class Calculator_PhysNet(torch.nn.Module):
             self.model_dipole = True
             if 'atomic_charges' not in self.model_properties:
                 raise ValueError(
-                    "PhysNet model cannot provide molecular dipole " +
-                    "without the prediction of atomic charges!")
+                    "PhysNet model cannot provide molecular dipole "
+                    + "without the prediction of atomic charges!")
         else:
             self.model_dipole = False
 
@@ -208,11 +208,11 @@ class Calculator_PhysNet(torch.nn.Module):
             self.model_cutoff_split = True
         elif self.model_interaction_cutoff < self.input_cutoff_descriptor:
             raise ValueError(
-                f"The interaction cutoff distance 'model_interaction_cutoff' " +
-                f"({self.model_interaction_cutoff:.2f})" +
-                f"must be larger than or equal the descriptor range " +
-                f"'input_cutoff_descriptor' " +
-                f"({self.input_cutoff_descriptor:.2f})!")
+                f"The interaction cutoff distance 'model_interaction_cutoff' "
+                + f"({self.model_interaction_cutoff:.2f}) "
+                + f"must be larger than or equal the descriptor range "
+                + f"'input_cutoff_descriptor' "
+                + f"({self.input_cutoff_descriptor:.2f})!")
         else:
             self.model_cutoff_split = False
 

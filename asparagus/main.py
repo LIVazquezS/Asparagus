@@ -122,7 +122,7 @@ class Asparagus(torch.nn.Module):
         ################################
         # # # Check Training Input # # #
         ################################
-
+        
         # Assign model parameter configuration library
         if config is None:
             config_train = settings.get_config(

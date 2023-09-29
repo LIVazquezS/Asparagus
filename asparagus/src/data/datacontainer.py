@@ -587,7 +587,10 @@ class DataContainer():
                 property_scaling[prop][0]/Nsamples).item()
 
         # Update property scaling
-        metadata['data_property_scaling'].update(property_scaling)
+        if metadata.get('data_property_scaling') is None:
+            metadata['data_property_scaling'] = property_scaling
+        else:
+            metadata['data_property_scaling'].update(property_scaling)
         metadata['data_uptodate_property_scaling'] = True
         self.dataset.set_metadata(metadata=metadata)
 
