@@ -27,6 +27,7 @@ if False:
 if False:
     
     sampler = MetaSampler(
+        config='diels_alder_config.json',
         sample_directory='dielsalder_samples',
         sample_systems='data/c2h4.xyz',
         sample_systems_format='xyz',
@@ -49,6 +50,7 @@ if False:
     sampler.run()
     
     sampler = MetaSampler(
+        config='diels_alder_config.json',
         sample_directory='dielsalder_samples',
         sample_systems='data/c4h6.xyz',
         sample_systems_format='xyz',
@@ -71,6 +73,7 @@ if False:
     sampler.run()
     
     sampler = MetaSampler(
+        config='diels_alder_config.json',
         sample_directory='dielsalder_samples',
         sample_systems='data/c6h10.xyz',
         sample_systems_format='xyz',
@@ -95,6 +98,7 @@ if False:
 if True:
 
     data = DataContainer(
+        config='diels_alder_config.json',
         data_file='data/diels_alder_c2h4_c4h6.db',
         data_source=[
             'dielsalder_samples/1_meta.db',
@@ -113,6 +117,7 @@ if True:
 if False:
 
     model = Asparagus(
+        config='diels_alder_config.json',
         data_file='data/diels_alder_c2h4_c4h6.db',
         #model_properties=['energy', 'forces', 'atomic_charges', 'dipole'],
         model_properties=['energy', 'forces'],

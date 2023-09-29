@@ -228,14 +228,23 @@ class DataReader():
             message = (
                 f"INFO:\nProperties from database "
                 + f"'{data_source}'!\n"
-                + f" Property Label | Data Unit      | Source Label   |\n"
-                + f"-"*17*3
-                + f"\n")
+                + " Load | Property Label | Data Unit      | Source Label   |"
+                + "\n" + "-"*(7 + 17*3)
+                + "\n")
             for prop, item in assigned_properties.items():
                 if source_metadata['unit_properties'].get(prop) is None:
                     source_metadata['unit_properties'][prop] = None
+                if (
+                        prop in load_properties 
+                        or prop in self.default_property_labels
+                        or prop == 'positions'
+                    ):
+                    load_str = "   x   "
+                else:
+                    load_str = " "*7
                 message += (
-                    f"{prop:<16s} "
+                    f"{load_str:7s} "
+                    + f"{prop:<16s} "
                     + f"{source_metadata['unit_properties'][prop]:<16s} "
                     + f"{item:<16s} ")
 
@@ -260,13 +269,22 @@ class DataReader():
             message = (
                 f"INFO:\nProperty assignment from database "
                 + f"'{data_source}'!\n"
-                + f" Property Label | Data Unit      |"
-                + f" Source Label   | Source Unit    | Conversion Fac.\n"
-                + f"-"*17*5
-                + f"\n")
+                + " Load | Property Label | Data Unit      |"
+                + " Source Label   | Source Unit    | Conversion Fac.\n"
+                + "-"*(7 + 17*5)
+                + "\n")
             for prop, item in assigned_properties.items():
+                if (
+                        prop in load_properties 
+                        or prop in self.default_property_labels
+                        or prop == 'positions'
+                    ):
+                    load_str = "   x   "
+                else:
+                    load_str = " "*7
                 message += (
-                    f" {prop:<16s} {unit_properties[prop]:<16s} "
+                    f"{load_str:7s} "
+                    + f"{prop:<16s} {unit_properties[prop]:<16s} "
                     + f"{item:<16s} "
                     + f"{source_metadata['unit_properties'][prop]:<16s} "
                     + f"{unit_conversion[prop]:11.9e}\n")
