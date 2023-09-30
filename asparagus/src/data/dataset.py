@@ -111,6 +111,13 @@ class DataSet():
 
         return self._get_properties(idx)
 
+    def get(
+        self,
+        idx: int,
+    ) -> Dict[str, torch.tensor]:
+
+        return self._get_properties(idx)
+
     def get_properties(
         self,
         idx: int,
@@ -332,7 +339,8 @@ class DataSet():
             data_format,
             metadata['load_properties'],
             unit_properties=metadata['unit_properties'],
-            alt_property_labels=alt_property_labels)
+            alt_property_labels=alt_property_labels,
+            **kwargs)
 
         return
 
@@ -426,6 +434,13 @@ class DataSubSet(DataSet):
         return self.Nidx
 
     def __getitem__(
+        self,
+        idx: int,
+    ) -> Dict[str, torch.tensor]:
+
+        return self._get_properties(self.subset_idx[idx])
+
+    def get(
         self,
         idx: int,
     ) -> Dict[str, torch.tensor]:

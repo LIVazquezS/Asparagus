@@ -18,11 +18,12 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['FileManager']
 
+
 class FileManager():
     """
     File manager for model files
     """
-    
+
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
@@ -35,7 +36,7 @@ class FileManager():
 
         Parameters
         ----------
-        
+
         config: (str, dict, object)
             Either the path to json file (str), dictionary (dict) or
             settings.config class object of model parameters
@@ -47,14 +48,14 @@ class FileManager():
         callable object
             Mode FileManager object
         """
-        
+
         ###################################
         # # # Check FileManager Input # # #
         ###################################
 
         # Get configuration object
         config = settings.get_config(config)
-        
+
         # Get model directory from input or config dictionary
         if model_directory is None:
             self.model_directory = config.get('model_directory')
@@ -78,13 +79,14 @@ class FileManager():
         ###################################
         # # # Prepare Model Directory # # #
         ###################################
-        
+
         # Take either defined model directory path or a generate a generic one
         if self.model_directory is None:
             self.model_directory = datetime.datetime.now().strftime(
                 "%Y%m%d%H%M%S")
             config['model_directory'] = self.model_directory
-        # I would prefer if we keep the specifications of the NN model in the name of the directory...LIVS
+        # I would prefer if we keep the specifications of the NN model in the
+        # name of the directory...LIVS
         # I see your point, but the commented version seems very PhysNet specific.
         # Maybe add a __str__() function to the model which returns a model
         # tag for the directory name.
@@ -101,19 +103,18 @@ class FileManager():
         self.best_dir = os.path.join(self.model_directory, 'best')
         self.ckpt_dir = os.path.join(self.model_directory, 'checkpoints')
         self.logs_dir = os.path.join(self.model_directory, 'logs')
-        
+
         # Check existence of the directories
         self.create_model_directory()
 
         # Initialize training summary writer
         self.writer = SummaryWriter(log_dir=self.logs_dir)
 
-
     def create_model_directory(self):
         """
         Create folders for checkpoints and tensorboardX
         """
-        
+
         # Create model directory
         if not os.path.exists(self.model_directory):
             os.makedirs(self.model_directory)
@@ -123,24 +124,23 @@ class FileManager():
         # Create directory for model parameter checkpoints
         if not os.path.exists(self.ckpt_dir):
             os.makedirs(self.ckpt_dir)
-        # Create directory for tensorboardX/logs in previous physnet_torch version
+        # Create directory for tensorboardX/logs
         if not os.path.exists(self.logs_dir):
             os.makedirs(self.logs_dir)
 
-
     def save_checkpoint(
         self,
-        model: object, 
-        optimizer: object, 
-        scheduler: object, 
-        epoch: int, 
+        model: object,
+        optimizer: object,
+        scheduler: object,
+        epoch: int,
         best: Optional[bool] = False,
         num_checkpoint: Optional[int] = None,
         max_checkpoints: Optional[int] = None,
     ):
         """
         Save model parameters and training state to checkpoint file.
-        
+
         Parameters
         ----------
 
@@ -156,19 +156,19 @@ class FileManager():
             Alternative checkpoint index other than epoch.
         max_checkpoints: int, optional, default 100
             Maximum number of checkpoint files. If the threshold is reached and
-            a checkpoint of the best model (best=True) or specific number 
-            (num_checkpoint is not None), respectively many checkpoint files 
+            a checkpoint of the best model (best=True) or specific number
+            (num_checkpoint is not None), respectively many checkpoint files
             with the lowest indices will be deleted.
         """
-        
+
         # Current model training state
         state = {
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'scheduler_state_dict': scheduler.state_dict(),
-            'epoch': epoch, 
+            'epoch': epoch,
             }
-        
+
         # Checkpoint file name
         if best:
             ckpt_name = os.path.join(self.best_dir, 'best_model.pt')
@@ -188,7 +188,6 @@ class FileManager():
         # Write checkpoint file
         torch.save(state, ckpt_name)
 
-
     def load_checkpoint(
         self,
         best: Optional[bool] = False,
@@ -196,7 +195,7 @@ class FileManager():
     ):
         """
         Load model parameters and training state from checkpoint file.
-        
+
         Parameters
         ----------
 
@@ -205,19 +204,19 @@ class FileManager():
         num_checkpoint: int, optional, default None
             if None, load checkpoint file with highest index number.
         """
-        
+
         if best:
-            
+
             ckpt_name = os.path.join(self.best_dir, 'best_model.pt')
-            
+
             # Check existence
             if not os.path.exists(ckpt_name):
                 raise FileNotFoundError(
                     f"Checkpoint file '{ckpt_name}' for best model "
                     + "does not exist!")
-        
+
         elif num_checkpoint is None:
-            
+
             # Get highest index checkpoint file
             ckpt_max = -1
             for ckpt_file in os.listdir(self.ckpt_dir):
@@ -225,19 +224,19 @@ class FileManager():
                 ckpt_num = (int(ckpt_num[0]) if ckpt_num else -1)
                 if ckpt_max < ckpt_num:
                     ckpt_max = ckpt_num
-            
+
             # If no checkpoint files available return None
             if ckpt_max < 0:
                 return None
             else:
                 ckpt_name = os.path.join(
                     self.ckpt_dir, f'model_{ckpt_max:d}.pt')
-            
+
         else:
-            
+
             ckpt_name = os.path.join(
                 self.ckpt_dir, f'model_{num_checkpoint:d}.pt')
-            
+
             # Check existence
             if not os.path.exists(ckpt_name):
                 raise FileNotFoundError(
@@ -246,16 +245,15 @@ class FileManager():
 
         # Load checkpoint
         checkpoint = torch.load(ckpt_name)
-        
+
         return checkpoint
-        
 
     def check_max_checkpoints(
         self,
         max_checkpoints: Optional[int] = None,
     ):
         """
-        Check number of checkpoint files and in case of exceeding the 
+        Check number of checkpoint files and in case of exceeding the
         maximum checkpoint threshold, delete the ones with lowest indices.
         """
         
@@ -272,7 +270,7 @@ class FileManager():
             if ckpt_num:
                 num_checkpoints.append(int(ckpt_num[0]))
         num_checkpoints = sorted(num_checkpoints)
-            
+
         # Delete in case the lowest checkpoint files
         if len(num_checkpoints) >= max_checkpoints:
             for ckpt_num in num_checkpoints[:-(max_checkpoints - 1)]:
@@ -282,16 +280,15 @@ class FileManager():
 
         return
 
-
     def save_config(
         self,
         config: object,
         max_backup: Optional[int] = 10,
     ):
         """
-        Save config object in current model directory with the default file 
+        Save config object in current model directory with the default file
         name. If such file already exist, backup the old one and overwrite.
-        
+
         Parameters
         ----------
 
@@ -300,16 +297,16 @@ class FileManager():
         max_backup: optional, int, default 100
             Maximum number of backup config files
         """
-        
+
         # Config file path
         config_file = os.path.join(
             self.model_directory, settings._default_args['config_file'])
-        
+
         # Check for old config files
         if os.path.exists(config_file):
-            
+
             default_file = settings._default_args['config_file']
-            
+
             # Check for backup config files
             list_backups = []
             for f in os.listdir(self.model_directory):
@@ -319,7 +316,7 @@ class FileManager():
                 if num_backup >= 0:
                     list_backups.append(num_backup)
             list_backups = sorted(list_backups)
-            
+
             # Rename old config file
             if len(list_backups):
                 backup_file = os.path.join(
@@ -330,7 +327,7 @@ class FileManager():
                     self.model_directory,
                     f"{1:d}_" + default_file)
             os.rename(config_file, backup_file)
-            
+
             # If maximum number of back file reached, delete the oldest
             if len(list_backups) >= max_backup:
                 for num_backup in list_backups[:-(max_backup - 1)]:
@@ -338,12 +335,6 @@ class FileManager():
                         self.model_directory,
                         f"{num_backup:d}_" + default_file)
                     os.remove(backup_file)
-            
+
         # Dump config in file path
         config.dump(config_file=config_file)
-                
-
-
-
-
-

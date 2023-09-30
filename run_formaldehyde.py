@@ -2,7 +2,7 @@ from asparagus import DataContainer
 
 from asparagus import Asparagus
 
-if True:
+if False:
 
     data = DataContainer(
         config='form_config.json',
@@ -27,9 +27,16 @@ if True:
             'atoms_number': ['N'],
             'atomic_numbers':   ['Z'],
             },
-        data_overwrite=False)
+        source_unit_properties={
+            'positions':    'Ang',
+            'energy':       'eV',
+            'forces':       'eV/Ang',
+            'charge':       'e',
+            'dipole':       'Debye' # or e*Ang???
+            },
+        data_overwrite=True)
 
-if True:
+if False:
 
     model = Asparagus(
         config='form_config.json',
@@ -47,3 +54,35 @@ if True:
     model.test(
         test_datasets='all',
         test_directory=model.get('model_directory'))
+
+if True:
+
+    model = Asparagus(
+        config="form_config.json"
+        )
+
+    data = DataContainer(
+        config='form_config.json')
+    reference = data.dataset.get(1)
+
+    import ase
+    system = ase.Atoms(
+        reference['atomic_numbers'],
+        positions=reference['positions'])
+
+    calc = model.get_ase_calculator()
+    system.calc = calc
+    results = calc.calculate()
+
+    print("Model prediction:")
+    print(results)
+    print("Reference:")
+    print(reference)
+
+    from ase.optimize import BFGS
+    form_list = [system.copy()]
+    dyn = BFGS(system)
+    dyn.run(fmax=0.01)
+    form_list.append(system)
+    from ase.visualize import view
+    view(form_list)

@@ -498,7 +498,7 @@ class Asparagus(torch.nn.Module):
                 verbose=False)
 
         # Initialize checkpoint file manager and load best model
-        filemanager = utils.FileManager(config, **kwargs)
+        filemanager = utils.FileManager(config_ase, **kwargs)
         if model_checkpoint is None:
             latest_checkpoint = filemanager.load_checkpoint(best=True)
         elif utils.is_integer(model_checkpoint):
