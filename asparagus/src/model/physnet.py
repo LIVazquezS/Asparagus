@@ -20,7 +20,8 @@ __all__ = ['Calculator_PhysNet']
 # Calculator Models
 # ======================================
 
-class Calculator_PhysNet(torch.nn.Module): 
+
+class Calculator_PhysNet(torch.nn.Module):
     """
     PhysNet Calculator model
     """
@@ -163,7 +164,6 @@ class Calculator_PhysNet(torch.nn.Module):
                 config,
                 **kwargs)
 
-
         ######################################
         # # # Prepare PhysNet Calculator # # #
         ######################################
@@ -208,10 +208,10 @@ class Calculator_PhysNet(torch.nn.Module):
             self.model_cutoff_split = True
         elif self.model_interaction_cutoff < self.input_cutoff_descriptor:
             raise ValueError(
-                f"The interaction cutoff distance 'model_interaction_cutoff' "
+                "The interaction cutoff distance 'model_interaction_cutoff' "
                 + f"({self.model_interaction_cutoff:.2f}) "
-                + f"must be larger than or equal the descriptor range "
-                + f"'input_cutoff_descriptor' "
+                + "must be larger than or equal the descriptor range "
+                + "'input_cutoff_descriptor' "
                 + f"({self.input_cutoff_descriptor:.2f})!")
         else:
             self.model_cutoff_split = False
@@ -254,66 +254,69 @@ class Calculator_PhysNet(torch.nn.Module):
                 dtype=self.dtype)
 
         # Special case: 'energy', 'atomic_energies'
-        if ('energy' in self.model_properties
+        if (
+            'energy' in self.model_properties
             and 'atomic_energies' in self.model_properties_scaling
-            ):
+        ):
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    self.model_properties_scaling['atomic_energies'], 
+                    self.model_properties_scaling['atomic_energies'],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis, 
+                        self.input_n_atombasis,
                         len(self.model_properties_scaling['atomic_energies'])
                         ).clone()
                     )
-        elif ('energy' in self.model_properties
-            and 'energy' in self.model_properties_scaling            
-            ):
+        elif (
+            'energy' in self.model_properties
+            and 'energy' in self.model_properties_scaling
+        ):
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    self.model_properties_scaling['energy'], 
+                    self.model_properties_scaling['energy'],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis, 
+                        self.input_n_atombasis,
                         len(self.model_properties_scaling['energy'])
                         ).clone()
                     )
         else:
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    [1.0, 0.0], 
-                    dtype=self.dtype, 
+                    [1.0, 0.0],
+                    dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis, 
+                        self.input_n_atombasis,
                         2
                         ).clone()
                     )
 
         # Special case: 'atomic_charges'
-        if ('atomic_charges' in self.model_properties_scaling.keys()
+        if (
+            'atomic_charges' in self.model_properties_scaling.keys()
             and 'atomic_charges' in self.model_properties
-            ):
+        ):
             self.atomic_charges_scaling = torch.nn.Parameter(
                 torch.tensor(
                     self.model_properties_scaling['atomic_charges'],
-                    dtype=self.dtype, 
+                    dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis, 
+                        self.input_n_atombasis,
                         len(self.model_properties_scaling['atomic_charges'])
                         ).clone()
                     )
         else:
             self.atomic_charges_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    [1.0, 0.0], 
-                    dtype=self.dtype, 
+                    [1.0, 0.0],
+                    dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis, 
+                        self.input_n_atombasis,
                         2
                         ).clone()
                     )
@@ -321,14 +324,14 @@ class Calculator_PhysNet(torch.nn.Module):
         # Initialize scaling and shifting factors dictionary for properties
         # except atomic energies and charges
         model_scaling = {}
-        
+
         # Other cases
         for prop, item in self.model_properties_scaling.items():
             # Skip properties derived from energy and charge
             if prop in [
-                'energy', 'forces', 'hessian', 
+                'energy', 'forces', 'hessian',
                 'atomic_charges', 'charge', 'dipole'
-                ]:
+            ]:
                 continue
             if prop not in self.model_properties:
                 continue
@@ -342,19 +345,10 @@ class Calculator_PhysNet(torch.nn.Module):
 
         return
 
-
     @torch.jit.export
     def forward(
         self,
         batch: Dict[str, torch.Tensor]
-        #atoms_number: torch.Tensor,
-        #atomic_numbers: torch.Tensor,
-        #positions: torch.Tensor,
-        #idx_i: torch.Tensor,
-        #idx_j: torch.Tensor,
-        #charge: torch.Tensor,
-        #idx_seg: torch.Tensor,
-        #pbc_offset: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
 
         # Assign input
@@ -366,9 +360,9 @@ class Calculator_PhysNet(torch.nn.Module):
         charge = batch['charge']
         idx_seg = batch['atoms_seg']
         pbc_offset = batch['pbc_offset']
-    
-        # Activate back propagation if derivatives with regard to atom positions 
-        # is requested.
+
+        # Activate back propagation if derivatives with regard to
+        # atom positions is requested.
         if self.model_gradient:
             positions.requires_grad_(True)
 
@@ -396,26 +390,26 @@ class Calculator_PhysNet(torch.nn.Module):
                 output['atomic_energies']
                 + self.dispersion_model(
                     atomic_numbers, distances, idx_i, idx_j))
-        
+
         # Add electrostatic model contribution
         if self.model_electrostatic:
 
             # Scale atomic charges by fit parameter
             scale, shift = self.atomic_charges_scaling[atomic_numbers].T
             output['atomic_charges'] = output['atomic_charges']*scale + shift
-            
+
             # Scale atomic charges to ensure correct total charge
             charge_deviation = charge - utils.segment_sum(
                 output['atomic_charges'], idx_seg, device=self.device)
             output['atomic_charges'] = (
-                output['atomic_charges'] 
+                output['atomic_charges']
                 + (charge_deviation/atoms_number)[idx_seg])
 
             # Apply electrostatic model
             output['atomic_energies'] = (
                 output['atomic_energies']
                 + self.electrostatic_model(
-                    output['atomic_charges'], 
+                    output['atomic_charges'],
                     distances, idx_i, idx_j))
 
         # Compute system energies

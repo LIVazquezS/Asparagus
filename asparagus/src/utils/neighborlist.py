@@ -31,30 +31,30 @@ class NeighborList(torch.nn.Module):
         self,
         coll_batch: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
-        
+
         atomic_numbers = coll_batch['atomic_numbers']
         positions = coll_batch['positions']
-        
-        cell = coll_batch['cell']#.view(3, 3)
+
+        cell = coll_batch['cell']
         pbc = coll_batch['pbc']
-        
+
         atoms_seg = coll_batch["atoms_seg"]
         atomic_numbers_cumsum = torch.cat(
             [
-                torch.zeros((1,), dtype=atoms_seg.dtype), 
+                torch.zeros((1,), dtype=atoms_seg.dtype),
                 torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
-            ], 
+            ],
             dim=0)
 
         idx_i, idx_j, pbc_offset = self._build_neighbor_list(
-            atomic_numbers, positions, cell, pbc, 
-            atoms_seg, atomic_numbers_cumsum, 
+            atomic_numbers, positions, cell, pbc,
+            atoms_seg, atomic_numbers_cumsum,
             self._cutoff)
-        
+
         coll_batch['idx_i'] = idx_i.detach()
         coll_batch['idx_j'] = idx_j.detach()
         coll_batch['pbc_offset'] = pbc_offset.detach()
-        
+
         return coll_batch
 
     def _build_neighbor_list(

@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any, Callable
 
@@ -66,7 +65,7 @@ class DataContainer():
         data_unit_positions: str, optional, default 'Ang'
             Unit of the atom positions ('Ang' or 'Bohr') and other unit
             cell information.
-        data_load_properties: List(str), optional, 
+        data_load_properties: List(str), optional,
                 default ['energy', 'forces', 'charge', 'dipole']
             Set of properties to store in the DataSet
         data_unit_properties: dictionary, optional, default {'energy':'eV'}
@@ -112,10 +111,10 @@ class DataContainer():
         #####################################
         # # # Check DataContainer Input # # #
         #####################################
-        
+
         # Get configuration object
         config = settings.get_config(config)
-        
+
         # Additionally, check input from existing DataSet reference file if
         # not flagged for overwrite
         if data_file is None:
@@ -166,7 +165,7 @@ class DataContainer():
 
         # Update global configuration dictionary
         config.update(config_update)
-        
+
         #####################################
         # # # Check Data Property Input # # #
         #####################################
@@ -197,7 +196,7 @@ class DataContainer():
             logger=logger, logger_info=(
                 "Alternative property labels 'data_alt_property_labels':\n"))
 
-        # Check for unknown property labels in data_load_properties 
+        # Check for unknown property labels in data_load_properties
         # and replace if possible with internally used property label in
         # data_alt_property_labels
         for ip, prop in enumerate(self.data_load_properties):
@@ -213,8 +212,8 @@ class DataContainer():
             elif not match:
                 raise ValueError(
                     f"Unknown property ('{prop}') in 'data_load_properties'!")
-        
-        # Check for unknown property labels in data_unit_properties 
+
+        # Check for unknown property labels in data_unit_properties
         # and replace if possible with internally used property label in
         # data_alt_property_labels
         props = list(self.data_unit_properties.keys())
@@ -253,7 +252,7 @@ class DataContainer():
         #########################
         # # # Check DataSet # # #
         #########################
-        
+
         # Check data set parameters
         if os.path.isfile(self.data_file):
             with data.connect(self.data_file) as db:
@@ -263,7 +262,7 @@ class DataContainer():
                     f"WARNING:\nData file '{self.data_file}' is empty! " +
                     "File will be overwritten.\n")
                 self.data_overwrite = True
-                
+
         if self.data_overwrite and not len(self.data_source):
             logger.warning(
                 "WARNING:\nNo source files are defined in 'data_source'! " +
@@ -274,7 +273,7 @@ class DataContainer():
         self.dataset_setup(
             data_overwrite=self.data_overwrite,
             **kwargs)
-        
+
         # Reset data overwrite
         self.data_overwrite = False
         config['data_overwrite'] = False
@@ -289,15 +288,15 @@ class DataContainer():
         """
         Setup the reference data set
         """
-        
+
         #########################
         # # # DataSet Setup # # #
         #########################
-        
+
         # Check dataset overwrite parameter
         if data_overwrite is None:
             data_overwrite = self.data_overwrite
-        
+
         # Initialize dataset
         self.dataset = data.DataSet(
             self.data_file,
@@ -305,11 +304,11 @@ class DataContainer():
             self.data_unit_properties,
             data_overwrite=data_overwrite,
             **kwargs)
-        
+
         # Load reference data set(s) from defined source data path(s)
         for ip, (data_path, data_format) in enumerate(
-                zip(self.data_source, self.data_format)
-            ):
+            zip(self.data_source, self.data_format)
+        ):
             if os.path.exists(data_path):
                 self.dataset.load(
                     data_path,
@@ -323,12 +322,12 @@ class DataContainer():
 
         # Update data set metadata and datacontainer parameters
         self.metadata = self.dataset.get_metadata()
-        self.data_sources = self.metadata.get('data_sources')
+        self.data_source = self.metadata.get('data_source')
         self.data_format = self.metadata.get('data_format')
 
         # Prepare data split into training, validation and test set
         Ndata = len(self.dataset)
-        
+
         # Stop further setup if no data are available
         if not Ndata:
             raise ValueError(
@@ -491,7 +490,7 @@ class DataContainer():
             False,
             self.data_num_workers)
 
-        # Prepare dictionaries as pointers between dataset label and the 
+        # Prepare dictionaries as pointers between dataset label and the
         # respective DataSubSet and DataLoader objects
         self.all_data_sets = {
             'train': self.train_set,
@@ -504,7 +503,6 @@ class DataContainer():
 
         # Set data flag
         self.data_avaiable = True
-
 
     def get_property_scaling(
         self,
@@ -538,9 +536,9 @@ class DataContainer():
 
             # Iterate over sample properties
             for prop in metadata.get('load_properties'):
-                
+
                 vals = sample.get(prop).numpy().reshape(-1)
-                
+
                 # Scale by atom number if requested
                 if prop in property_atom_scaled:
                     Natoms = sample.get('atoms_number').numpy().reshape(-1)
@@ -551,7 +549,7 @@ class DataContainer():
                     property_scaling[prop][1]
                     + (scalar - property_scaling[prop][1])/(Nsamples + 1.0)
                     ).item()
-            
+
             # Increment sample counter
             Nsamples += 1.0
 
@@ -566,7 +564,7 @@ class DataContainer():
 
                 vals = sample.get(prop).numpy().reshape(-1)
                 Nvals = len(vals)
-                
+
                 # Scale by atom number if requested
                 if prop in property_atom_scaled:
                     Natoms = sample.get('atoms_number').numpy().reshape(-1)
@@ -578,7 +576,7 @@ class DataContainer():
                         property_scaling[prop][0]
                         + (scalar - property_scaling[prop][1])**2/Nvals)
 
-        logger.info(f"INFO:\nDone.\n")
+        logger.info("INFO:\nDone.\n")
 
         # Iterate over sample properties to complete standard deviation
         for prop in metadata.get('load_properties'):
@@ -596,22 +594,19 @@ class DataContainer():
 
         return property_scaling
 
-
     def get_datalabels(self) -> List[str]:
         """
-        Return the list of all available data set labels which return 
+        Return the list of all available data set labels which return
         DataSubSet or DataLoader objects with the respective function
         (get_dataset and get_dataloader).
         """
         return self.all_data_sets.keys()
-        
-    
+
     def get_dataset(self, label) -> Callable:
         """
         Return as specific DataSubSet object ('train', 'valid' or 'test')
         """
         return self.all_data_sets.get(label)
-
 
     def get_dataloader(self, label) -> Callable:
         """
@@ -619,13 +614,11 @@ class DataContainer():
         """
         return self.all_data_loder.get(label)
 
-
     def get_metadata(self) -> Dict[str, Any]:
         """
         Return metadata
         """
         return self.dataset.get_metadata()
-
 
     def get_info(self) -> Dict[str, Any]:
         """
@@ -633,7 +626,6 @@ class DataContainer():
         """
 
         return {
-            ###'data_unit_positions': self.data_unit_positions,
             'data_load_properties': self.data_load_properties,
             'data_unit_properties': self.data_unit_properties,
             'data_num_train': self.data_num_train,
@@ -641,4 +633,3 @@ class DataContainer():
             'data_num_test': self.data_num_test,
             'data_overwrite': self.data_overwrite,
             }
-
