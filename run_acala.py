@@ -33,6 +33,7 @@ if True:
         config='acala_config.json',
         data_file='data/acala.db',
         model_directory="model_acala",
+        model_electrostatic=False,
         model_interaction_cutoff=12.0,
         model_cutoff_width=2.0,
         input_cutoff_descriptor=8.0,

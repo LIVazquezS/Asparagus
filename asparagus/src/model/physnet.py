@@ -119,7 +119,7 @@ class Calculator_PhysNet(torch.nn.Module):
 
         # Update global configuration dictionary
         config.update(config_update)
-
+        
         # Assign global arguments
         self.dtype = settings._global_dtype
         self.device = settings._global_device
@@ -196,6 +196,8 @@ class Calculator_PhysNet(torch.nn.Module):
                 raise ValueError(
                     "PhysNet model cannot provide molecular dipole "
                     + "without the prediction of atomic charges!")
+        elif 'atomic_charges' in self.model_properties:
+            self.model_dipole = True
         else:
             self.model_dipole = False
 
@@ -221,7 +223,7 @@ class Calculator_PhysNet(torch.nn.Module):
             pass
 
         # Initialize electrostatic interaction model
-        if self.model_electrostatic:
+        if self.model_electrostatic and self.model_dipole:
 
             # Get electrostatic point charge model calculator
             self.electrostatic_model = layers.PC_shielded_electrostatics(
@@ -231,6 +233,13 @@ class Calculator_PhysNet(torch.nn.Module):
                 switch_fn="Poly6",
                 device=self.device,
                 dtype=self.dtype)
+
+        elif self.model_electrostatic and not self.model_dipole:
+
+            raise ValueError(
+                "PhysNet model cannot provide electrostatic contribution "
+                + "to the atomic energies without the prediction of "
+                + "atomic charges or dipole moment via atomic charges!")
 
         # Initialize dispersion model
         if self.model_dispersion:
