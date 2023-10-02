@@ -74,7 +74,7 @@ if True:
     no2_atoms.calc = calc
     print(no2_atoms)
     print(calc.calculate())
-    print(no2_atoms.get     _potential_energy())
+    print(no2_atoms.get_potential_energy())
     print(no2_atoms.get_forces())
     from ase.optimize import BFGS
     no2_atoms_list = [no2_atoms.copy()]

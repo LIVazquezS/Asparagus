@@ -14,6 +14,11 @@ from .. import settings
 from .. import utils
 from .. import model
 
+# ASE for the vibrations part
+from ase.optimize import BFGS
+from ase.vibrations import Vibrations
+from ase.io import read
+
 # These packages are required for all functions of plotting and analysing
 # the model.
 try: 
@@ -351,18 +356,14 @@ class Tester:
             ###########################
             # # # Save Properties # # #
             ###########################
-            
-            # Save test prediction to files 
-            #TODO how to save inhomogeneous data to files?
-            #if test_save_csv:
-                #csv_file = os.path.join(test_directory, test_csv_file)
-                #if self.is_imported("pandas"):
-                    #df = pd.DataFrame(test_prediction)
-                    #df.to_csv(csv_file, index=True)
-                #else:
-                    #logger.warning(
-                        #"WARNING:\nModule 'pandas' is not available. " +
-                        #"Test properties are not written to a csv file!")
+            ## Check if both .csv and .npz files are saved else raise a warning
+            if test_save_npz and test_save_csv:
+               raise UserWarning('You are saving both a .csv and a .npz file. This is not recommended.')
+            # Save test prediction to files
+            if test_save_csv:
+                self.save_csv(test_prediction, test_directory, test_csv_file)
+            if test_save_npz:
+                self.save_npz(test_prediction, test_directory, test_npz_file)
 
             ###########################
             # # # Plot Properties # # #
@@ -435,12 +436,46 @@ class Tester:
 
 
     @staticmethod
-    def is_imported(module):
+    def is_imported(module: str):
         """
         Check if a module is imported.
         """
 
         return module in sys.modules
+
+    def save_npz(self,vals: dict,
+                 test_directory: str,
+                 npz_name:str):
+        print('Saving the results of the test set to file {}'.format(npz_name))
+        npz_name1 = npz_name + '.npz'
+        path_to_save = os.path.join(test_directory,npz_name1)
+        np.savez(path_to_save, **vals)
+
+
+    def save_csv(self, vals: dict,
+                 test_directory: str,
+                 csv_name: str):
+        print('Saving the results of the test set to file {}'.format(csv_name))
+        csv_name1 = csv_name + '.csv'
+        path_to_save = os.path.join(test_directory,csv_name1)
+        # Check that all the keys have the same length
+        #First get the lenghts of each of the properties in the dictionary
+        lengths = [len(vals[key]) for key in vals.keys()]
+        max_length = np.max(lengths)
+        # Pad the lenghts with nan
+        vals_padded = {}
+        for key in vals.keys():
+            if len(vals[key]) < max_length:
+                vals_padded[key] = np.pad(vals[key],(0,max_length-len(vals[key])),'constant',constant_values=np.nan)
+            else:
+                vals_padded[key] = vals[key]
+        if self.is_imported("pandas"):
+            df = pd.DataFrame(vals_padded)
+            df.to_csv(path_to_save, index=False)
+        else:
+            logger.warning("WARNING:\nModule 'pandas' is not available. " +
+                           "Test properties are not written to a csv file!")
+        return
 
 
     def reset_metrics(
@@ -897,6 +932,45 @@ class Tester:
             dpi=test_plot_dpi)
         plt.close()
 
+    def get_harmonic_freqs(self,model_calculator: object,
+                           initial_geometry: str,
+                           tolerance_opt:Optional[float]=0.001,
+                           tolerance_freq:Optional[float]=0.001):
+        '''
+        This function calculates harmonic frequencies with ASE.
+
+        Parameters
+        ----------
+        model_calculator
+        initial_geometry: An .xyz or any way to initialize the geometry of the molecule
+
+        Returns
+        -------
+
+        '''
+
+        # Read the initial geometry
+
+        if initial_geometry.endswith('.xyz'):
+            initial_geometry = read(initial_geometry)
+        else:
+            raise ValueError('The initial geometry must be an .xyz file')
+
+        # Set the calculator
+        initial_geometry.calc = model_calculator
+
+        # It does an initial geometry optimization
+        opt = BFGS(initial_geometry)
+        opt.run(fmax=tolerance_opt)
+
+        # Calculate the harmonic frequencies
+        harmonic_freqs = Vibrations(initial_geometry,delta=tolerance_freq)
+        harmonic_freqs.clean()
+        harmonic_freqs.run()
+        harmonic_freqs.summary()
+        system_frequencies = harmonic_freqs.get_frequencies()
+
+        return system_frequencies
 
 
 
@@ -1055,9 +1129,7 @@ class Tester:
                 #self.save_directory = os.path.join(os.getcwd(),'test_results')
                 #print('Results will be saved in the directory: ',self.save_directory)
 
-        ## Check if both .csv and .npz files are saved else raise a warning
-        #if save_npz and save_csv:
-            #raise UserWarning('You are saving both a .csv and a .npz file. This is not recommended.')
+
 
         ## Check which plots to show, by default show only the energy plot, if 'all' is selected show plots for all available properties
         #if plot and plots_to_show is None:
