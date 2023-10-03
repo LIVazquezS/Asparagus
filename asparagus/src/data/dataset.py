@@ -520,7 +520,7 @@ class DataSubSet(DataSet):
 
         # Load property data
         properties = self._get_properties(self.subset_idx[idx])
-
+        
         return properties
 
     def set_properties(

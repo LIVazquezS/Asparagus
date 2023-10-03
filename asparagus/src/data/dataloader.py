@@ -194,6 +194,10 @@ class DataLoader(torch.utils.data.DataLoader):
         coll_batch['atomic_numbers'] = torch.cat(
             [b['atomic_numbers'] for b in batch], 0).to(torch.int64)
 
+        # Periodic boundary conditions
+        coll_batch['pbc'] = torch.cat(
+            [b['pbc'] for b in batch], 0).to(torch.bool)
+
         # Get segment size cumulative sum if pair parameter are available
         if batch[0].get('idx_i') is not None:
             atomic_numbers_cumsum = torch.cat(
@@ -208,7 +212,7 @@ class DataLoader(torch.utils.data.DataLoader):
             
             # Skip previous parameter and None
             if (
-                    prop_i in ['atoms_number', 'atomic_numbers']
+                    prop_i in ['atoms_number', 'atomic_numbers', 'pbc']
                     or batch[0].get(prop_i) is None
             ):
 
@@ -241,7 +245,7 @@ class DataLoader(torch.utils.data.DataLoader):
         if batch[0].get('idx_i') is None:
             
             if self.neighbor_list is None:
-                self.init_neighbor_list
+                self.init_neighbor_list()
             coll_batch = self.neighbor_list(coll_batch)
 
         # Get number of atom pairs per system segment

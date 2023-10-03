@@ -2,7 +2,7 @@ from asparagus import DataContainer
 
 from asparagus import Asparagus
 
-if True:
+if False:
 
     data = DataContainer(
         config='acala_config.json',
@@ -44,7 +44,7 @@ if True:
         trainer_max_epochs=10_000,
         trainer_properties_weights={'energy': 1., 'force': 50.}
         )
-    #model.train()
+    model.train()
     model.test(
         test_datasets='all',
         test_directory=model.get('model_directory'))

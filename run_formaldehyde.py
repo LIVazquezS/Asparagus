@@ -2,7 +2,7 @@ from asparagus import DataContainer
 
 from asparagus import Asparagus
 
-if True:
+if False:
 
     data = DataContainer(
         config='form_config.json',
@@ -50,14 +50,17 @@ if True:
         trainer_properties_weights={
             'energy': 1., 'forces': 50., 'dipole': 100.}
         )
-    model.train(
-        trainer_validation_interval=10,
-        )
+    #model.train(
+        #trainer_validation_interval=10,
+        #)
+    #model.test(
+        #test_datasets='all',
+        #test_directory=model.get('model_directory'))
     model.test(
-        test_datasets='all',
+        test_datasets='test',
         test_directory=model.get('model_directory'))
 
-if True:
+if False:
 
     model = Asparagus(
         config="form_config.json"

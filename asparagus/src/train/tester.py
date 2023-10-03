@@ -300,9 +300,9 @@ class Tester:
         for label, data in self.test_data.items():
             
             # Set maximum model cutoff for neighbor list calculation
-            data.init_neighbor_list(
-                cutoff=model_calculator.model_interaction_cutoff,
-                store=False)
+            #data.init_neighbor_list(
+                #cutoff=model_calculator.model_interaction_cutoff,
+                #store=True)
 
             # Prepare dictionary for property values and number of atoms per 
             # system
@@ -315,7 +315,7 @@ class Tester:
 
             # Loop over data batches
             for batch in data:
-
+                
                 # Predict model properties from data batch
                 prediction = model_calculator(batch)
 
