@@ -110,6 +110,15 @@ class DataLoader(torch.utils.data.DataLoader):
         Compute neighbor list and store results in 
         """
 
+        # Check cutoff range
+        metadata = self.dataset.get_metadata()
+        if metadata.get('cutoff') is None:
+            self.recompute = True
+        elif metadata.get('cutoff') == self.neighbor_list.cutoff:
+            self.recompute = False
+        else:
+            self.recompute = True
+
         # Iterate over reference dataset
         Ndata = len(self.dataset)
         data_inds = []
@@ -119,14 +128,17 @@ class DataLoader(torch.utils.data.DataLoader):
             # Get reference data 
             datai = self.dataset.get(idata)
 
-            # Compute neighbor list data
-            datai = self.neighbor_list(datai)
+            # Compute neighbor list data if necessary because of different
+            # cutoff range or missing data
+            if self.recompute or datai.get('idx_i') is None:
+                datai = self.neighbor_list(datai)
             
-            # Collect neighbor list properties
-            data_subseti = {
-                prop: datai[prop] for prop in ['idx_i', 'idx_j', 'pbc_offset']}
-            data_inds.append(idata)
-            data_subset.append(data_subseti)
+                # Collect neighbor list properties
+                data_subseti = {
+                    prop: datai[prop] 
+                    for prop in ['idx_i', 'idx_j', 'pbc_offset']}
+                data_inds.append(idata)
+                data_subset.append(data_subseti)
 
             # Add to reference dataset every batch size
             if not (idata + 1)%self.data_batch_size:
@@ -142,6 +154,12 @@ class DataLoader(torch.utils.data.DataLoader):
             self.dataset.update_properties(
                 idx=data_inds,
                 properties=data_subset)
+
+        # Update cutoff range in metadata
+        if self.recompute:
+            metadata = self.dataset.get_metadata()
+            metadata['cutoff'] = self.neighbor_list.cutoff
+            self.dataset.set_metadata(metadata=metadata)
         
     def data_collate_fn(
         self,

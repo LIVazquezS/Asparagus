@@ -51,6 +51,7 @@ class Trainer:
         trainer_validation_interval: Optional[int] = None,
         trainer_evaluate_testset: Optional[bool] = None,
         trainer_max_checkpoints: Optional[int] = None,
+        trainer_store_neighbor_list: Optional[bool] = None,
         **kwargs
     ):
         """
@@ -107,9 +108,15 @@ class Trainer:
         trainer_validation_interval: int, optional, default 5
             Interval between epoch to evaluate model performance on
             validation data.
+        trainer_evaluate_testset: bool, optional, default True
+            Each validation interval and in case of a new best loss function,
+            apply Tester class on the test set.
         trainer_max_checkpoints: int, optional, default 50
             Maximum number of checkpoint files stored before deleting the 
-            oldest ones up to the number threshold. 
+            oldest ones up to the number threshold.
+        trainer_store_neighbor_list: bool, optional, default True
+            Store neighbor list parameter in the database file instead of
+            computing in situ.
         **kwargs: dict, optional
             Additional arguments
 
@@ -338,7 +345,8 @@ class Trainer:
             self.tester = Tester(
                 config,
                 data_container=self.data_container,
-                test_datasets='test')
+                test_datasets='test',
+                test_store_neighbor_list=trainer_store_neighbor_list)
 
         #############################
         # # # Save Model Config # # #
@@ -392,12 +400,12 @@ class Trainer:
         train_time_estimation = np.nan
 
         # Set maximum model cutoff for neighbor list calculation
-        #self.data_train.init_neighbor_list(
-            #cutoff=self.model_calculator.model_interaction_cutoff,
-            #store=True)
-        #self.data_valid.init_neighbor_list(
-            #cutoff=self.model_calculator.model_interaction_cutoff,
-            #store=True)
+        self.data_train.init_neighbor_list(
+            cutoff=self.model_calculator.model_interaction_cutoff,
+            store=True)
+        self.data_valid.init_neighbor_list(
+            cutoff=self.model_calculator.model_interaction_cutoff,
+            store=True)
 
         ##########################
         # # # Start Training # # #
@@ -701,6 +709,5 @@ class Trainer:
                 metrics[prop]['mse'] = mse_fn(
                     torch.flatten(prediction[prop]), 
                     torch.flatten(reference[prop]))
-                
-            
+
         return metrics

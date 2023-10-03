@@ -60,6 +60,7 @@ class Tester:
         data_container: Optional[object] = None,
         test_datasets: Optional[Union[str, List[str]]] = None,
         test_properties: Optional[Union[str, List[str]]] = None,
+        test_store_neighbor_list: Optional[bool] = None,
         **kwargs
     ):
         """
@@ -84,6 +85,9 @@ class Tester:
             Model properties to evaluate which must be available in the 
             model prediction and the reference test data set. If None, all 
             model properties will be evaluated if available in the test set.
+        test_store_neighbor_list: bool, optional, default True
+            Store neighbor list parameter in the database file instead of
+            computing in situ.
         """
         
         ####################################
@@ -297,12 +301,12 @@ class Tester:
         model_calculator.eval()
         
         # Loop over all requested data set
-        for label, data in self.test_data.items():
+        for label, datasubset in self.test_data.items():
             
             # Set maximum model cutoff for neighbor list calculation
-            #data.init_neighbor_list(
-                #cutoff=model_calculator.model_interaction_cutoff,
-                #store=True)
+            data.init_neighbor_list(
+                cutoff=model_calculator.model_interaction_cutoff,
+                store=test_store_neighbor_list)
 
             # Prepare dictionary for property values and number of atoms per 
             # system
@@ -314,7 +318,7 @@ class Tester:
             metrics_test = self.reset_metrics(eval_properties)
 
             # Loop over data batches
-            for batch in data:
+            for batch in datasubset:
 
                 # Predict model properties from data batch
                 prediction = model_calculator(batch)
@@ -595,12 +599,12 @@ class Tester:
 
     def plain_data(
         self, 
-        data: List[Any],
+        data_nd: List[Any],
     ) -> List[Any]:
 
         return np.array([
             data_i 
-            for data_sys in data
+            for data_sys in data_nd
             for data_i in np.array(data_sys).reshape(-1)])
 
 

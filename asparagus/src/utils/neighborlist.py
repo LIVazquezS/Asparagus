@@ -25,7 +25,7 @@ class NeighborList(torch.nn.Module):
             cutoff: Cutoff radius for neighbor search.
         """
         super().__init__()
-        self._cutoff = cutoff
+        self.cutoff = cutoff
 
     def forward(
         self,
@@ -55,7 +55,7 @@ class NeighborList(torch.nn.Module):
         idx_i, idx_j, pbc_offset = self._build_neighbor_list(
             atomic_numbers, positions, cell, pbc,
             atoms_seg, atomic_numbers_cumsum,
-            self._cutoff)
+            self.cutoff)
 
         coll_batch['idx_i'] = idx_i.detach()
         coll_batch['idx_j'] = idx_j.detach()

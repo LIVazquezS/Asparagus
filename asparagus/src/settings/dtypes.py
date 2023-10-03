@@ -79,11 +79,13 @@ _dtypes_args = {
     'trainer_dropout_rate':         [utils.is_numeric],
     'trainer_evaluate_testset':     [utils.is_bool],
     'trainer_max_checkpoints':      [utils.is_integer],
+    'trainer_store_neighbor_list':  [utils.is_bool],
     # Tester
     'test_datasets':                [utils.is_string, utils.is_string_array],
     'tester_properties':            [utils.is_string, 
                                      utils.is_string_array,
                                      utils.is_None],
+    'test_store_neighbor_list':     [utils.is_bool],
     # Sampler
     'sample_directory':             [utils.is_string],
     'sample_data_file':             [utils.is_string],
