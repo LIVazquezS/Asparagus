@@ -221,12 +221,21 @@ class DataLoader(torch.utils.data.DataLoader):
             # Pair indices (integer data)
             elif prop_i in ['idx_i', 'idx_j']:
 
-                coll_batch[prop_i] = torch.cat(
-                    [
-                        b[prop_i].to(torch.int64) + off 
-                        for b, off in zip(batch, atomic_numbers_cumsum)
-                    ],
-                    dim=0).to(torch.int64)
+                try:
+
+                    coll_batch[prop_i] = torch.cat(
+                        [
+                            b[prop_i].to(torch.int64) + off 
+                            for b, off in zip(batch, atomic_numbers_cumsum)
+                        ],
+                        dim=0).to(torch.int64)
+
+                except AttributeError:
+                    raise AttributeError(
+                        "Most likely, pair indices of one data frame is None, "
+                        + "because the data seed or dataset has changed after "
+                        + "storing pair indices just for a sub set of data "
+                        + "like training or validation.")
 
             # Properties (float data)
             else:

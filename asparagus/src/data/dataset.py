@@ -66,8 +66,9 @@ class DataSet():
         unit_properties: dict, optional, default None
             Dictionary from properties (keys) to corresponding unit as a
             string (item), e.g.:
-                {property: unit}: { 'energy', 'eV',
-                                    'force', 'eV/Ang', ...}
+                {property: unit}: { 'positions': 'Ang',
+                                    'energy': 'eV',
+                                    'force': 'eV/Ang', ...}
         data_overwrite: bool, optional, default False
             True: Overwrite 'data_file' (if exist) with 'data_source' data.
             False: Add data to 'data_file' (if exist) from 'data_source'.
@@ -84,11 +85,13 @@ class DataSet():
         self.metadata = self.check_metadata(
             load_properties=load_properties,
             unit_properties=unit_properties,
+            **kwargs
             )
 
         # Initialize database file of the dataset
         self.initialize_database()
 
+        # Update loaded properties and units
         self.load_properties = self.metadata['load_properties']
         self.unit_properties = self.metadata['unit_properties']
 
@@ -241,6 +244,8 @@ class DataSet():
         load_properties: Optional[List[str]] = None,
         unit_properties: Optional[Dict[str, str]] = None,
         update_metadata: Optional[bool] = True,
+        overwrite_unit_properties: Optional[bool] = False,
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Check (and update) metadata from the database file with current one
@@ -251,6 +256,10 @@ class DataSet():
             Update metadata in the database with a merged version of
             if the stored metadata and new one if no significant conflict
             arise between them.
+        overwrite_unit_properties: bool, optional, default False
+            In case of conflicting property units in metadata and input
+            'unit_properties', overwrite metadata units with units in
+            'unit_properties'.
 
         Returns
         -------
@@ -269,68 +278,117 @@ class DataSet():
             metadata = {}
 
         # Check metadata loaded properties
-        if load_properties is None and metadata.get('load_properties') is None:
+        metadata = self.check_metadata_load_properties(
+            metadata, load_properties)
+        
+        # Check metadata loaded properties units
+        metadata = self.merge_metadata_unit_properties(
+            metadata, unit_properties, 
+            overwrite_unit_properties=overwrite_unit_properties)
+        
+        # Update metadata with database metadata
+        if update_metadata:
+            self.set_metadata(metadata=metadata)
+
+        return metadata
+
+    def check_metadata_load_properties(
+        self,
+        metadata: Dict[str, Any],
+        load_properties: Dict[str, str],
+    ) -> Dict[str, Any]:
+        """
+        Check and merge loaded property definition of metadata and input
+        """
+
+        # Get loaded properties from metadata
+        meta_load_properties = metadata.get('load_properties')
+        
+        # If nothing is defined - error
+        if load_properties is None and meta_load_properties is None:
             raise SyntaxError(
-                "Loading Properties is neither defined by the input nor "
-                + "the data set.")
-        elif load_properties is None:
+                "Properties to load are neither defined by the input nor "
+                + "by the dataset.")
+        # If metadata is not defined put input - take input
+        elif load_properties is not None and meta_load_properties is None:
+            metadata['load_properties'] = load_properties
+        # If metadata is defined, but input is not - take metadata (useless)
+        elif load_properties is None and meta_load_properties is not None:
             load_properties = metadata['load_properties']
-        elif metadata.get('load_properties') is None:
-            pass
+        # If metadata and input are defined - check for conflicts
         else:
-            comp_properties = np.logical_not(
-                np.array(
-                    [
-                        prop in metadata['load_properties']
-                        for prop in load_properties
-                    ], dtype=bool))
-            if any(comp_properties):
+            check_properties = np.array([
+                prop not in metadata['load_properties']
+                for prop in load_properties], dtype=bool)
+            if any(check_properties):
                 raise ValueError(
-                    f"Existing database file '{data_file}' "
+                    f"Existing dataset '{data_file}' "
                     + "does not include properties "
                     + f"{np.array(load_properties)[comp_properties]}, "
                     + "which is/are requested by 'load_properties'!")
 
-        # Check metadata loaded properties units
-        if unit_properties is None and metadata.get('unit_properties') is None:
+        return metadata
+
+    def merge_metadata_unit_properties(
+        self,
+        metadata: Dict[str, Any],
+        unit_properties: Dict[str, str],
+        overwrite_unit_properties: Optional[bool] = False,
+    ) -> Dict[str, Any]:
+        """
+        Check and merge unit property definition of metadata and input
+        """
+        
+        # Get unit properties from metadata
+        meta_unit_properties = metadata.get('unit_properties')
+        
+        # If nothing is defined - error
+        if unit_properties is None and meta_unit_properties is None:
             raise SyntaxError(
                 "Property units are neither defined by the input nor "
-                + "the data set.")
-        elif unit_properties is None:
+                + "by the data set.")
+        # If metadata is not defined put input - take input
+        elif unit_properties is not None and meta_unit_properties is None:
+            metadata['unit_properties'] = unit_properties
+        # If metadata is defined, but input is not - take metadata (useless)
+        elif unit_properties is None and meta_unit_properties is not None:
             unit_properties = metadata['unit_properties']
-        elif metadata.get('unit_properties') is not None:
-            comp_units = []
-            for key, item in unit_properties.items():
-                if metadata['unit_properties'][key] != item:
-                    comp_units.append(True)
-                    logger.warning(
-                        f"WARNING:\nDeviation in property unit for '{key}'!\n"
-                        + " database file: "
-                        + f"'{metadata['unit_properties'][key]}'\n"
+        # If metadata and input are defined - merge except for conflicts
+        else:
+            check_units = []
+            for prop, item in unit_properties.items():
+                if meta_unit_properties.get(prop) is None:
+                    metadata['unit_properties'][prop] = item
+                    check_units.append(False)
+                elif meta_unit_properties.get(prop) != item:
+                    message = (
+                        f"WARNING:\nDeviation in property unit for '{prop}' "
+                        + "between input 'unit_properties' and metadata in "
+                        + f"dataset '{self.data_file}'!\n"
+                        + " dataset metadata: "
+                        + f"'{metadata['unit_properties'][prop]}'\n"
                         + f" Current input: '{item}'")
+                    if overwrite_unit_properties:
+                        check_units.append(False)
+                        message += "\nDataset unit is overwritten!"
+                    else:
+                        check_units.append(True)
+                    logger.warning(message)
                 else:
-                    comp_units.append(False)
-            if any(comp_units):
+                    check_units.append(False)
+            if any(check_units):
                 raise ValueError(
-                    f"Property units in existing database file '{data_file}' "
+                    f"Property units in existing dataset file '{data_file}' "
                     + "deviates from current input of 'unit_properties'!")
 
-        # Check positions unit
-        if 'positions' not in unit_properties:
-            if metadata.get('unit_properties') is None:
-                unit_properties['positions'] = (
-                    settings._default_args['data_unit_positions'])
-            else:
-                unit_properties['positions'] = metadata['unit_properties']
-
-        # Update metadata with database metadata
-        if update_metadata:
-            metadata.update({
-                'load_properties': load_properties,
-                'unit_properties': unit_properties,
-                })
+        # Check for positions unit or add default as positions unit was not
+        # defined in 'unit_properties'
+        if 'positions' not in metadata['unit_properties']:
+            metadata['unit_properties'] = (
+                settings._default_args['data_unit_positions'])
 
         return metadata
+        
 
     def initialize_database(
         self,
@@ -350,7 +408,7 @@ class DataSet():
             metadata = self.metadata
 
         # Initialize database
-        self.set_metadata(data_file, metadata)
+        self.set_metadata(data_file=data_file, metadata=metadata)
         with data.connect(data_file) as db:
             db.init_systems()
 

@@ -42,9 +42,9 @@ if True:
         input_cutoff_descriptor=6.0,
         model_properties=['energy', 'forces'],
         trainer_max_epochs=10_000,
-        trainer_properties_weights={'energy': 1., 'force': 50.}
+        trainer_properties_weights={'energy': 1., 'forces': 50.}
         )
     model.train()
     model.test(
-        test_datasets='all',
+        test_datasets='test',
         test_directory=model.get('model_directory'))

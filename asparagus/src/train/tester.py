@@ -315,10 +315,11 @@ class Tester:
 
             # Loop over data batches
             for batch in data:
-                
+
                 # Predict model properties from data batch
                 prediction = model_calculator(batch)
-
+                print(prediction)
+                asd
                 # Compute metrics for test properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, eval_properties)

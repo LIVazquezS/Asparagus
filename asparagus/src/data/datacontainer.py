@@ -127,6 +127,32 @@ class DataContainer():
             else:
                 metadata = data.get_metadata(data_file)
 
+        # Check loaded properties, if not defined in config or input,
+        # use item in metadata, otherwise it would take default that can
+        # clash with dataset metadata
+        if (
+                config.get('data_load_properties') is None 
+                and data_load_properties is None
+        ):
+            data_load_properties = metadata.get('load_properties')
+
+        # Check property units, if not defined in config or input,
+        # use item in metadata, otherwise it would take default that can
+        # clash with dataset metadata
+        if (
+                config.get('data_unit_properties') is None 
+                and data_unit_properties is None
+        ):
+            data_unit_properties = metadata.get('unit_properties')
+        # Else, merge eventually config into input but keep input in case
+        # of conflict
+        elif (
+            config.get('data_unit_properties') is not None 
+            and data_unit_properties is not None
+        ):
+            data_unit_properties = {
+                **metadata.get('unit_properties'), **data_unit_properties}
+
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
         config_update = {}
@@ -320,10 +346,12 @@ class DataContainer():
                     f"WARNING:\nFile {data_path} from 'data_source' " +
                     "does not exist! Skipped.\n")
 
-        # Update data set metadata and datacontainer parameters
+        # Update datacontainer parameters
         self.metadata = self.dataset.get_metadata()
         self.data_source = self.metadata.get('data_source')
         self.data_format = self.metadata.get('data_format')
+        self.data_load_properties = self.metadata.get('load_properties')
+        self.data_unit_properties = self.metadata.get('unit_properties')
 
         # Prepare data split into training, validation and test set
         Ndata = len(self.dataset)

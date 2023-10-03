@@ -263,7 +263,18 @@ class Calculator_PhysNet(torch.nn.Module):
                 dtype=self.dtype)
 
         # Special case: 'energy', 'atomic_energies'
-        if (
+        if self.model_properties_scaling is None:
+            self.atomic_energies_scaling = torch.nn.Parameter(
+                torch.tensor(
+                    [1.0, 0.0],
+                    dtype=self.dtype,
+                    device=self.device
+                    ).expand(
+                        self.input_n_atombasis,
+                        2
+                        ).clone()
+                    )
+        elif (
             'energy' in self.model_properties
             and 'atomic_energies' in self.model_properties_scaling
         ):
@@ -304,8 +315,19 @@ class Calculator_PhysNet(torch.nn.Module):
                     )
 
         # Special case: 'atomic_charges'
-        if (
-            'atomic_charges' in self.model_properties_scaling.keys()
+        if self.model_properties_scaling is None:
+            self.atomic_charges_scaling = torch.nn.Parameter(
+                torch.tensor(
+                    [1.0, 0.0],
+                    dtype=self.dtype,
+                    device=self.device
+                    ).expand(
+                        self.input_n_atombasis,
+                        2
+                        ).clone()
+                    )
+        elif (
+            'atomic_charges' in self.model_properties_scaling
             and 'atomic_charges' in self.model_properties
         ):
             self.atomic_charges_scaling = torch.nn.Parameter(
@@ -334,20 +356,21 @@ class Calculator_PhysNet(torch.nn.Module):
         # except atomic energies and charges
         model_scaling = {}
 
-        # Other cases
-        for prop, item in self.model_properties_scaling.items():
-            # Skip properties derived from energy and charge
-            if prop in [
-                'energy', 'forces', 'hessian',
-                'atomic_charges', 'charge', 'dipole'
-            ]:
-                continue
-            if prop not in self.model_properties:
-                continue
-            model_scaling[prop] = torch.nn.Parameter(
-                torch.tensor(
-                    item, dtype=self.dtype, device=self.device
-                    ).expand(self.input_n_atombasis, len(item)))
+        # Further cases
+        if self.model_properties_scaling is not None:
+            for prop, item in self.model_properties_scaling.items():
+                # Skip properties derived from energy and charge
+                if prop in [
+                    'energy', 'forces', 'hessian',
+                    'atomic_charges', 'charge', 'dipole'
+                ]:
+                    continue
+                if prop not in self.model_properties:
+                    continue
+                model_scaling[prop] = torch.nn.Parameter(
+                    torch.tensor(
+                        item, dtype=self.dtype, device=self.device
+                        ).expand(self.input_n_atombasis, len(item)))
 
         # Convert model scaling to torch dictionary
         self.model_scaling = torch.nn.ParameterDict(model_scaling)
@@ -378,7 +401,7 @@ class Calculator_PhysNet(torch.nn.Module):
         # Run input model
         features, descriptors, distances = self.input_model(
             atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
-
+        
         # Run graph model
         messages = self.graph_model(features, descriptors, idx_i, idx_j)
 

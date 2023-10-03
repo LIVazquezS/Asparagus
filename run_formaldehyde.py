@@ -50,9 +50,9 @@ if True:
         trainer_properties_weights={
             'energy': 1., 'forces': 50., 'dipole': 100.}
         )
-    #model.train(
-        #trainer_validation_interval=10,
-        #)
+    model.train(
+        trainer_validation_interval=10,
+        )
     #model.test(
         #test_datasets='all',
         #test_directory=model.get('model_directory'))

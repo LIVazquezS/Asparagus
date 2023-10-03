@@ -392,12 +392,12 @@ class Trainer:
         train_time_estimation = np.nan
 
         # Set maximum model cutoff for neighbor list calculation
-        self.data_train.init_neighbor_list(
-            cutoff=self.model_calculator.model_interaction_cutoff,
-            store=True)
-        self.data_valid.init_neighbor_list(
-            cutoff=self.model_calculator.model_interaction_cutoff,
-            store=True)
+        #self.data_train.init_neighbor_list(
+            #cutoff=self.model_calculator.model_interaction_cutoff,
+            #store=True)
+        #self.data_valid.init_neighbor_list(
+            #cutoff=self.model_calculator.model_interaction_cutoff,
+            #store=True)
 
         ##########################
         # # # Start Training # # #
