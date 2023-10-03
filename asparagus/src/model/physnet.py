@@ -368,7 +368,7 @@ class Calculator_PhysNet(torch.nn.Module):
         idx_j = batch['idx_j']
         charge = batch['charge']
         idx_seg = batch['atoms_seg']
-        pbc_offset = batch['pbc_offset']
+        pbc_offset = batch.get('pbc_offset')
 
         # Activate back propagation if derivatives with regard to
         # atom positions is requested.

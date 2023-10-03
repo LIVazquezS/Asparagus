@@ -301,7 +301,8 @@ class Tester:
             
             # Set maximum model cutoff for neighbor list calculation
             data.init_neighbor_list(
-                cutoff=model_calculator.model_interaction_cutoff)
+                cutoff=model_calculator.model_interaction_cutoff,
+                store=False)
 
             # Prepare dictionary for property values and number of atoms per 
             # system

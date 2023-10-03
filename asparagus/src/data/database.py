@@ -184,6 +184,35 @@ class DataBase:
         return 1
     
 
+    @parallel_function
+    @lock
+    def update(self, row_id, properties={}, **kwargs):
+        """
+        Update reference data of certain properties in database.
+        
+        Parameters
+        ----------
+            properties: dict
+                Reference data
+            row_id: int
+                Overwrite existing row.
+
+        Returns
+        -------
+            int
+                Returns integer id of the new row.
+        """
+        
+        row_id = self._update(row_id, properties)
+        
+        return row_id
+
+
+    def _update(self, row_id, properties):
+        
+        return 1
+
+
     def __delitem__(self, rwo_id):
         self.delete([rwo_id])
         

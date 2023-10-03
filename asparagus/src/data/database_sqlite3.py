@@ -306,15 +306,18 @@ class DataBase_SQLite3(data.DataBase):
     def _write(self, properties, row_id):
         
         # Reference data list
+        columns = []
         values = []
         
         # Current datatime and User name
+        columns += ['mtime', 'username']
         values += [time.ctime(), os.getenv('USER')]
-        
+
         # Structural properties
         structure_values = []
         for prop_i, dtype_i in structure_properties_dtype.items():
-            
+
+            columns += [prop_i]
             if properties.get(prop_i) is None:
                 values += [None]
             elif utils.is_array_like(properties.get(prop_i)):
@@ -325,8 +328,10 @@ class DataBase_SQLite3(data.DataBase):
         
         # Reference properties
         for prop_i in self.metadata.get('load_properties'):
+
             if prop_i not in structure_properties_dtype.keys():
                 
+                columns += [prop_i]
                 if properties.get(prop_i) is None:
                     values += [None]
                 elif utils.is_array_like(properties.get(prop_i)):
@@ -336,8 +341,9 @@ class DataBase_SQLite3(data.DataBase):
                             dtype=properties_numpy_dtype))]
                 else:
                     values += [properties_numpy_dtype(properties.get(prop_i))]
-                
+
         # Convert values to tuple
+        columns = tuple(columns)
         values = tuple(values)
         
         # Add or update database values
@@ -356,19 +362,73 @@ class DataBase_SQLite3(data.DataBase):
                 row_id = self.get_last_id(cur)
                 
             else:
-                
-                row_id = self._update(row_id, values=values)
+
+                row_id = self._update(row_id, values=values, columns=columns)
                 
         return row_id
-    
-    
-    def _update(self, row_id, values=None, properties=None):
+
+
+    def update(self, row_id, properties):
+
+        # Reference data list
+        columns = []
+        values = []
+
+        # Current datatime and User name
+        columns += ['mtime', 'username']
+        values += [time.ctime(), os.getenv('USER')]
+
+        # Structural properties
+        for prop_i, dtype_i in structure_properties_dtype.items():
+
+            if prop_i in properties:
+                columns += [prop_i]
+                if properties.get(prop_i) is None:
+                    values += [None]
+                elif utils.is_array_like(properties.get(prop_i)):
+                    values += [self.blob(
+                        np.array(properties.get(prop_i), dtype=dtype_i))]
+                else:
+                    values += [dtype_i(properties.get(prop_i))]
+
+        # Reference properties
+        for prop_i in self.metadata.get('load_properties'):
+
+            if (
+                    prop_i in properties
+                    and prop_i not in structure_properties_dtype
+            ):
+                
+                columns += [prop_i]
+                if properties.get(prop_i) is None:
+                    values += [None]
+                elif utils.is_array_like(properties.get(prop_i)):
+                    values += [self.blob(
+                        np.array(
+                            properties.get(prop_i),
+                            dtype=properties_numpy_dtype))]
+                else:
+                    values += [properties_numpy_dtype(properties.get(prop_i))]
+        
+        # Convert values to tuple
+        columns = tuple(columns)
+        values = tuple(values)
+
+        # Add or update database values
+        with self.managed_connection() as con:
+            
+            row_id = self._update(row_id, values=values, columns=columns)
+
+        return row_id
+
+
+    def _update(self, row_id, values=None, columns=None, properties=None):
         
         if values is None and properties is None:
             
             raise SyntaxError(
-                f"At least one input 'vlaues' or 'properties' should "
-                f"contain reference data!")
+                "At least one input 'values' or 'properties' should "
+                + "contain reference data!")
         
         elif values is None:
             
@@ -383,9 +443,9 @@ class DataBase_SQLite3(data.DataBase):
                 cur = con.cursor()
                 
                 # Update values in database
-                q = self.default + ', ' + ', '.join('?' * len(values))
+                q = ', '.join([f'{column:s} = ?' for column in columns])
                 cur.execute(
-                    f"UPDATE systems SET ({q}) WHERE id=?",
+                    f"UPDATE systems SET {q} WHERE id=?",
                     values + (row_id,))
             
         return row_id

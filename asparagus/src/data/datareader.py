@@ -849,6 +849,20 @@ class DataReader():
         # Print Source information
         logger.info(message)
 
+        # Pre-Collect properties from source
+        source_properties = {}
+        for prop, item in assigned_properties.items():
+            if prop in self.default_property_labels:
+                continue
+            if prop in load_properties:
+                try:
+                    source_properties[prop] = (
+                        unit_conversion[prop]*source[item])
+                except ValueError:
+                    raise ValueError(
+                        f"Property '{prop:s}' from the npz entry "
+                        + f"'{item:s}' could not be loaded!")
+
         # If not dataset file is given, load source data to memory
         if self.data_file is None:
 
@@ -873,17 +887,8 @@ class DataReader():
                 atoms_properties['charge'] = charge[idx]
 
                 # Collect properties
-                for prop, item in assigned_properties.items():
-                    if prop in self.default_property_labels:
-                        continue
-                    if prop in load_properties:
-                        try:
-                            atoms_properties[prop] = (
-                                unit_conversion[prop]*source[item][idx])
-                        except ValueError:
-                            raise ValueError(
-                                f"Property '{prop:s}' from the npz entry "
-                                + f"'{item:s}' could not be loaded!")
+                for prop, item in source_properties.items():
+                    atoms_properties[prop] = item[idx]
 
                 # Add atoms system data
                 all_atoms_properties.append(atoms_properties)
@@ -902,7 +907,7 @@ class DataReader():
                     + f"{Ndata} data point will be added.\n")
 
                 for idx in range(Ndata):
-
+                    
                     # Fundamental properties
                     atoms_properties['atoms_number'] = atoms_number[idx]
                     atoms_properties['atomic_numbers'] = atomic_numbers[idx]
@@ -914,17 +919,8 @@ class DataReader():
                     atoms_properties['charge'] = charge[idx]
 
                     # Collect properties
-                    for prop, item in assigned_properties.items():
-                        if prop in self.default_property_labels:
-                            continue
-                        if prop in load_properties:
-                            try:
-                                atoms_properties[prop] = (
-                                    unit_conversion[prop]*source[item][idx])
-                            except ValueError:
-                                raise ValueError(
-                                    f"Property '{prop:s}' from the npz entry "
-                                    + f"'{item:s}' could not be loaded!")
+                    for prop, item in source_properties.items():
+                        atoms_properties[prop] = item[idx]
 
                     # Write to ASE database file
                     db.write(properties=atoms_properties)

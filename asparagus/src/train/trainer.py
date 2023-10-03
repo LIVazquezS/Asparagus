@@ -383,7 +383,7 @@ class Trainer:
         metrics_best = self.reset_metrics()
                 
         # Define loss function
-        loss_fn = torch.nn.SmoothL1Loss(reduction="mean")
+        loss_fn = torch.nn.SmoothL1Loss(reduction='mean')
         
         # Count number of training batches
         Nbatch_train = len(self.data_train)
@@ -393,9 +393,11 @@ class Trainer:
 
         # Set maximum model cutoff for neighbor list calculation
         self.data_train.init_neighbor_list(
-            cutoff=self.model_calculator.model_interaction_cutoff)
+            cutoff=self.model_calculator.model_interaction_cutoff,
+            store=True)
         self.data_valid.init_neighbor_list(
-            cutoff=self.model_calculator.model_interaction_cutoff)
+            cutoff=self.model_calculator.model_interaction_cutoff,
+            store=True)
 
         ##########################
         # # # Start Training # # #
@@ -403,8 +405,9 @@ class Trainer:
 
         # Loop over epochs
         for epoch in torch.arange(
-                self.trainer_epoch_start, self.trainer_max_epochs):
-            
+                self.trainer_epoch_start, self.trainer_max_epochs
+            ):
+
             # Start epoch train timer
             train_time_epoch_start = time.time()
             

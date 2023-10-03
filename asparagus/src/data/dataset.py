@@ -111,6 +111,14 @@ class DataSet():
 
         return self._get_properties(idx)
 
+    def __setitem__(
+        self,
+        idx: int,
+        properties: Dict[str, torch.tensor],
+    ):
+
+        return self._set_properties([idx], [properties])
+    
     def get(
         self,
         idx: int,
@@ -125,6 +133,19 @@ class DataSet():
 
         return self._get_properties(idx)
 
+    def set_properties(
+        self,
+        idx: Union[int, List[int]],
+        properties: Union[Dict[str, torch.tensor], List[Dict]],
+    ):
+
+        if utils.is_integer(idx):
+            idx = [idx]
+        if utils.is_dictionary(properties):
+            properties = [properties]
+
+        return self._set_properties(idx, properties)
+
     def _get_properties(
         self,
         idx: int,
@@ -134,6 +155,43 @@ class DataSet():
             row = db.get(idx + 1)[0]
 
         return row
+
+    def _set_properties(
+        self,
+        idcs: List[int],
+        properties: List[Dict[str, torch.tensor]],
+    ):
+
+        with data.connect(self.data_file) as db:
+            for idx, props in zip(idcs, properties):
+                row_id = db.write(props, row_id=idx + 1)
+
+        return
+
+    def update_properties(
+        self,
+        idx: Union[int, List[int]],
+        properties: Union[Dict[str, torch.tensor], List[Dict]],
+    ):
+
+        if utils.is_integer(idx):
+            idx = [idx]
+        if utils.is_dictionary(properties):
+            properties = [properties]
+
+        return self._update_properties(idx, properties)
+
+    def _update_properties(
+        self,
+        idcs: List[int],
+        properties: List[Dict[str, torch.tensor]],
+    ):
+
+        with data.connect(self.data_file) as db:
+            for idx, props in zip(idcs, properties):
+                row_id = db.update(row_id=idx + 1, properties=props)
+
+        return
 
     def get_metadata(
         self,
@@ -440,6 +498,14 @@ class DataSubSet(DataSet):
 
         return self._get_properties(self.subset_idx[idx])
 
+    def __setitem__(
+        self,
+        idx: int,
+        properties: Dict[str, torch.tensor],
+    ):
+
+        return self._set_properties([self.subset_idx[idx]], [properties])
+
     def get(
         self,
         idx: int,
@@ -456,3 +522,31 @@ class DataSubSet(DataSet):
         properties = self._get_properties(self.subset_idx[idx])
 
         return properties
+
+    def set_properties(
+        self,
+        idx: Union[int, List[int]],
+        properties: Union[Dict[str, torch.tensor], List[Dict]],
+    ):
+
+        if utils.is_integer(idx):
+            idx = [idx]
+        if utils.is_dictionary(properties):
+            properties = [properties]
+
+        return self._set_properties(
+            [self.subset_idx[idxi] for idxi in idx], properties)
+
+    def update_properties(
+        self,
+        idx: Union[int, List[int]],
+        properties: Union[Dict[str, torch.tensor], List[Dict]],
+    ):
+
+        if utils.is_integer(idx):
+            idx = [idx]
+        if utils.is_dictionary(properties):
+            properties = [properties]
+
+        return self._update_properties(
+            [self.subset_idx[idxi] for idxi in idx], properties)
