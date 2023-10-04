@@ -4,7 +4,7 @@
 
 ## What is this?
  - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch. 
- - A Suit for the automatic construction of Potential Energy Surface (PES) since sampling to production.
+ - A Suit for the automatic construction of Potential Energy Surface (PES) from sampling to production.
 
 ## How to use? 
 
@@ -42,7 +42,7 @@ pip install -e .
 **BEWARE**: With this command any modification that is done to the code in the folder *physpack* will be automatically reflected 
 in the modules that you import.
 
-**NOTE**: Everytime you want to import the module you must use the following command:
+**NOTE**: Everytime you want to import the module, you must use the following command:
 
 ```
 from physpack import PhysPack
@@ -83,28 +83,28 @@ data = DataContainer(
     data_overwrite=False)
 ```
 
-If you want to evaluate the generated model, by default the code will look for the 'best' checkpoint inside the 
+If you want to evaluate the generated model, by default, the code will look for the 'best' checkpoint inside the 
 folder generated after training. Remember that the folder name starts with the date and time. 
 
-To do the evaluation you need to add the following line to your run file:
+To do the evaluation, you need to add the following line to your run file:
  ```
  model.test_model()
  ```
 
-By default the code will show you the MAE and RMSE for the energy, forces and dipole. 
+By default, the code will show you the MAE and RMSE for the energy, forces and dipole. 
 
-There are few keywords that you can add to the function 'test_model' to change the behavior of the evaluation.
-If you add the option `plots=True` the code will make a scatter plot with the predicted and the reference values.
-The option `show_plots=True` will show the generated scatter plot, if you want to save it you need to add the flag
-`save_plots=True`. Other options for plotting are residuals and histogram that require the keywords `residual_plots=True,
+There are a few keywords that you can add to the function 'test_model' to change the behaviour of the evaluation.
+If you add the option `plots=True`, the code will make a scatter plot with the predicted and the reference values.
+The option `show_plots=True` will show the generated scatter plot. If you want to save it, you need to add the flag
+`save_plots=True`. Other options for plotting are residuals and histograms that require the keywords `residual_plots=True,
 show_residuals=True` and the same for histograms `histogram_plots=True, show_histograms=True`. It is important to mention
-that by default only plots of the energy are produced however if you want of other properties you can use the keyword:
+that by default, only plots of the energy are produced; however, if you want other properties, you can use the keyword:
 `plots_to_show` and pass a list of the properties that you want to plot. The special keyword `all` will plot all the 
 properties in the database.
 
 If you want to save the generated data for later, you can do it as `.csv` or `.npz` files. To do so, you need to add
 keyboard `save_csv=True` or `save_npz=True`. The default name for the files is `test_vals.csv` and `test_vals.npz` respectively.
-By default the code will save the files in the folder `test_results'.
+By default, the code will save the files in the folder `test_results'.
 
 
 Additional examples will be added in the future.
@@ -121,16 +121,21 @@ Additional examples will be added in the future.
     - [x] Normal Model Scanning 
     - [ ] Umbrella Sampling (Low priority)
     - [x] Metadynamics Sampling 
-- [ ] Active learning
-   - [ ] Adaptive Sampling
 - [ ] Electronic structure calculations:
    - [x] ASE calculator (As good as it can be)
-   - [ ] Automatic generation of input files for common used codes (e.g. Gaussian, Orca, MOLPRO, etc.)
+   - [ ] Automatic generation of input files for commonly used codes (e.g. Gaussian, Orca, MOLPRO, etc.)
    - [ ] Automatic extraction of information from output files
    - [ ] Preparation of training/ input files for the NN
 - Tester class: 
   - [x] Finish automatic evaluation (Luis)
+- Active learning
+   - [ ] Adaptive Sampling
+   - [ ] Uncertainty calculations (?)
+- Tools class:
   - [ ] Normal mode calculation (Luis)
+  - [ ] Instantaneous normal mode calculation
+  - [ ] Minimum energy path and Minimum dynamic path
+  - [ ] Others(?)
 - Production: 
   - [ ] PyCharmm 
   - [ ] ASE calculator for dynamics
