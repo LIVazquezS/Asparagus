@@ -222,7 +222,7 @@ class Trainer:
         self.model_units = self.model_calculator.model_unit_properties
         
         ######################################
-        # # # Check Model and Data Untis # # #
+        # # # Check Model and Data Units # # #
         ######################################
         
         # Check model units
@@ -250,6 +250,25 @@ class Trainer:
         # Assign potentially new property units to the model
         self.model_calculator.set_unit_properties(self.model_units)
 
+        ######################################
+        # # # Set Model Property Scaling # # #
+        ######################################
+        
+        # Get property scaling guess from reference data to link
+        # 'normalized' output to average reference data shift and
+        # distribution width.
+        model_properties_scaling = (
+            self.data_container.get_property_scaling())
+
+        # Convert scaling from reference data units to model units (1/conv)
+        for prop, item in model_properties_scaling.items():
+            model_properties_scaling[prop] = (
+                np.array(item)/self.model2data_unit_conversion[prop])
+
+        # Set current model property scaling
+        self.model_calculator.set_property_scaling(
+            model_properties_scaling)
+        
         ####################################
         # # # Check Trained Properties # # #
         ####################################
@@ -268,7 +287,6 @@ class Trainer:
             for prop in self.model_properties:
                 if prop in self.data_properties:
                     self.trainer_properties_train.append(prop)
-                    
 
         # Else check training properties and eventually correct for
         # not covered properties in the reference data set or the
@@ -308,20 +326,12 @@ class Trainer:
                 self.trainer_properties_weights[prop] = (
                     self.trainer_properties_weights['else'])
 
-        # Collect training property units
-        self.trainer_units_train = {}
-        for prop in self.trainer_properties_train:
-            if self.data_units.get(prop) is None:
-                self.trainer_units_train[prop] = "a.u."
-            else:
-                self.trainer_units_train[prop] = self.data_units.get(prop)
-
         # Show current training property status
         msg = "Property    Metric    Unit      Weight\n"
         msg += "-"*len(msg) + "\n"
         for prop in self.trainer_properties_train:
             msg += f"{prop:10s}  {self.trainer_properties_metrics[prop]:8s}  "
-            msg += f"{self.trainer_units_train[prop]:8s}  "
+            msg += f"{self.model_units[prop]:8s}  "
             msg += f"{self.trainer_properties_weights[prop]: 6.1f}\n"
         logger.info("INFO:\n" + msg)
 
@@ -662,7 +672,7 @@ class Trainer:
                         f" ({metrics_best[prop]['mae']:.2E}) /" +
                         f" {np.sqrt(metrics_valid[prop]['mse']):.2E}" +
                         f" ({np.sqrt(metrics_best[prop]['mse']):.2E})" +
-                        f" {self.trainer_units_train[prop]:s}\n")
+                        f" {self.model_units[prop]:s}\n")
                 logger.info("INFO:\n" + msg)
                 
             
@@ -714,9 +724,10 @@ class Trainer:
         fdata_update = 1. - fdata
         
         # Update metrics
-        metrics['loss'] = (
-            metrics['loss'] + metrics_update['loss'].detach().item())
         metrics['Ndata'] = metrics['Ndata'] + metrics_update['Ndata']
+        metrics['loss'] = (
+            fdata*metrics['loss'] 
+            + fdata_update*metrics_update['loss'].detach().item())
         for prop in self.trainer_properties_train:
             for metric in metrics_update[prop].keys():
                 metrics[prop][metric] = (
@@ -747,8 +758,7 @@ class Trainer:
         metrics = {}
         
         # Add batch size
-        metrics['Ndata'] = reference[
-            self.trainer_properties_train[0]].size()[0]
+        metrics['Ndata'] = reference['atoms_number'].size()[0]
         
         # Iterate over training properties
         for ip, prop in enumerate(self.trainer_properties_train):
@@ -756,12 +766,13 @@ class Trainer:
             # Initialize single property metrics dictionary
             metrics[prop] = {}
             
-            # Compute loss value
+            # Compute loss value per atom
             metrics[prop]['loss'] = loss_fn(
-                torch.flatten(prediction[prop]), 
+                torch.flatten(prediction[prop])
+                *self.model2data_unit_conversion[prop], 
                 torch.flatten(reference[prop]))
             
-            # Weigth and add to total loss
+            # Weight and add to total loss
             if ip:
                 metrics['loss'] = metrics['loss'] + (
                     self.trainer_properties_weights[prop]
@@ -774,10 +785,12 @@ class Trainer:
             # Compute MAE and MSE if requested
             if not loss_only:
                 metrics[prop]['mae'] = mae_fn(
-                    torch.flatten(prediction[prop]), 
+                    torch.flatten(prediction[prop])
+                    *self.model2data_unit_conversion[prop], 
                     torch.flatten(reference[prop]))
                 metrics[prop]['mse'] = mse_fn(
-                    torch.flatten(prediction[prop]), 
+                    torch.flatten(prediction[prop])
+                    *self.model2data_unit_conversion[prop], 
                     torch.flatten(reference[prop]))
 
         return metrics

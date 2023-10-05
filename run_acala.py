@@ -45,8 +45,12 @@ if True:
         data_num_train=1000,
         data_num_valid=100,
         data_num_test=100,
+        data_train_batch_size=32,
+        data_valid_batch_size=32,
+        data_test_batch_size=32,
         trainer_max_epochs=10_000,
-        trainer_properties_weights={'energy': 1., 'forces': 50.}
+        trainer_properties_weights={'energy': 1., 'forces': 50.},
+        trainer_validation_interval=1,
         )
     model.train()
     model.test(

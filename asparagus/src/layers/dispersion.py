@@ -44,6 +44,10 @@ class D3_dispersion(torch.nn.Module):
         # Relative filepath to package folder
         package_directory = os.path.dirname(os.path.abspath(__file__))
 
+        # Assign variables
+        self.dtype = dtype
+        self.device = device
+
         # Load tables with reference values
         self.d3_c6ab = torch.from_numpy(
             np.load(os.path.join(package_directory, "grimme_d3", "c6ab.npy"))
@@ -102,9 +106,6 @@ class D3_dispersion(torch.nn.Module):
         # Unit conversion factors
         self.set_unit_properties(unit_properties)
         
-        # Assign variables
-        self.device = device
-
     def set_unit_properties(
         self,
         unit_properties: Dict[str, str],
@@ -125,8 +126,12 @@ class D3_dispersion(torch.nn.Module):
         # Convert
         # Distances: model to Bohr
         # Energies: Hartree to model
-        self.distances_model2Bohr = factor_positions
-        self.energies_Hatree2model = factor_energy
+        self.register_buffer(
+            "distances_model2Bohr", 
+            torch.tensor([factor_positions], dtype=self.dtype))
+        self.register_buffer(
+            "energies_Hatree2model", 
+            torch.tensor([factor_energy], dtype=self.dtype))
 
     def _smootherstep(
         self,

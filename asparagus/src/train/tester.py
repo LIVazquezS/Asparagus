@@ -304,9 +304,9 @@ class Tester:
         for label, datasubset in self.test_data.items():
             
             # Set maximum model cutoff for neighbor list calculation
-            data.init_neighbor_list(
+            datasubset.init_neighbor_list(
                 cutoff=model_calculator.model_interaction_cutoff,
-                store=test_store_neighbor_list)
+                store=self.test_store_neighbor_list)
 
             # Prepare dictionary for property values and number of atoms per 
             # system

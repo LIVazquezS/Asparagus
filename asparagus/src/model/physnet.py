@@ -283,11 +283,11 @@ class Calculator_PhysNet(torch.nn.Module):
                 dtype=self.dtype)
 
         # initialize property scaling parameter
-        self.init_property_scaling(self.model_properties_scaling)
+        self.set_property_scaling(self.model_properties_scaling)
 
         return
 
-    def init_property_scaling(
+    def set_property_scaling(
         self,
         model_properties_scaling: Dict[str, List[float]]
     ):

@@ -36,6 +36,7 @@ class PC_shielded_electrostatics(torch.nn.Module):
         self.short_range_cutoff = short_range_cutoff
         self.long_range_cutoff = long_range_cutoff
         self.long_range_cutoff_squared = long_range_cutoff**2
+        self.dtype = dtype
         self.device = device
 
         # Assign switch_fn
@@ -55,21 +56,25 @@ class PC_shielded_electrostatics(torch.nn.Module):
             unit_energy = settings._default_units.get('energy')
             unit_positions = settings._default_units.get('positions')
             unit_charge = settings._default_units.get('charge')
-            factor_energy = utils.check_units(unit_energy)
-            factor_positions = utils.check_units(unit_positions)
-            factor_charge = utils.check_units(unit_charge)
+            factor_energy, _ = utils.check_units(unit_energy)
+            factor_positions, _ = utils.check_units(unit_positions)
+            factor_charge, _ = utils.check_units(unit_charge)
         else:
-            factor_energy = utils.check_units(
+            factor_energy, _ = utils.check_units(
                 unit_properties.get('energy'))
-            factor_positions = utils.check_units(
+            factor_positions, _ = utils.check_units(
                 unit_properties.get('positions'))
-            factor_charge = utils.check_units(
+            factor_charge, _ = utils.check_units(
                 unit_properties.get('charge'))
     
         # Convert 1/(2*4*pi*epsilon) from e**2/eV/Ang to model units
         kehalf_ase = 7.199822675975274
-        self.kehalf = (
-            kehalf_ase*factor_charge**2/factor_energy/factor_positions)
+        self.register_buffer(
+            'kehalf',
+            torch.tensor(
+                [kehalf_ase*factor_charge**2/factor_energy/factor_positions],
+                dtype=self.dtype)
+            )
 
     def forward(
         self,
