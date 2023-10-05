@@ -36,11 +36,15 @@ if True:
         config='acala_config.json',
         data_file='data/acala.db',
         model_directory="model_acala",
+        model_num_threads=8,
         model_electrostatic=False,
         model_interaction_cutoff=6.0,
-        model_cutoff_width=0.0,
+        model_cutoff_width=1.0,
         input_cutoff_descriptor=6.0,
         model_properties=['energy', 'forces'],
+        data_num_train=1000,
+        data_num_valid=100,
+        data_num_test=100,
         trainer_max_epochs=10_000,
         trainer_properties_weights={'energy': 1., 'forces': 50.}
         )

@@ -9,9 +9,11 @@ from .. import utils
 _dtypes_args = {
     # Model
     'model_directory':              [utils.is_string, utils.is_None],
+    'model_num_threads':            [utils.is_integer, utils.is_None],
     'model_calculator':             [utils.is_object],
     'model_type':                   [utils.is_string],
     'model_properties':             [utils.is_string_array],
+    'model_unit_properties':        [utils.is_dictionary, utils.is_None],
     'model_save_top_k':             [utils.is_integer],
     'model_interaction_cutoff':     [utils.is_numeric],
     'model_cutoff_width':           [utils.is_numeric],

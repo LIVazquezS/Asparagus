@@ -30,6 +30,7 @@ class Calculator_PhysNet(torch.nn.Module):
         self,
         config: Optional[Union[str, dict, object]] = None,
         model_properties: Optional[List[str]] = None,
+        model_unit_properties: Optional[Dict[str, str]] = None,
         model_descriptor_cutoff: Optional[float] = None,
         model_interaction_cutoff: Optional[float] = None,
         model_cutoff_width: Optional[float] = None,
@@ -51,6 +52,9 @@ class Calculator_PhysNet(torch.nn.Module):
             settings.config class object of model parameters
         model_properties: list(str), optional, default '['energy', 'forces']'
             Properties to predict by calculator model
+        model_unit_properties: dict, optional, default None
+            Property units of the model prediction. If None, units from the
+            reference dataset are taken.
         model_interaction_cutoff: float, optional, default 12.0
             Max. atom interaction cutoff
         model_cutoff_width: float, optional, default 2
@@ -85,7 +89,7 @@ class Calculator_PhysNet(torch.nn.Module):
         ##########################################
 
         # Get configuration object
-        config = settings.get_config(config)
+        self.config = settings.get_config(config)
 
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
@@ -118,7 +122,7 @@ class Calculator_PhysNet(torch.nn.Module):
             setattr(self, arg, item)
 
         # Update global configuration dictionary
-        config.update(config_update)
+        self.config.update(config_update)
         
         # Assign global arguments
         self.dtype = settings._global_dtype
@@ -129,39 +133,39 @@ class Calculator_PhysNet(torch.nn.Module):
         ###################################
 
         # Check for input model object in input
-        if config.get('input_model') is not None:
+        if self.config.get('input_model') is not None:
 
-            self.input_model = config.get('input_model')
+            self.input_model = self.config.get('input_model')
 
         # Otherwise initialize input model
         else:
 
             self.input_model = model.get_input_model(
-                config,
+                self.config,
                 **kwargs)
 
         # Check for graph model object in input
         if config.get('graph_model') is not None:
 
-            self.graph_model = config.get('graph_model')
+            self.graph_model = self.config.get('graph_model')
 
         # Otherwise initialize graph model
         else:
 
             self.graph_model = model.get_graph_model(
-                config,
+                self.config,
                 **kwargs)
 
         # Check for output model object in input
-        if config.get('output_model') is not None:
+        if self.config.get('output_model') is not None:
 
-            self.output_model = config.get('output_model')
+            self.output_model = self.config.get('output_model')
 
         # Otherwise initialize output model
         else:
 
             self.output_model = model.get_output_model(
-                config,
+                self.config,
                 **kwargs)
 
         ######################################
@@ -202,8 +206,9 @@ class Calculator_PhysNet(torch.nn.Module):
             self.model_dipole = False
 
         # Get length of atomic feature vector
-        self.input_n_atombasis = config.get('input_n_atombasis')
-        self.input_cutoff_descriptor = config.get('input_cutoff_descriptor')
+        self.input_n_atombasis = self.config.get('input_n_atombasis')
+        self.input_cutoff_descriptor = self.config.get(
+            'input_cutoff_descriptor')
 
         # Check cutoffs
         if self.model_interaction_cutoff > self.input_cutoff_descriptor:
@@ -218,6 +223,19 @@ class Calculator_PhysNet(torch.nn.Module):
         else:
             self.model_cutoff_split = False
 
+        # Check cutoff width 
+        if self.model_cutoff_width == 0.0:
+            logger.warning(
+                "WARNING:\n The interaction cutoff width 'model_cutoff_width'"
+                + "is zero which might lead to indifferentiable potential"
+                + f"at the interaction cutoff at "
+                + f"{self.model_interaction_cutoff:.2f}!")
+        elif self.model_cutoff_width < 0.0:
+            raise ValueError(
+                "The interaction cutoff width 'model_cutoff_width' "
+                + f"({self.model_cutoff_width:.2f}) "
+                + "must be larger or equal zero!")
+
         # Assign atom repulsion parameters
         if self.model_repulsion:
             pass
@@ -230,6 +248,7 @@ class Calculator_PhysNet(torch.nn.Module):
                 self.model_cutoff_split,
                 self.input_cutoff_descriptor,
                 self.model_interaction_cutoff,
+                unit_properties=self.model_unit_properties,
                 switch_fn="Poly6",
                 device=self.device,
                 dtype=self.dtype)
@@ -245,15 +264,16 @@ class Calculator_PhysNet(torch.nn.Module):
         if self.model_dispersion:
 
             # Check dispersion correction parameters
-            d3_s6 = config.get("model_dispersion_d3_s6")
-            d3_s8 = config.get("model_dispersion_d3_s8")
-            d3_a1 = config.get("model_dispersion_d3_a1")
-            d3_a2 = config.get("model_dispersion_d3_a2")
+            d3_s6 = self.config.get("model_dispersion_d3_s6")
+            d3_s8 = self.config.get("model_dispersion_d3_s8")
+            d3_a1 = self.config.get("model_dispersion_d3_a1")
+            d3_a2 = self.config.get("model_dispersion_d3_a2")
 
             # Get Grimme's D3 dispersion model calculator
             self.dispersion_model = layers.D3_dispersion(
                 self.model_interaction_cutoff,
                 self.model_cutoff_width,
+                unit_properties=self.model_unit_properties,
                 d3_s6=d3_s6,
                 d3_s8=d3_s8,
                 d3_a1=d3_a1,
@@ -262,8 +282,18 @@ class Calculator_PhysNet(torch.nn.Module):
                 device=self.device,
                 dtype=self.dtype)
 
+        # initialize property scaling parameter
+        self.init_property_scaling(self.model_properties_scaling)
+
+        return
+
+    def init_property_scaling(
+        self,
+        model_properties_scaling: Dict[str, List[float]]
+    ):
+
         # Special case: 'energy', 'atomic_energies'
-        if self.model_properties_scaling is None:
+        if model_properties_scaling is None:
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
                     [1.0, 0.0],
@@ -276,30 +306,30 @@ class Calculator_PhysNet(torch.nn.Module):
                     )
         elif (
             'energy' in self.model_properties
-            and 'atomic_energies' in self.model_properties_scaling
+            and 'atomic_energies' in model_properties_scaling
         ):
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    self.model_properties_scaling['atomic_energies'],
+                    model_properties_scaling['atomic_energies'],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
                         self.input_n_atombasis,
-                        len(self.model_properties_scaling['atomic_energies'])
+                        len(model_properties_scaling['atomic_energies'])
                         ).clone()
                     )
         elif (
             'energy' in self.model_properties
-            and 'energy' in self.model_properties_scaling
+            and 'energy' in model_properties_scaling
         ):
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    self.model_properties_scaling['energy'],
+                    model_properties_scaling['energy'],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
                         self.input_n_atombasis,
-                        len(self.model_properties_scaling['energy'])
+                        len(model_properties_scaling['energy'])
                         ).clone()
                     )
         else:
@@ -315,7 +345,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     )
 
         # Special case: 'atomic_charges'
-        if self.model_properties_scaling is None:
+        if model_properties_scaling is None:
             self.atomic_charges_scaling = torch.nn.Parameter(
                 torch.tensor(
                     [1.0, 0.0],
@@ -327,17 +357,17 @@ class Calculator_PhysNet(torch.nn.Module):
                         ).clone()
                     )
         elif (
-            'atomic_charges' in self.model_properties_scaling
+            'atomic_charges' in model_properties_scaling
             and 'atomic_charges' in self.model_properties
         ):
             self.atomic_charges_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    self.model_properties_scaling['atomic_charges'],
+                    model_properties_scaling['atomic_charges'],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
                         self.input_n_atombasis,
-                        len(self.model_properties_scaling['atomic_charges'])
+                        len(model_properties_scaling['atomic_charges'])
                         ).clone()
                     )
         else:
@@ -357,8 +387,8 @@ class Calculator_PhysNet(torch.nn.Module):
         model_scaling = {}
 
         # Further cases
-        if self.model_properties_scaling is not None:
-            for prop, item in self.model_properties_scaling.items():
+        if model_properties_scaling is not None:
+            for prop, item in model_properties_scaling.items():
                 # Skip properties derived from energy and charge
                 if prop in [
                     'energy', 'forces', 'hessian',
@@ -376,6 +406,23 @@ class Calculator_PhysNet(torch.nn.Module):
         self.model_scaling = torch.nn.ParameterDict(model_scaling)
 
         return
+
+    def set_unit_properties(
+        self,
+        model_unit_properties: Dict[str, str],
+    ):
+        """
+        Set or change unit property parameter in respective model layers
+        """
+        
+        # Change unit properties for electrostatic and dispersion layers
+        if self.model_electrostatic:
+            self.electrostatic_model.set_unit_properties(model_unit_properties)
+        if self.model_dispersion:
+            self.dispersion_model.set_unit_properties(model_unit_properties)
+        
+        # Store property unit labels in config file
+        self.config.update({'model_unit_properties': model_unit_properties})
 
     @torch.jit.export
     def forward(

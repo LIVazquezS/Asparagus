@@ -219,7 +219,37 @@ class Trainer:
             
         # Get model properties
         self.model_properties = self.model_calculator.model_properties
+        self.model_units = self.model_calculator.model_unit_properties
         
+        ######################################
+        # # # Check Model and Data Untis # # #
+        ######################################
+        
+        # Check model units
+        self.model_units = self.check_model_units()
+        
+        # Get Model to reference data property unit conversion factors
+        self.model2data_unit_conversion = {}
+        for prop, unit in self.model_units.items():
+            self.model2data_unit_conversion[prop], _ = utils.check_units(
+                unit, self.data_units.get(prop))
+
+        # Show assigned property units
+        message = (
+            "INFO:\nModel property units:\n"
+            + " Property Label | Model Unit     | Data Unit      |"
+            + " Conversion Fac.\n"
+            + "-"*17*4
+            + "\n")
+        for prop, unit in self.model_units.items():
+            message += (
+                f" {prop:<16s} {unit:<16s} {self.data_units[prop]:<16s}"
+                + f"{self.model2data_unit_conversion[prop]:11.9e}\n")
+        logger.info(message)
+        
+        # Assign potentially new property units to the model
+        self.model_calculator.set_unit_properties(self.model_units)
+
         ####################################
         # # # Check Trained Properties # # #
         ####################################
@@ -259,7 +289,7 @@ class Trainer:
                         f"reference data set and/or predicted by the model " + 
                         f"model calculator!\n" +
                         f"Property '{prop}' is removed from training " + 
-                        f"property list.")
+                        f"property list.\n")
         
         # Check for default property metric and weight
         if self.trainer_properties_metrics.get('else') is None:
@@ -355,6 +385,46 @@ class Trainer:
         # Save a copy of the current model configuration in the model directory
         self.filemanager.save_config(config)
 
+    def check_model_units(
+        self,
+        model_units: Optional[Dict[str, str]] = None,
+    ):
+        """
+        Check the definition of the model units or assign units from the
+        reference dataset
+        """
+        
+        if model_units is None:
+            model_units = self.model_units
+        
+        # If model units are not defined, take property units from dataset
+        if model_units is None:
+            model_units = self.data_units
+            logger.info(
+                "INFO:\nModel property units are not defined!\n"
+                + "Property units from the reference dataset are assigned.\n")
+        # If model units are defined , check completeness
+        else:
+            # Check positions unit
+            if 'positions' not in model_units:
+                model_units['positions'] = (
+                    self.data_units.get('positions'))
+                logger.warning(
+                    "WARNING:\nModel property unit for 'positions' is not "
+                    + "defined!\nPositions unit "
+                    + f"{self.data_units.get['positions']:s} from the "
+                    + "reference dataset is assigned.\n")
+            # Check model property units
+            for prop in self.model_properties:
+                if prop not in model_units:
+                    model_units[prop] = (
+                        self.data_units.get(prop))
+                    logger.warning(
+                        f"WARNING:\nModel property unit for '{prop:s}' is not "
+                        + f"is defined!\nUnit {self.data_units.get[prop]:s} "
+                        + f"from the reference dataset is assigned.\n")
+
+        return model_units
 
     def train(self, verbose=True, debug=False):
         

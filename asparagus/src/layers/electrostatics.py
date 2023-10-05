@@ -2,8 +2,9 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
 
-from .. import utils
 from .. import layers
+from .. import utils
+from .. import settings
 
 # ======================================
 #  Point Charge Electrostatics
@@ -21,7 +22,8 @@ class PC_shielded_electrostatics(torch.nn.Module):
         split_distance: bool,
         short_range_cutoff: float,
         long_range_cutoff: float,
-        switch_fn: Union[str, object],
+        unit_properties: Optional[Dict[str, str]] = None,
+        switch_fn: Optional[Union[str, object]] = None,
         device: Optional[str] = 'cpu',
         dtype: Optional[object] = torch.float64,
         **kwargs
@@ -41,7 +43,33 @@ class PC_shielded_electrostatics(torch.nn.Module):
         self.switch_fn = switch_class(short_range_cutoff)
 
         # TODO: Property unit dependent kehalf
-        self.kehalf = 7.199822675975274
+        self.set_unit_properties(unit_properties)
+
+    def set_unit_properties(
+        self,
+        unit_properties: Dict[str, str],
+    ):
+        
+        # Get conversion factors
+        if unit_properties is None:
+            unit_energy = settings._default_units.get('energy')
+            unit_positions = settings._default_units.get('positions')
+            unit_charge = settings._default_units.get('charge')
+            factor_energy = utils.check_units(unit_energy)
+            factor_positions = utils.check_units(unit_positions)
+            factor_charge = utils.check_units(unit_charge)
+        else:
+            factor_energy = utils.check_units(
+                unit_properties.get('energy'))
+            factor_positions = utils.check_units(
+                unit_properties.get('positions'))
+            factor_charge = utils.check_units(
+                unit_properties.get('charge'))
+    
+        # Convert 1/(2*4*pi*epsilon) from e**2/eV/Ang to model units
+        kehalf_ase = 7.199822675975274
+        self.kehalf = (
+            kehalf_ase*factor_charge**2/factor_energy/factor_positions)
 
     def forward(
         self,

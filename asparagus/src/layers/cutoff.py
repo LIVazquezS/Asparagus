@@ -60,12 +60,13 @@ class Poly6_cutoff(torch.nn.Module):
 #======================================
 
 functions_avaiable = {
+    'default'.lower(): Poly6_cutoff, 
     'Poly6'.lower(): Poly6_cutoff, 
     'PhysNet_CutOff'.lower(): Poly6_cutoff,
     }
 
 def get_cutoff_fn(
-    name
+    name: Optional[Union[object, str]] = None
 ):
     """
     Get cutoff function by defined name.
@@ -73,10 +74,11 @@ def get_cutoff_fn(
     Parameters
     ----------
         
-        name: (str, object)
+        name: (str, object), optional, default None
             If name is a str than it checks for the corresponding cutoff
             function and return the function object.
             The input will be given if it is already a function object.
+            If None, then default cutoff function is used.
             
     Returns
     -------
@@ -84,6 +86,11 @@ def get_cutoff_fn(
             Cutoff function object
     """
     
+    # Check for default option
+    if name is None:
+        name = 'default'
+    
+    # Get cutoff function
     if utils.is_object(name):
         
         return name

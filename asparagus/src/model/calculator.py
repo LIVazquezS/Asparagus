@@ -27,6 +27,7 @@ calculator_avaiable = {
 def get_calculator(
     config: Optional[Union[str, dict, object]] = None,
     model_directory: Optional[str] = None,
+    model_num_threads: Optional[int] = None,
     model_type: Optional[str] = None,
     **kwargs
 ):
@@ -40,6 +41,9 @@ def get_calculator(
             settings.config class object of model parameters
         model_directory: str, optional, default None
             Calculator model directory for file management
+        model_num_threads: int, optional, default None
+            Maximum number of threads for Pytorch. If None, use Pytorch
+            default number of threads.
         model_type: str, optional, default 'PhysNetRBF'
             Calculator model type of the NN potential
             e.g. 'PhysNetRBF'
@@ -86,6 +90,10 @@ def get_calculator(
 
     # Calculator model assignment
     model_type = config.get('model_type')
+
+    # Set model calculator number of threads
+    if config.get('model_num_threads') is not None:
+        torch.set_num_threads(config.get('model_num_threads'))
 
     # Select calculator model
     if model_type.lower() in calculator_avaiable.keys():

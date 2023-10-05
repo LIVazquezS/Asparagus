@@ -71,7 +71,7 @@ _alt_property_labels = {
     }
     
 
-# Default property units
+# Default property units - ASE units
 _default_units = {
     'atoms_number':     '',
     'atomic_numbers':   '',
