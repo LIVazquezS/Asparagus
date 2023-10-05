@@ -36,7 +36,7 @@ if False:
             },
         data_overwrite=True)
 
-if True:
+if False:
 
     model = Asparagus(
         config='form_config.json',
@@ -60,7 +60,7 @@ if True:
         test_datasets='test',
         test_directory=model.get('model_directory'))
 
-if False:
+if True:
 
     model = Asparagus(
         config="form_config.json"
@@ -90,4 +90,10 @@ if False:
     dyn.run(fmax=0.01)
     form_list.append(system)
     from ase.visualize import view
-    view(form_list)
+    #view(form_list)
+
+    results = calc.calculate(form_list)
+    for prop, result in results.items():
+        print(f"{prop:s}:")
+        for isys, sys in enumerate(form_list):
+            print(f"{isys + 1:d}: ", result[isys])

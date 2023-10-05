@@ -417,6 +417,18 @@ class Calculator_PhysNet(torch.nn.Module):
         
         # Change unit properties for electrostatic and dispersion layers
         if self.model_electrostatic:
+            # Synchronize total and atomic charge units
+            if model_unit_properties.get('charge') is not None:
+                model_unit_properties['atomic_charges'] = (
+                    model_unit_properties.get('charge'))
+            elif model_unit_properties.get('atomic_charges') is not None:
+                model_unit_properties['charge'] = (
+                    model_unit_properties.get('atomic_charges'))
+            else:
+                raise SyntaxError(
+                    "For electrostatic potential contribution either the"
+                    + "model unit for the 'charge' or 'atomic_charges' must "
+                    + "be defined!")
             self.electrostatic_model.set_unit_properties(model_unit_properties)
         if self.model_dispersion:
             self.dispersion_model.set_unit_properties(model_unit_properties)

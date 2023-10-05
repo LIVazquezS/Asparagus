@@ -138,6 +138,20 @@ class ASE_Calculator(ase_calc.Calculator):
                 raise SyntaxError(
                     "Input flag 'use_neighbor_list' must be a boolean!")
 
+        # Get property unit conversions from model units to ASE units
+        self.model_unit_properties = (
+            self.model_calculator.model_unit_properties)
+        self.model2ase_unit_conversion = {}
+        # Positions unit (None = ASE units by default)
+        conversion, _ = utils.check_units(
+            None, self.model_unit_properties['positions'])
+        self.model2ase_unit_conversion['positions'] = conversion
+        # Implemented property units (None = ASE units by default)
+        for prop in self.implemented_properties:
+            conversion, _ = utils.check_units(
+                None, self.model_unit_properties[prop])
+            self.model2ase_unit_conversion[prop] = conversion
+
         # Set atoms charge
         self.set_atoms_charge(atoms_charge, initialize=False)
 
@@ -326,7 +340,6 @@ class ASE_Calculator(ase_calc.Calculator):
         for shift, (i_atom, atoms) in zip(
                 atoms_batch['Natoms_cumsum'][:-1],
                 enumerate(atoms_list)):
-
             if self.use_neighbor_list or any(atoms.get_pbc()):
                 atoms_idx_i, atoms_idx_j, atoms_pbc_offset = neighbor_list(
                     'ijS',
@@ -443,7 +456,7 @@ class ASE_Calculator(ase_calc.Calculator):
                 self.atoms_batch = self.initialize_model_input()
                 atoms_batch = self.atoms_batch
 
-        # Cmpute model properties
+        # Compute model properties
         results = {}
         if self.model_ensemble:
             # TODO Test!!!
@@ -467,9 +480,50 @@ class ASE_Calculator(ase_calc.Calculator):
         if atoms_list:
             # TODO Resolve results per atoms object
             for prop in self.implemented_properties:
-                self.results[prop] = results[prop].detach().numpy()
+                all_results = (
+                    results[prop].detach().numpy()
+                    *self.model2ase_unit_conversion[prop])
+                self.results[prop] = self.resolve_atoms(
+                    all_results, atoms_batch, prop)
+                
         else:
             for prop in self.implemented_properties:
-                self.results[prop] = results[prop].detach().numpy()
+                self.results[prop] = (
+                    results[prop].detach().numpy()
+                    *self.model2ase_unit_conversion[prop])
 
         return self.results
+
+    def resolve_atoms(
+        self,
+        all_results: List[float],
+        atoms_batch: Dict[str, Any],
+        prop: str,
+    ):
+
+        # Compare result shape with number of atom systems, atom numbers and
+        # pair numbers
+        if all_results.shape[0] == atoms_batch['atoms_number'].shape[0]:
+            return [
+                all_results[isys] 
+                for isys, _ in enumerate(atoms_batch['atoms_number'])]
+        elif all_results.shape[0] == atoms_batch['atomic_numbers'].shape[0]:
+            atoms_results = []
+            iatoms = 0
+            for Natoms in atoms_batch['atoms_number']:
+                atoms_results.append(
+                    all_results[iatoms:(iatoms + Natoms)])
+                iatoms = iatoms + Natoms
+            return atoms_results
+        elif all_results.shape[0] == atoms_batch['pairs_seg'].shape[0]:
+            atoms_results = [
+                [] for _ in atoms_batch['atoms_number']]
+            for ipair, isys in enumerate(atoms_batch['pairs_seg']):
+                atoms_results[isys].append(all_results[ipair])
+            return atoms_results
+        else:
+            raise SyntaxError(
+                f"Model result of property '{prop:s}' could not be resolved!")
+        
+        
+        
