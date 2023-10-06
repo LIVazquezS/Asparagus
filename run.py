@@ -4,6 +4,40 @@ from asparagus import DataContainer
 from asparagus import MDSampler, NormalModeScanner, MetaSampler, ReCalculator
 
 from asparagus import Asparagus
+from asparagus.src.layers import PC_shielded_electrostatics
+import torch
+import matplotlib.pyplot as plt
+# Test electrostatic
+
+#charges = torch.Tensor([-0.1, 0.1])
+#distances = torch.arange(0.2, 14.0, .2)
+#idx_i = torch.zeros_like(distances).to(torch.int64)
+#idx_j = torch.ones_like(distances).to(torch.int64)
+
+
+#elec1 = PC_shielded_electrostatics(
+    #True,
+    #6.0,
+    #12.0,
+    #{'energy': 'eV', 'positions': 'Ang', 'charge': 'e'},
+    #)
+
+#elec2 = PC_shielded_electrostatics(
+    #False,
+    #12.0,
+    #12.0,
+    #{'energy': 'eV', 'positions': 'Ang', 'charge': 'e'},
+    #)
+
+#E1, Eo1 = elec1(charges, distances, idx_i, idx_j)
+#E2, Eo2 = elec2(charges, distances, idx_i, idx_j)
+
+#plt.plot(distances, E1)
+##plt.plot(distances, Eo1)
+#plt.plot(distances, E2)
+##plt.plot(distances, Eo2)
+#plt.show()
+#exit()
 
 if False:
 

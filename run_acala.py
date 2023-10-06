@@ -38,6 +38,8 @@ if True:
         model_directory="model_acala",
         model_num_threads=8,
         model_electrostatic=False,
+        model_dispersion=True,
+        model_dispersion_trainable=False,
         model_interaction_cutoff=6.0,
         model_cutoff_width=1.0,
         input_cutoff_descriptor=6.0,

@@ -92,8 +92,8 @@ class PC_shielded_electrostatics(torch.nn.Module):
         distances_shielded = torch.sqrt(distances**2 + 1.0)
 
         # Compute switch weights
-        switch_weights = self.switch_fn(distances)
-        complementary_switch_weights = 1.0 - switch_weights
+        switch_off_weights = self.switch_fn(distances)
+        switch_on_weights = 1.0 - switch_off_weights
 
         # Compute electrostatic potential
         if self.split_distance:
@@ -111,24 +111,36 @@ class PC_shielded_electrostatics(torch.nn.Module):
             # Combine electrostatic contributions
             E = (
                 self.kehalf*atomic_charges_i*atomic_charges_j*(
-                    complementary_switch_weights*E_shielded
-                    + switch_weights*E_ordinary))
-            E = torch.where(
-                distances <= self.long_range_cutoff,
-                E,                      # distance <= cutoff
-                torch.zeros_like(E))    # distance > cutoff
-
+                    switch_off_weights*E_shielded
+                    + switch_on_weights*E_ordinary))
+            
         else:
 
+            ## Compute ordinary (unshielded) and shielded contributions
+            #E_ordinary = 1.0/distances
+            #E_shielded = 1.0/distances_shielded
+            
             # Compute ordinary (unshielded) and shielded contributions
-            E_ordinary = 1.0/distances
-            E_shielded = 1.0/distances_shielded
+            E_ordinary = (
+                1.0/distances
+                + distances/self.long_range_cutoff_squared
+                - 2.0/self.long_range_cutoff)
+            E_shielded = (
+                1.0/distances_shielded
+                + distances_shielded/self.long_range_cutoff_squared
+                - 2.0/self.long_range_cutoff)
 
             # Combine electrostatic contributions
             E = (
                 self.kehalf*atomic_charges_i*atomic_charges_j*(
-                    complementary_switch_weights*E_shielded
-                    + switch_weights*E_ordinary))
+                    switch_off_weights*E_shielded
+                    + switch_on_weights*E_ordinary))
+
+        # Apply interaction cutoff
+        E = torch.where(
+            distances <= self.long_range_cutoff,
+            E,                      # distance <= cutoff
+            torch.zeros_like(E))    # distance > cutoff
 
         # Sum up electrostatic atom pair contribution of each atom
         return utils.segment_sum(E, idx_i, device=self.device)

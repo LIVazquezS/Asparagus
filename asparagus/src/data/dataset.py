@@ -384,7 +384,7 @@ class DataSet():
         # Check for positions unit or add default as positions unit was not
         # defined in 'unit_properties'
         if 'positions' not in metadata['unit_properties']:
-            metadata['unit_properties'] = (
+            metadata['unit_properties']['positions'] = (
                 settings._default_args['data_unit_positions'])
 
         return metadata

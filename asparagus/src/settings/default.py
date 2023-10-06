@@ -142,7 +142,7 @@ _default_args = {
     'sample_systems_optimize_fmax': 0.001,
     'nms_harmonic_energy_step':     0.05,
     'nms_energy_limits':            1.0,
-    'nms_limit_of_coupling':        2,
+    'nms_number_of_coupling':       1,
     'nms_limit_of_steps':           10,
     'md_temperature':               300.,
     'md_time_step':                 1.,

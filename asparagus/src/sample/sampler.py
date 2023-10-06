@@ -215,6 +215,7 @@ class Sampler:
 
     def assign_calculator(
         self,
+        sample_systems_atoms: Optional[Union[object, List[object]]] = None,
         sample_calculator: Optional[Union[str, object]] = None,
         sample_calculator_args: Optional[Dict[str, Any]] = None,
         ):
@@ -223,6 +224,10 @@ class Sampler:
         """
         
         # Check input
+        if sample_systems_atoms is None:
+            sample_systems_atoms = self.sample_systems_atoms
+        elif not utils.is_array_like(sample_systems_atoms):
+            sample_systems_atoms = [sample_systems_atoms]
         if sample_calculator is None:
             sample_calculator = self.sample_calculator
         if sample_calculator_args is None:
@@ -318,7 +323,7 @@ class Sampler:
             # Skip unselected system samples
             if not sample_systems_selection[isys]:
                 continue
-            
+
             # If requested, perform structure optimization
             if self.sample_systems_optimize:
                 

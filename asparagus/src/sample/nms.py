@@ -34,7 +34,7 @@ class NormalModeScanner(sample.Sampler):
         nms_data_file: Optional[str] = None,
         nms_harmonic_energy_step: Optional[float] = None,
         nms_energy_limits: Optional[Union[float, List[float]]] = None,
-        nms_limit_of_coupling: Optional[int] = None,
+        nms_number_of_coupling: Optional[int] = None,
         nms_limit_of_steps: Optional[int] = None,
         **kwargs,
     ):
@@ -58,12 +58,12 @@ class NormalModeScanner(sample.Sampler):
             potential energy limit and the lower limit in case the initial
             system conformation might not be the global minimum.
             If a list with two numeric values are given, the first two are the lower and upper potential energy limit, respectively.
-        nms_limit_of_coupling: int, optional, default 2
-            Maximum limit of coupled normal mode displacements to sample
+        nms_number_of_coupling: int, optional, default 2
+            Maximum number of coupled normal mode displacements to sample
             the system conformations.
         nms_limit_of_steps: int, optional, default 10
-            Maximum limit of coupled normal mode displacements to sample
-            the system conformations.
+            Maximum limit of coupled normal mode displacements in one direction
+            to sample the system conformations.
             
         Returns
         -------
@@ -161,7 +161,7 @@ class NormalModeScanner(sample.Sampler):
             'nms_data_file': self.nms_data_file,
             'nms_harmonic_energy_step': self.nms_harmonic_energy_step,
             'nms_energy_limits': self.nms_energy_limits,
-            'nms_limit_of_coupling': self.nms_limit_of_coupling,
+            'nms_number_of_coupling': self.nms_number_of_coupling,
             'nms_limit_of_steps': self.nms_limit_of_steps,
         }
 
@@ -183,7 +183,7 @@ class NormalModeScanner(sample.Sampler):
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
         self.nms_dataset.add_atoms(system, system_properties)
-        
+
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
             system,
@@ -231,8 +231,8 @@ class NormalModeScanner(sample.Sampler):
             
         # Vibrational modes are assumed with center of mass shifts smaller
         # than 1.e-3 Angstrom displacement
-        system_vib_modes = system_com_shift < 1.e-3
-        
+        system_vib_modes = system_com_shift < 1.e-4
+
         # Displacement factor for energy step (in eV)
         system_displfact = np.sqrt(
             3*self.nms_harmonic_energy_step/system_forceconst)
@@ -240,7 +240,7 @@ class NormalModeScanner(sample.Sampler):
         # Iterate over number of normal mode combinations
         steps = np.arange(0, self.nms_limit_of_steps, 1) + 1
         vib_modes = np.where(system_vib_modes)[0]
-        for icomp in range(1, self.nms_limit_of_coupling + 1):
+        for icomp in range(1, self.nms_number_of_coupling + 1):
             
             # Prepare sign combinations
             all_signs = np.array(list(
@@ -308,7 +308,7 @@ class NormalModeScanner(sample.Sampler):
                         
                         # Check energy threshold
                         if threshold_reached:
-                            
+
                             # Return error if even initial step is to large
                             if istep == 0:
                                 raise ValueError(
