@@ -13,6 +13,8 @@ from ase import units
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.md.langevin import Langevin
 
+from ase.io.trajectory import Trajectory
+
 from .. import data
 from .. import model
 from .. import settings
@@ -135,10 +137,13 @@ class MDSampler(sample.Sampler):
                 f"of a valid file path but is of type " + 
                 f"'{type(self.md_data_file)}'.")
         
-        # Define MD log file path
+        # Define MD log and trajectory file path
         self.md_log_file = os.path.join(
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}.log')
+        self.md_trajectory_file = os.path.join(
+            self.sample_directory, 
+            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
         
         # Check sample properties for energy and forces properties which are 
         # required for MD sampling
@@ -218,7 +223,16 @@ class MDSampler(sample.Sampler):
             self.save_properties,
             interval=self.md_save_interval,
             system=system)
-            
+
+        # Attach trajectory
+        self.md_trajectory = Trajectory(
+            self.md_trajectory_file, atoms=system, 
+            mode='a', properties=self.sample_properties)
+        md_dyn.attach(
+            self.write_trajectory, 
+            interval=self.md_save_interval,
+            system=system)
+
         # Run MD simulation
         md_simulation_step = round(
             self.md_simulation_time/self.md_time_step)
@@ -233,3 +247,12 @@ class MDSampler(sample.Sampler):
         system_properties = self.get_properties(system)
         self.md_dataset.add_atoms(system, system_properties)
         
+
+    def write_trajectory(self, system):
+        """
+        Write current image to trajectory file but without constraints
+        """
+        
+        system_noconstraint = system.copy()
+        system_noconstraint.set_constraint()
+        self.md_trajectory.write(system_noconstraint)

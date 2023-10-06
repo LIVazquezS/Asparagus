@@ -12,6 +12,8 @@ from ase import units
 
 from ase import vibrations
 
+from ase.io.trajectory import Trajectory
+
 from .. import data
 from .. import model
 from .. import settings
@@ -110,6 +112,9 @@ class NormalModeScanner(sample.Sampler):
         # Update global configuration dictionary
         #self.config.update(config_update)
         
+        # Sampler class label
+        self.sample_tag = 'nmscan'
+        
         # Check sample data file
         if self.nms_data_file is None:
             self.nms_data_file = os.path.join(
@@ -120,8 +125,13 @@ class NormalModeScanner(sample.Sampler):
                 f"of a valid file path but is of type " + 
                 f"'{type(self.nms_data_file)}'.")
         
-        # Sampler class label
-        self.sample_tag = 'nmscan'
+        # Define MD log and trajectory file path
+        self.nms_log_file = os.path.join(
+            self.sample_directory, 
+            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
+        self.nms_trajectory_file = os.path.join(
+            self.sample_directory, 
+            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
         
         # Check sample properties for energy property which is required for 
         # normal mode scanning
@@ -183,6 +193,12 @@ class NormalModeScanner(sample.Sampler):
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
         self.nms_dataset.add_atoms(system, system_properties)
+
+        # Attach to trajectory
+        self.nms_trajectory = Trajectory(
+            self.md_trajectory_file, atoms=system, 
+            mode='a', properties=self.sample_properties)
+        self.write_trajectory(system)
 
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
@@ -305,7 +321,10 @@ class NormalModeScanner(sample.Sampler):
                             system_properties = self.get_properties(system)
                             self.nms_dataset.add_atoms(
                                 system, system_properties)
-                        
+
+                        # Attach to trajectory
+                        self.write_trajectory(system)
+
                         # Check energy threshold
                         if threshold_reached:
 
@@ -338,6 +357,16 @@ class NormalModeScanner(sample.Sampler):
                             done = True
               
         return
+
+
+    def write_trajectory(self, system):
+        """
+        Write current image to trajectory file but without constraints
+        """
+        
+        system_noconstraint = system.copy()
+        system_noconstraint.set_constraint()
+        self.nms_trajectory.write(system_noconstraint)
 
 
 class NormalModeSampler(sample.Sampler):
@@ -462,6 +491,7 @@ class NormalModeSampler(sample.Sampler):
             new_disp.append(disp_i)
         disp = np.sum(new_disp, axis=0)
         return disp
+
     def save_properties(self, system):
         """
         Save system properties
@@ -469,6 +499,7 @@ class NormalModeSampler(sample.Sampler):
 
         system_properties = self.get_properties(system)
         self.nmsamp_dataset.add_atoms(system, system_properties)
+
     def run(self,system):
         '''
         Running the system
@@ -532,7 +563,14 @@ class NormalModeSampler(sample.Sampler):
                 print('This configuration is not stable')
                 pass
 
-
+    def write_trajectory(self, system):
+        """
+        Write current image to trajectory file but without constraints
+        """
+        
+        system_noconstraint = system.copy()
+        system_noconstraint.set_constraint()
+        self.md_trajectory.write(system_noconstraint)
 
 
 

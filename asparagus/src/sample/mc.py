@@ -7,7 +7,8 @@ import numpy as np
 import ase
 from ase import units
 from ase.md.md import MolecularDynamics
-from ase.io import write
+
+from ase.io.trajectory import Trajectory
 
 from .. import data
 from .. import model
@@ -98,7 +99,10 @@ class MCSampler(sample.Sampler):
         self.mc_log_file = os.path.join(
             self.sample_directory,
             f'{self.sample_counter:d}_{self.sample_tag:s}.log')
-
+        self.mc_trajectory_file = os.path.join(
+            self.sample_directory, 
+            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
+        
         # Check sample properties for energy and forces properties which are
         # required for MC sampling
         if 'energy' not in self.sample_properties:
@@ -138,7 +142,7 @@ class MCSampler(sample.Sampler):
             'mc_equilibration_time': self.mc_equilibration_time,
         }
 
-    def run_system(self, system,save_trajectory=False):
+    def run_system(self, system, save_trajectory=False):
         """
         Perform a very simple MC Simulation using the Metropolis algorithm with the sample system.
         """
@@ -146,36 +150,42 @@ class MCSampler(sample.Sampler):
         # Set up system
         initial_system = system.copy()
         initial_system.set_calculator(self.sample_calculator)
-
+        
+        # Temperature parameter
         self.beta = 1.0 / (units.kB * self.mc_temperature)
-        # if self.mc_initial_velocities:
-        #     MaxwellBoltzmannDistribution(
-        #         system,
-        #         temperature_K=self.md_initial_temperature)
-
-
+        
         # Perform MC equilibration simulation if requested
         if (
                 self.mc_equilibration_time is not None
                 and self.mc_equilibration_time > 0.
         ):
+            
             eq_steps = int(self.mc_equilibration_time / self.mc_time_step)
             traj_eq = self.monte_carlo_steps(initial_system, eq_steps)
-        #  Set the equilibrated system as the new initial system
+            
+            #  Set the equilibrated system as the new initial system
             initial_system = traj_eq[-1]
 
+        # Initialize trajectory
+        self.mc_trajectory = Trajectory(
+            self.md_trajectory_file, atoms=system, 
+            mode='a', properties=self.sample_properties)
+        
         # Perform MC simulation
         traj_steps = int(self.mc_simulation_time / self.mc_time_step)
         traj = self.monte_carlo_steps(initial_system, traj_steps)
-        if save_trajectory:
-            write('mc_trajectory.traj', traj)
 
-
-    def monte_carlo_steps(self,system,steps):
+    def monte_carlo_steps(
+        self,
+        system,
+        steps
+    ):
         """
-        This does a simple Monte Carlo simulation using the Metropolis algorithm.
+        This does a simple Monte Carlo simulation using the Metropolis
+        algorithm.
 
-        In the future we could add more sophisticated sampling methods here.(e.g. MALA or HMC)
+        In the future we could add more sophisticated sampling methods
+        (e.g. MALA or HMC)
 
         Parameters
         ----------
@@ -188,8 +198,9 @@ class MCSampler(sample.Sampler):
         """
 
         current_energy = system.get_potential_energy()
-        trajectory = [system.copy()]
+        
         for step in range(steps):
+            
             # First, randomly pick an atom
             atom = np.random.randint(0, len(system))
 
@@ -197,18 +208,24 @@ class MCSampler(sample.Sampler):
             old_position = system.positions[atom].copy()
 
             # Propose a new random position for this atom
-            displacement = np.random.uniform(-self.mc_max_displacement, self.mc_max_displacement, 3)
+            displacement = np.random.uniform(
+                -self.mc_max_displacement, self.mc_max_displacement, 3)
             system[atom].position += displacement
 
             # Get the potential energy of the new system
             new_energy = system.get_potential_energy()
 
             # Metropolis acceptance criterion
-            if np.random.rand() < np.exp(-self.beta * (new_energy - current_energy)):
+            threshold = np.exp(-self.beta * (new_energy - current_energy))
+            if np.random.rand() < threshold:
+
+                # Set the new position of the atom
                 current_energy = new_energy
                 self.save_properties(system)
-                trajectory.append(system.copy())
+                self.write_trajectory(system)
+
             else:
+                
                 # Reset the position of the atom
                 system[atom].position = old_position
 
@@ -223,6 +240,14 @@ class MCSampler(sample.Sampler):
         system_properties = self.get_properties(system)
         self.mc_dataset.add_atoms(system, system_properties)
 
+    def write_trajectory(self, system):
+        """
+        Write current image to trajectory file but without constraints
+        """
+        
+        system_noconstraint = system.copy()
+        system_noconstraint.set_constraint()
+        self.mc_trajectory.write(system_noconstraint)
 
 # class MonteCarlo(MolecularDynamics):
 #
