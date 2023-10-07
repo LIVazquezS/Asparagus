@@ -280,12 +280,12 @@ class DataSet():
         # Check metadata loaded properties
         metadata = self.check_metadata_load_properties(
             metadata, load_properties)
-        
+
         # Check metadata loaded properties units
         metadata = self.merge_metadata_unit_properties(
             metadata, unit_properties, 
             overwrite_unit_properties=overwrite_unit_properties)
-        
+
         # Update metadata with database metadata
         if update_metadata:
             self.set_metadata(metadata=metadata)
@@ -303,7 +303,7 @@ class DataSet():
 
         # Get loaded properties from metadata
         meta_load_properties = metadata.get('load_properties')
-        
+
         # If nothing is defined - error
         if load_properties is None and meta_load_properties is None:
             raise SyntaxError(
@@ -322,9 +322,9 @@ class DataSet():
                 for prop in load_properties], dtype=bool)
             if any(check_properties):
                 raise ValueError(
-                    f"Existing dataset '{data_file}' "
+                    f"Existing dataset '{self.data_file}' "
                     + "does not include properties "
-                    + f"{np.array(load_properties)[comp_properties]}, "
+                    + f"{np.array(load_properties)[check_properties]}, "
                     + "which is/are requested by 'load_properties'!")
 
         return metadata
@@ -338,10 +338,10 @@ class DataSet():
         """
         Check and merge unit property definition of metadata and input
         """
-        
+
         # Get unit properties from metadata
         meta_unit_properties = metadata.get('unit_properties')
-        
+
         # If nothing is defined - error
         if unit_properties is None and meta_unit_properties is None:
             raise SyntaxError(
@@ -378,8 +378,15 @@ class DataSet():
                     check_units.append(False)
             if any(check_units):
                 raise ValueError(
-                    f"Property units in existing dataset file '{data_file}' "
+                    "Property units in existing dataset file "
+                    + f"'{self.data_file:s}' "
                     + "deviates from current input of 'unit_properties'!")
+
+        # Check for charge unit or add default as charge unit was not
+        # defined in 'unit_properties'
+        if 'charge' not in metadata['unit_properties']:
+            metadata['unit_properties']['charge'] = (
+                settings._default_units['charge'])
 
         # Check for positions unit or add default as positions unit was not
         # defined in 'unit_properties'
@@ -388,7 +395,6 @@ class DataSet():
                 settings._default_args['data_unit_positions'])
 
         return metadata
-        
 
     def initialize_database(
         self,

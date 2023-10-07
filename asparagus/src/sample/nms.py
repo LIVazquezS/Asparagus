@@ -7,7 +7,6 @@ import numpy as np
 import itertools
 
 import ase
-from ase import optimize
 from ase import units
 
 from ase import vibrations
@@ -15,7 +14,6 @@ from ase import vibrations
 from ase.io.trajectory import Trajectory
 
 from .. import data
-from .. import model
 from .. import settings
 from .. import utils
 from .. import sample
@@ -23,7 +21,7 @@ from .. import sample
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ['NormalModeScanner, NormalModeSampler']
+__all__ = ['NormalModeScanner', 'NormalModeSampler']
 
 
 class NormalModeScanner(sample.Sampler):
@@ -54,34 +52,35 @@ class NormalModeScanner(sample.Sampler):
             displacement from the equilibrium positions is scaled to match
             the potential difference with the given energy value.
         nms_energy_limits: (float, list(float)), optional, default 1.0
-            Potential energy limit in eV from the initial system conformation 
+            Potential energy limit in eV from the initial system conformation
             to which additional normal mode displacements steps are added.
-            If one numeric value is give, the energy limit is used as upper 
+            If one numeric value is give, the energy limit is used as upper
             potential energy limit and the lower limit in case the initial
             system conformation might not be the global minimum.
-            If a list with two numeric values are given, the first two are the lower and upper potential energy limit, respectively.
+            If a list with two numeric values are given, the first two are the
+            lower and upper potential energy limit, respectively.
         nms_number_of_coupling: int, optional, default 2
             Maximum number of coupled normal mode displacements to sample
             the system conformations.
         nms_limit_of_steps: int, optional, default 10
             Maximum limit of coupled normal mode displacements in one direction
             to sample the system conformations.
-            
+
         Returns
         -------
         object
             Normal Mode Scanning class object
         """
-        
+
         super().__init__(**kwargs)
-        
+
         #################################
         # # # Check NMS Class Input # # #
         #################################
-        
+
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
-        #config_update = {}
+        config_update = {}
         for arg, item in locals().items():
 
             # Skip 'config' argument and possibly more
@@ -104,63 +103,52 @@ class NormalModeScanner(sample.Sampler):
                     arg, item, settings._dtypes_args, raise_error=True)
 
             # Append to update dictionary
-            #config_update[arg] = item
+            config_update[arg] = item
 
             # Assign as class parameter
             setattr(self, arg, item)
 
         # Update global configuration dictionary
-        #self.config.update(config_update)
-        
+        self.config.update(config_update)
+
         # Sampler class label
         self.sample_tag = 'nmscan'
-        
+
         # Check sample data file
         if self.nms_data_file is None:
             self.nms_data_file = os.path.join(
                 self.sample_directory, f'{self.sample_counter:d}_nms.db')
         elif not utils.is_string(self.nms_data_file):
             raise ValueError(
-                f"Sample data file 'nms_data_file' must be a string " +
-                f"of a valid file path but is of type " + 
-                f"'{type(self.nms_data_file)}'.")
-        
+                "Sample data file 'nms_data_file' must be a string "
+                + "of a valid file path but is of type "
+                + f"'{type(self.nms_data_file)}'.")
+
         # Define MD log and trajectory file path
         self.nms_log_file = os.path.join(
-            self.sample_directory, 
+            self.sample_directory,
             f'{self.sample_counter:d}_{self.sample_tag:s}.log')
         self.nms_trajectory_file = os.path.join(
-            self.sample_directory, 
+            self.sample_directory,
             f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
-        
-        # Check sample properties for energy property which is required for 
+
+        # Check sample properties for energy property which is required for
         # normal mode scanning
         if 'energy' not in self.sample_properties:
             self.sample_properties.append('energy')
-            
+
         # Check potential energy limits
         if utils.is_numeric(self.nms_energy_limits):
             self.nms_energy_limits = [
                 -abs(self.nms_energy_limits), abs(self.nms_energy_limits)]
-        
-        #####################################
-        # # # Initialize Sample DataSet # # #
-        #####################################
-        
-        self.nms_dataset = data.DataSet(
-            self.nms_data_file,
-            self.sample_properties,
-            self.sample_unit_properties,
-            data_overwrite=True)
-        
+
         return
 
-
     def get_info(self):
-        
+
         return {
             'sample_directory': self.sample_directory,
-            #'sample_data_file': self.sample_data_file,
+            'sample_data_file': self.sample_data_file,
             'sample_systems': self.sample_systems,
             'sample_systems_format': self.sample_systems_format,
             'sample_calculator': self.sample_calculator_tag,
@@ -168,96 +156,116 @@ class NormalModeScanner(sample.Sampler):
             'sample_properties': self.sample_properties,
             'sample_systems_optimize': self.sample_systems_optimize,
             'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
-            'nms_data_file': self.nms_data_file,
             'nms_harmonic_energy_step': self.nms_harmonic_energy_step,
             'nms_energy_limits': self.nms_energy_limits,
             'nms_number_of_coupling': self.nms_number_of_coupling,
             'nms_limit_of_steps': self.nms_limit_of_steps,
         }
 
-    def run_system(self, system):
+    def run_system(
+        self,
+        system: object,
+        data_file: Optional[str] = None,
+    ):
         """
         Perform Normal Mode Scanning on the sample system.
         """
-        
+
         # Prepare system parameter
         Natoms = system.get_global_number_of_atoms()
         Nmodes = 3*Natoms
-        
+
         # Compute initial state properties
         # TODO Special calculate property function to handle special properties
         # not supported by ASE such as, e.g., charge, hessian, etc.
         self.sample_calculator.calculate(system)
         system_init_potential = system._calc.results['energy']
-        
+
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
-        self.nms_dataset.add_atoms(system, system_properties)
+        self.sample_dataset.add_atoms(system, system_properties)
 
         # Attach to trajectory
         self.nms_trajectory = Trajectory(
-            self.md_trajectory_file, atoms=system, 
+            self.nms_trajectory_file, atoms=system,
             mode='a', properties=self.sample_properties)
         self.write_trajectory(system)
 
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
             system,
-            name=os.path.join(self.sample_directory, f"vib"))
+            name=os.path.join(self.sample_directory, "vib"))
         ase_vibrations.clean()
         ase_vibrations.run()
         ase_vibrations.summary()
-        
+
         # (Trans. + Rot. + ) Vibrational frequencies in cm**-1
         system_frequencies = ase_vibrations.get_frequencies()
-        
+
         # (Trans. + Rot. + ) Vibrational modes normalized to 1
         system_modes = np.array([
             ase_vibrations.get_mode(imode).reshape(Natoms, 3)
-            /np.sqrt(np.sum(
+            / np.sqrt(np.sum(
                 ase_vibrations.get_mode(imode).reshape(Natoms, 3)**2))
             for imode in range(Nmodes)])
-        
+
         # Reduced mass per mode (in amu)
         system_redmass = np.array([
             1./np.sum(
                 system_modes[imode]**2/system.get_masses().reshape(
                     Natoms, 1))
             for imode in range(Nmodes)])
-        
+
         # Force constant per mode (in eV/Angstrom**2)
         system_forceconst = (
             4.0*np.pi**2*(np.abs(system_frequencies)*1.e2*units._c)**2
-            *system_redmass*units._amu*units.J*1.e-20)
-        
+            * system_redmass*units._amu*units.J*1.e-20)
+
         # Compute and store equilibrium positions and center of mass,
         # moments of inertia and principle axis of inertia
         system_init_positions = system.get_positions()
         system_init_com = system.get_center_of_mass()
-        
+
         # Compute and compare same quantities for displaced system
         system_com_shift = np.zeros(Nmodes, dtype=float)
         for imode, mode in enumerate(system_modes):
-            
+
             # COM shift
             system.set_positions(system_init_positions + mode)
             system_displ_com = system.get_center_of_mass()
             system_com_shift[imode] = np.sqrt(np.sum(
                 (system_init_com - system_displ_com)**2))
-            
+
         # Vibrational modes are assumed with center of mass shifts smaller
         # than 1.e-3 Angstrom displacement
-        system_vib_modes = system_com_shift < 1.e-4
+        system_vib_modes = system_com_shift < 1.e-2
 
         # Displacement factor for energy step (in eV)
         system_displfact = np.sqrt(
             3*self.nms_harmonic_energy_step/system_forceconst)
-        
+
+        # Add normal mode analysis results to log file
+        msg = "\nStart Normal Mode Scanning at system: "
+        if data_file is None:
+            msg += f"{system.get_chemical_formula():s}\n"
+        else:
+            msg += f"{data_file:s}\n"
+        msg += " Index | Frequency (cm**-1) | Vibration (CoM displacemnt)\n"
+        msg += "---------------------------------------------------------\n"
+        for ivib, freq in enumerate(system_frequencies):
+            msg += f" {ivib + 1:5d} | {freq:18.2f} |"
+            if system_vib_modes[ivib]:
+                msg += f"   x   ({system_com_shift[ivib]:2.1e})\n"
+            else:
+                msg += f"       ({system_com_shift[ivib]:2.1e})\n"
+        with open(self.nms_log_file, 'a') as flog:
+            flog.write(msg)
+
         # Iterate over number of normal mode combinations
         steps = np.arange(0, self.nms_limit_of_steps, 1) + 1
         vib_modes = np.where(system_vib_modes)[0]
         for icomp in range(1, self.nms_number_of_coupling + 1):
-            
+
             # Prepare sign combinations
             all_signs = np.array(list(
                 itertools.product((-1, 1), repeat=icomp)))
@@ -265,43 +273,41 @@ class NormalModeScanner(sample.Sampler):
             all_steps = np.array(list(
                 itertools.product(steps, repeat=icomp)))
             Nsteps = all_steps.shape[0]
-            
+
             # Iterate over vib. normal mode indices and their combinations
             for imodes in itertools.combinations(vib_modes, icomp):
-        
+
                 # Iterate over sign combinations
                 for isign, signs in enumerate(all_signs):
-                    
+
                     # Iterate through steps
                     istep = 0
                     done = False
                     while not done:
-                        
+
                         # Get current step size
                         step_size = np.array(all_steps[istep])
-                        
+
                         # Get normal mode elongation step
                         current_step = np.array(signs)*step_size
-                        
+
                         # Set elongation step on initial system positions
                         for imode, modei in enumerate(imodes):
                             current_step_positions = (
                                 system_init_positions
                                 + system_displfact[modei]*system_modes[modei]
-                                *current_step[imode])
+                                * current_step[imode])
                         system.set_positions(current_step_positions)
-                        
+
                         # Compute observables and check potential threshold
                         try:
-                            
+
                             self.sample_calculator.calculate(system)
                             current_properties = system._calc.results
                             current_potential = current_properties['energy']
-                            #current_properties = (
-                                #system._calc.calculate(properties=properties))
-                            
+
                             converged = True
-                            
+
                             if current_potential < system_init_potential:
                                 threshold_reached = (
                                     (current_potential - system_init_potential)
@@ -310,16 +316,16 @@ class NormalModeScanner(sample.Sampler):
                                 threshold_reached = (
                                     (current_potential - system_init_potential)
                                     > self.nms_energy_limits[1])
-                            
+
                         except ase.calculators.calculator.CalculationFailed:
-                            
+
                             converged = False
                             threshold_reached = True
-                            
+
                         # Add to dataset
                         if converged:
                             system_properties = self.get_properties(system)
-                            self.nms_dataset.add_atoms(
+                            self.sample_dataset.add_atoms(
                                 system, system_properties)
 
                         # Attach to trajectory
@@ -328,42 +334,48 @@ class NormalModeScanner(sample.Sampler):
                         # Check energy threshold
                         if threshold_reached:
 
-                            # Return error if even initial step is to large
-                            if istep == 0:
-                                raise ValueError(
-                                    f"Energy step size of " +
-                                    f"{self.nms_harmonic_energy_step:.3f} "
-                                    f"is too large!")
-                                
+                            # Update log file
+                            msg = "Vib. modes: ("
+                            for imode, isign in zip(imodes, signs):
+                                if isign > 0:
+                                    msg += f"+{imode + 1:d}, "
+                                else:
+                                    msg += f"-{imode + 1:d}, "
+                            msg += f") - {istep:4d} steps added\n"
+                            with open(self.nms_log_file, 'a') as flog:
+                                flog.write(msg)
+
                             # Check for next suitable step size index
                             istep += 1
                             for jstep in range(istep, Nsteps):
                                 if np.any(
-                                        np.array(all_steps[jstep]) 
+                                        np.array(all_steps[jstep])
                                         < step_size
-                                    ):
+                                ):
                                     istep = jstep
                                     break
                             else:
                                 istep = Nsteps
-                                
+
                         else:
-                            
+
                             # Increment step size index
                             istep += 1
 
                         # Check step size progress
                         if istep >= Nsteps:
                             done = True
-              
+
         return
 
-
-    def write_trajectory(self, system):
+    def write_trajectory(
+        self,
+        system
+    ):
         """
         Write current image to trajectory file but without constraints
         """
-        
+
         system_noconstraint = system.copy()
         system_noconstraint.set_constraint()
         self.nms_trajectory.write(system_noconstraint)

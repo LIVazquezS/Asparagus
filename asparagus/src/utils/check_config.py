@@ -16,12 +16,12 @@ def check_config(
     **kwargs,
 ) -> object:
     """
-    Check configuration settings input in form of configuration 
-    class/dictionary object, configuration json-file path or direct keyword 
+    Check configuration settings input in form of configuration
+    class/dictionary object, configuration json-file path or direct keyword
     arguments (kwargs).
 
-    In case of conflicting input, following priority is given from top to bottom
-    (higher one overwrite input of lower priority).
+    In case of conflicting input, following priority is given from top to
+    bottom (higher one overwrite input of lower priority).
     1. Keyword argument input
     2. Configuration class/dictionary object
     3. Configuration json-file
@@ -80,12 +80,12 @@ def check_config(
         # Initialize config dictionary
         config = {}
 
-    elif utils.is_dictionary(config) or utils.is_object(config):
-        
+    elif utils.is_dictionary(config) or utils.is_callable(config):
+
         # If config class object get respective dictionary
-        if utils.is_object(config):
+        if utils.is_callable(config):
             config = config.get_dictionary()
-        
+
         # Check for conflicting configuration file path arguments
         if config_file is not None and config.get('config_file') is not None:
             if config_file != config.get('config_file'):
@@ -102,9 +102,9 @@ def check_config(
                 config_file = settings._global_config_file
             else:
                 config_file = settings._default_args['config_file']
-        
+
     else:
-        
+
         raise ValueError(
             f"Neither inputs 'config' and 'config_file' are valid!\n" +
             f"'config' of type '{type(config)}' is expected to be a " +

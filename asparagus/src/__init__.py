@@ -7,5 +7,9 @@ warnings.filterwarnings(
     #XTB
 #)
 
+from .debug import (
+    ORCA_Dipole
+)
+
 from .data import *
 from .sample import *

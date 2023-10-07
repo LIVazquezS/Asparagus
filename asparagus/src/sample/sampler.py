@@ -4,20 +4,13 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 
 import numpy as np
 
-import itertools
-
 import ase
 from ase import optimize
-from ase import vibrations
-from ase import units
-from ase.visualize import view
 
 from .. import data
-from .. import model
 from .. import settings
 from .. import utils
 from .. import interface
-#from .. import sample
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +26,7 @@ class Sampler:
     """
     Conformation Sampler main class for generation of reference structures.
     """
-    
+
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
@@ -91,13 +84,13 @@ class Sampler:
         sample_systems_optimize_fmax: float, optional, default 0.01
             Instruction flag, if the system coordinates shall be
             optimized using the ASE calculator defined by 'sample_calculator'.
-        
+
         Returns
         -------
         callable object
             Sampler class object
         """
-        
+
         #####################################
         # # # Check Sampler Class Input # # #
         #####################################
@@ -137,13 +130,13 @@ class Sampler:
 
         # Update global configuration dictionary
         config.update(config_update)
-        
+
         # Check system input
         if self.sample_systems is None:
             logger.warning(
-                f"WARNING:\nNo input in 'sample_systems' is given!\n" +
-                f"Please provide either a chemical structure file or " +
-                f"an ASE Atoms object as initial sample structure.")
+                "WARNING:\nNo input in 'sample_systems' is given!\n"
+                + "Please provide either a chemical structure file or "
+                + "an ASE Atoms object as initial sample structure.")
             self.sample_systems = []
 
         # Initialize sampling counter
@@ -154,7 +147,7 @@ class Sampler:
 
         # Set global configuration as class parameter
         self.config = config
-        
+
         # Generate working directory
         if not os.path.exists(self.sample_directory):
             os.makedirs(self.sample_directory)
@@ -162,23 +155,31 @@ class Sampler:
         ###########################
         # # # Prepare Systems # # #
         ###########################
-        
+
         self.sample_systems_atoms = self.read_systems()
 
         #####################################
         # # # Prepare Sample Calculator # # #
         #####################################
-        
+
         self.assign_calculator()
 
+        #####################################
+        # # # Initialize Sample DataSet # # #
+        #####################################
 
+        self.sample_dataset = data.DataSet(
+            self.sample_data_file,
+            self.sample_properties,
+            self.sample_unit_properties,
+            data_overwrite=True)
 
     def read_systems(self):
         """
-        Read sample system files and return list of respective 
+        Read sample system files and return list of respective
         ASE atoms objects
         """
-        
+
         # Prepare system structure input by converting to matching lists
         if utils.is_string(self.sample_systems):
             self.sample_systems = [self.sample_systems]
@@ -192,11 +193,11 @@ class Sampler:
                 [self.sample_systems_format]*len(self.sample_systems))
         elif len(self.sample_systems) != len(self.sample_systems_format):
             raise ValueError(
-                f"Sample system input 'sample_systems' and " +
-                f"'sample_systems_format' have different input size of " +
-                f"{len(self.sample_systems):d} and " +
-                f"{len(self.sample_systems_format):d}, respectively.")
-        
+                "Sample system input 'sample_systems' and "
+                + "'sample_systems_format' have different input size of "
+                + f"{len(self.sample_systems):d} and "
+                + f"{len(self.sample_systems_format):d}, respectively.")
+
         # Iterate over system input and eventually read file to store as
         # ASE Atoms object
         sample_systems_atoms = []
@@ -209,20 +210,19 @@ class Sampler:
             else:
                 sample_systems_atoms.append(
                     ase.io.read(system, format=system_format))
-                
-        return sample_systems_atoms
 
+        return sample_systems_atoms
 
     def assign_calculator(
         self,
         sample_systems_atoms: Optional[Union[object, List[object]]] = None,
         sample_calculator: Optional[Union[str, object]] = None,
         sample_calculator_args: Optional[Dict[str, Any]] = None,
-        ):
+    ):
         """
         Assign calculator to a list of sample ASE Atoms objects
         """
-        
+
         # Check input
         if sample_systems_atoms is None:
             sample_systems_atoms = self.sample_systems_atoms
@@ -232,17 +232,17 @@ class Sampler:
             sample_calculator = self.sample_calculator
         if sample_calculator_args is None:
             sample_calculator_args = self.sample_calculator_args
-        
+
         # Get ASE calculator
         sample_calculator, sample_calculator_tag = (
             interface.get_ase_calculator(
                 sample_calculator,
                 sample_calculator_args)
             )
-        
+
         # Store calculator tag name
         self.sample_calculator_tag = sample_calculator_tag
-        
+
         # Assign ASE calculator
         self.sample_calculator = sample_calculator
         for system in self.sample_systems_atoms:
@@ -254,99 +254,97 @@ class Sampler:
             # not supported by ASE such as, e.g., charge, hessian, etc.
             if prop not in sample_calculator.implemented_properties:
                 raise ValueError(
-                    f"Requested property '{prop:s}' is not implemented " +
-                    f"in the ASE calculator '{sample_calculator}'! " +
-                    f"Available ASE calculator properties are:\n" +
-                    f"{sample_calculator.implemented_properties}")
+                    f"Requested property '{prop:s}' is not implemented "
+                    + f"in the ASE calculator '{sample_calculator}'! "
+                    + "Available ASE calculator properties are:\n"
+                    + f"{sample_calculator.implemented_properties}")
 
         # Define positions and property units
         self.sample_unit_positions = 'Ang'
         self.sample_unit_properties = {
             prop: interface.ase_calculator_units.get(prop)
             for prop in self.sample_properties}
-        
-    
+
     def get_info(self):
         """
         Dummy function for sampling parameter dictionary
         """
         return {}
-    
-    
+
     def run(
         self,
         sample_systems_idx: Optional[Union[int, List[int]]] = None,
     ):
         """
         Perform sampling of all sample systems or a selection of them.
-        
+
         Parameters
         ----------
 
         sample_systems_idx: (int, list(int)), optional, default None
-            Index or list of indices to run MD sampling only 
+            Index or list of indices to run MD sampling only
             for the respective systems of the sample system list
         """
-        
+
         ################################
         # # # Check Sampling Input # # #
         ################################
-        
+
         # Collect sampling parameters
         config_sample = {
-            f'{self.sample_counter}_{self.sample_tag}': 
+            f'{self.sample_counter}_{self.sample_tag}':
                 self.get_info()
             }
-        
+
         # Check sample system selection
         sample_systems_selection = self.check_systems_idx(sample_systems_idx)
-        
+
         # Update sampling parameters
         config_sample['sample_systems_idx'] = sample_systems_idx
-        
+
         # Update configuration file with sampling parameters
         if 'sampler_schedule' not in self.config:
             self.config['sampler_schedule'] = {}
         self.config['sampler_schedule'].update(config_sample)
-        
+
         # Increment sample counter
         self.config['sample_counter'] = self.sample_counter
         self.sample_counter += 1
-        
+
         ###############################
         # # # Perform MD Sampling # # #
         ###############################
-        
+
         # Iterate over systems
         for isys, system in enumerate(self.sample_systems_atoms):
-            
+
             # Skip unselected system samples
             if not sample_systems_selection[isys]:
                 continue
 
             # If requested, perform structure optimization
             if self.sample_systems_optimize:
-                
+
                 # Assign ASE optimizer
                 ase_optimizer = optimize.BFGS
 
                 # Perform structure optimization
                 ase_optimizer(system).run(
                     fmax=self.sample_systems_optimize_fmax)
-                
+
             # Start normal mode sampling
-            self.run_system(system)
-    
-    
+            self.run_system(
+                system,
+                data_file=self.sample_data_file[isys])
+
     def run_system(self, system):
         raise NotImplementedError()
-    
-    
+
     def get_properties(self, system):
         """
         Collect system properties and calculator results
         """
-        
+
         return interface.get_ase_properties(system, self.sample_properties)
 
 

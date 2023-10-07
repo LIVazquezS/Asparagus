@@ -29,7 +29,7 @@ class Trainer:
     """
     NNP model Trainer class
     """
-    
+
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
@@ -65,11 +65,11 @@ class Trainer:
             settings.config class object of model parameters
         data_container: callable object, optional
             Data container object of the reference data set. 
-            If not provided, the data container will be initialized according 
+            If not provided, the data container will be initialized according
             to config input.
         model_calculator: callable object, optional
             NNP model calculator to train matching training and validation
-            data in the reference data set. If not provided, the model 
+            data in the reference data set. If not provided, the model
             calculator will be initialized according to config input.
         trainer_restart: bool, optional, default False
             Restart the model training from state in config['model_directory']
@@ -81,12 +81,12 @@ class Trainer:
             both predicted by the model calculator and provided by the
             reference data set.
         trainer_properties_metrics: dict, optional, default 'MSE' for all
-            Quantification of the property prediction quality only for 
+            Quantification of the property prediction quality only for
             properties in the reference data set.
-            Can be given for each property individually and by keyword 'all' 
+            Can be given for each property individually and by keyword 'all'
             for every property else wise.
         trainer_properties_weights: dict, optional, default {...}
-            Weighting factors for the combination of single property loss 
+            Weighting factors for the combination of single property loss
             values to total loss value.
         trainer_optimizer: (str, object), optional, default 'AMSgrad'
             Optimizer class for the NNP model training
@@ -112,7 +112,7 @@ class Trainer:
             Each validation interval and in case of a new best loss function,
             apply Tester class on the test set.
         trainer_max_checkpoints: int, optional, default 50
-            Maximum number of checkpoint files stored before deleting the 
+            Maximum number of checkpoint files stored before deleting the
             oldest ones up to the number threshold.
         trainer_store_neighbor_list: bool, optional, default True
             Store neighbor list parameter in the database file instead of
@@ -159,13 +159,13 @@ class Trainer:
 
             # Append to update dictionary
             config_update[arg] = item
-            
+
             # Assign as class parameter
             setattr(self, arg, item)
 
         # Update global configuration dictionary
         config.update(config_update)
-        
+
         # Assign global arguments
         self.dtype = settings._global_dtype
         self.device = settings._global_device
@@ -173,10 +173,10 @@ class Trainer:
         ################################
         # # # Check Data Container # # #
         ################################
-        
+
         # Assign DataContainer
         if self.data_container is None:
-            
+
             self.data_container = data.DataContainer(
                 config=config,
                 **kwargs)
@@ -184,50 +184,51 @@ class Trainer:
         # Assign training and validation data loader
         self.data_train = self.data_container.train_loader
         self.data_valid = self.data_container.valid_loader
-        
+
         # Get reference data properties
         self.data_properties = self.data_container.data_load_properties
         self.data_units = self.data_container.data_unit_properties
-        
+
         ################################
         # # # Check NNP Calculator # # #
         ################################
 
         # Assign NNP calculator model
         if self.model_calculator is None:
-            
+
             # Set global dropout rate value
             if config.get("trainer_dropout_rate") is not None:
                 settings.set_global_rate(config.get(
                     "trainer_dropout_rate"))
-                
+
             # Get property scaling guess from reference data to link
             # 'normalized' output to average reference data shift and
             # distribution width.
-            if ('model_properties_scaling' not in kwargs.keys() or
-                'model_properties_scaling' not in config):
-                
+            if (
+                    'model_properties_scaling' not in kwargs.keys()
+                    or 'model_properties_scaling' not in config
+            ):
                 model_properties_scaling = (
                     self.data_container.get_property_scaling())
-                
+
                 config.update(
                     {'model_properties_scaling': model_properties_scaling})
-                
+
             self.model_calculator = model.get_calculator(
                 config=config,
                 **kwargs)
-            
+
         # Get model properties
         self.model_properties = self.model_calculator.model_properties
         self.model_units = self.model_calculator.model_unit_properties
-        
+
         ######################################
         # # # Check Model and Data Units # # #
         ######################################
-        
+
         # Check model units
         self.model_units = self.check_model_units()
-        
+
         # Get Model to reference data property unit conversion factors
         self.model2data_unit_conversion = {}
         for prop, unit in self.model_units.items():
@@ -246,14 +247,14 @@ class Trainer:
                 f" {prop:<16s} {unit:<16s} {self.data_units[prop]:<16s}"
                 + f"{self.model2data_unit_conversion[prop]:11.9e}\n")
         logger.info(message)
-        
+
         # Assign potentially new property units to the model
         self.model_calculator.set_unit_properties(self.model_units)
 
         ######################################
         # # # Set Model Property Scaling # # #
         ######################################
-        
+
         # Get property scaling guess from reference data to link
         # 'normalized' output to average reference data shift and
         # distribution width.
@@ -268,21 +269,21 @@ class Trainer:
         # Set current model property scaling
         self.model_calculator.set_property_scaling(
             model_properties_scaling)
-        
+
         ####################################
         # # # Check Trained Properties # # #
         ####################################
-        
+
         # If training properties 'trainer_properties_train' is empty,
         # consider all properties covered in reference data set and the
         # model calculator.
-        if (not len(self.trainer_properties_train) or     
+        if (not len(self.trainer_properties_train) or
                 self.trainer_properties_train is None):
-            
+
             # Reinitialize training properties list
             self.trainer_properties_train = []
-            
-            # Iterate over model properties, check for property in reference 
+
+            # Iterate over model properties, check for property in reference
             # data set and eventually add to training properties.
             for prop in self.model_properties:
                 if prop in self.data_properties:
@@ -292,33 +293,33 @@ class Trainer:
         # not covered properties in the reference data set or the
         # model calculator.
         else:
-            
-            # Iterate over training properties, check for property in reference 
+
+            # Iterate over training properties, check for property in reference
             # data set and model calculator prediction and eventually remove
             # training property.
             for prop in self.trainer_properties_train:
-                if not (prop in self.data_properties and 
+                if not (prop in self.data_properties and
                         prop in self.model_properties):
-                    
+
                     self.trainer_properties_train.remove(prop)
                     logger.warning(
                         f"WARNING:\nProperty '{prop}' in " +
-                        f"'trainer_properties_train' is not stored in the " +
-                        f"reference data set and/or predicted by the model " + 
-                        f"model calculator!\n" +
-                        f"Property '{prop}' is removed from training " + 
-                        f"property list.\n")
-        
+                        "'trainer_properties_train' is not stored in the " +
+                        "reference data set and/or predicted by the model " +
+                        "model calculator!\n" +
+                        f"Property '{prop}' is removed from training " +
+                        "property list.\n")
+
         # Check for default property metric and weight
         if self.trainer_properties_metrics.get('else') is None:
             self.trainer_properties_metrics['else'] = 'MSE'
         if self.trainer_properties_weights.get('else') is None:
             self.trainer_properties_weights['else'] = 1.0
-        
-        # Check training property metrics and weights by iterating over 
+
+        # Check training property metrics and weights by iterating over
         # training properties and eventually complete values
         for prop in self.trainer_properties_train:
-            
+
             if self.trainer_properties_metrics.get(prop) is None:
                 self.trainer_properties_metrics[prop] = (
                     self.trainer_properties_metrics['else'])
@@ -338,27 +339,27 @@ class Trainer:
         #############################
         # # # Prepare Optimizer # # #
         #############################
-        
+
         # Assign model parameter optimizer
         self.trainer_optimizer = get_optimizer(
             self.trainer_optimizer,
-            self.model_calculator.parameters(),
+            self.model_calculator.get_trainable_parameters(),
             self.trainer_optimizer_args)
-        
+
         #############################
         # # # Prepare Scheduler # # #
         #############################
-        
+
         # Assign learning rate scheduler
         self.trainer_scheduler = get_scheduler(
             self.trainer_scheduler,
             self.trainer_optimizer,
             self.trainer_scheduler_args)
-        
+
         #######################
         # # # Prepare EMA # # #
         #######################
-        
+
         # Assign Exponential Moving Average model
         if self.trainer_ema:
             from torch_ema import ExponentialMovingAverage
@@ -369,17 +370,17 @@ class Trainer:
         ################################
         # # # Prepare File Manager # # #
         ################################
-        
+
         # Initialize checkpoint file manager and summary writer
         self.filemanager = utils.FileManager(
             config,
             max_checkpoints=self.trainer_max_checkpoints)
         self.summary_writer = self.filemanager.writer
-        
+
         ##########################
         # # # Prepare Tester # # #
         ##########################
-        
+
         # Assign model prediction tester if test set evaluation is requested
         if self.trainer_evaluate_testset:
             self.tester = Tester(
@@ -391,7 +392,7 @@ class Trainer:
         #############################
         # # # Save Model Config # # #
         #############################
-        
+
         # Save a copy of the current model configuration in the model directory
         self.filemanager.save_config(config)
 
@@ -403,10 +404,10 @@ class Trainer:
         Check the definition of the model units or assign units from the
         reference dataset
         """
-        
+
         if model_units is None:
             model_units = self.model_units
-        
+
         # If model units are not defined, take property units from dataset
         if model_units is None:
             model_units = self.data_units
@@ -432,17 +433,17 @@ class Trainer:
                     logger.warning(
                         f"WARNING:\nModel property unit for '{prop:s}' is not "
                         + f"is defined!\nUnit {self.data_units.get[prop]:s} "
-                        + f"from the reference dataset is assigned.\n")
+                        + "from the reference dataset is assigned.\n")
 
         return model_units
 
     def train(self, verbose=True, debug=False):
-        
+
         ####################################
         # # # Prepare Model and Metric # # #
         ####################################
-        
-        # Load, if exists, latest model calculator and training state 
+
+        # Load, if exists, latest model calculator and training state
         # checkpoint file
         latest_checkpoint = self.filemanager.load_checkpoint(best=False)
 
@@ -457,25 +458,25 @@ class Trainer:
         else:
             self.trainer_epoch_start = 1
 
-        # Initialize training mode for calculator 
+        # Initialize training mode for calculator
         # (torch.nn.Module function to activate, e.g., parameter dropout)
         self.model_calculator.train()
         torch.set_grad_enabled(True)
         if debug:
             torch.autograd.set_detect_anomaly(True)
-        
+
         # Initialize best total loss value of validation reference data
         self.best_loss = None
-        
+
         # Reset property metrics
         metrics_best = self.reset_metrics()
-                
+
         # Define loss function
         loss_fn = torch.nn.SmoothL1Loss(reduction='mean')
-        
+
         # Count number of training batches
         Nbatch_train = len(self.data_train)
-        
+
         # Initialize training time estimation per epoch
         train_time_estimation = np.nan
 
@@ -493,25 +494,25 @@ class Trainer:
 
         # Loop over epochs
         for epoch in torch.arange(
-                self.trainer_epoch_start, self.trainer_max_epochs
-            ):
+            self.trainer_epoch_start, self.trainer_max_epochs
+        ):
 
             # Start epoch train timer
             train_time_epoch_start = time.time()
-            
+
             # Reset property metrics
             metrics_train = self.reset_metrics()
 
             # Loop over training batches
             for ib, batch in enumerate(self.data_train):
-                
+
                 # Start batch train timer
                 train_time_batch_start = time.time()
-                
+
                 # Eventually show training progress
                 if verbose:
                     utils.printProgressBar(
-                        ib, Nbatch_train, 
+                        ib, Nbatch_train,
                         prefix=f"Epoch {epoch: 5d}",
                         suffix=(
                             "Complete - Remaining Epoch Time: "
@@ -524,7 +525,7 @@ class Trainer:
 
                 # Predict model properties from data batch
                 prediction = self.model_calculator(batch)
-                
+
                 # Compute total and single loss values for training properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, loss_fn=loss_fn)
@@ -532,25 +533,25 @@ class Trainer:
 
                 # Predict parameter gradients by backwards propagation
                 loss.backward()
-                
+
                 # Clip parameter gradients
                 torch.nn.utils.clip_grad_norm_(
                     self.model_calculator.parameters(),
                     self.trainer_max_gradient_norm)
-                
+
                 # Update model parameters
                 self.trainer_optimizer.step()
-                
+
                 # Apply Exponential Moving Average
                 if self.trainer_ema:
                     self.trainer_ema_model.update()
-                
+
                 # Update average metrics
                 self.update_metrics(metrics_train, metrics_batch)
-                
+
                 # End batch train timer
                 train_time_batch_end = time.time()
-                
+
                 # Eventually update training batch time estimation
                 if verbose:
                     train_time_batch = (
@@ -562,21 +563,21 @@ class Trainer:
                     else:
                         train_time_estimation = (
                             train_time_batch*(Nbatch_train - 1))
-                        
+
             # Increment scheduler step
             self.trainer_scheduler.step()
-            
+
             # Stop epoch train timer
             train_time_epoch_end = time.time()
             train_time_epoch = train_time_epoch_end - train_time_epoch_start
-            
+
             # Eventually show final training progress
             if verbose:
                 utils.printProgressBar(
                     Nbatch_train, Nbatch_train,
                     prefix=f"Epoch {epoch: 5d}",
                     suffix=(
-                        f"Done - Epoch Time: " +
+                        "Done - Epoch Time: " +
                         f"{train_time_epoch: 4.1f} s, " +
                         f"Loss: {metrics_train['loss']: 4.4f}   "),
                     length=42)
@@ -584,57 +585,58 @@ class Trainer:
             # Save current model each interval
             if not (epoch % self.trainer_save_interval):
                 self.filemanager.save_checkpoint(
-                    model=self.model_calculator, 
+                    model=self.model_calculator,
                     optimizer=self.trainer_optimizer,
-                    scheduler=self.trainer_scheduler, 
+                    scheduler=self.trainer_scheduler,
                     epoch=epoch)
 
-            
             # Perform model validation each interval
             if not (epoch % self.trainer_validation_interval):
-                
-                # Change to evaluation mode for calculator 
+
+                # Change to evaluation mode for calculator
                 self.model_calculator.eval()
-                
+
                 # Reset property metrics
                 metrics_valid = self.reset_metrics()
-                
+
                 # Loop over validation batches
                 for batch in self.data_valid:
-                    
+
                     # Predict model properties from data batch
                     prediction = self.model_calculator(batch)
-                                        
+
                     # Compute total and single loss values for training
                     # properties
                     metrics_batch = self.compute_metrics(
                         prediction, batch, loss_fn=loss_fn, loss_only=False)
-                    
+
                     # Update average metrics
                     self.update_metrics(metrics_valid, metrics_batch)
-                    
-                # Change back to training mode for calculator 
+
+                # Change back to training mode for calculator
                 self.model_calculator.train()
 
                 # Check for model improvement and save as best model eventually
-                if (self.best_loss is None or 
-                        metrics_valid['loss'] < self.best_loss):
-                    
+                if (
+                    self.best_loss is None
+                    or metrics_valid['loss'] < self.best_loss
+                ):
+
                     # Store best metrics
                     metrics_best = metrics_valid
-                    
+
                     # Save model calculator state
                     self.filemanager.save_checkpoint(
-                        model=self.model_calculator, 
+                        model=self.model_calculator,
                         optimizer=self.trainer_optimizer,
-                        scheduler=self.trainer_scheduler, 
+                        scheduler=self.trainer_scheduler,
                         epoch=epoch,
                         best=True)
 
                     # Evaluation of the test set if requested
                     if self.trainer_evaluate_testset:
                         self.tester.test(
-                            self.model_calculator, 
+                            self.model_calculator,
                             test_directory=self.filemanager.best_dir,
                             test_plot_correlation=True,
                             test_plot_histogram=True,
@@ -645,152 +647,149 @@ class Trainer:
                         if utils.is_dictionary(value):
                             for metric, val in value.items():
                                 self.summary_writer.add_scalar(
-                                    prop + '_' + metric, 
-                                    metrics_best[prop][metric], 
+                                    prop + '_' + metric,
+                                    metrics_best[prop][metric],
                                     global_step=epoch)
                         else:
                             self.summary_writer.add_scalar(
-                                prop, metrics_best[prop], 
+                                prop, metrics_best[prop],
                                 global_step=epoch)
-                        
+
                     # Update best total loss     value
                     self.best_loss = metrics_valid['loss']
-                    
+
                 # Print validation metrics summary
                 msg = (
                     f"Summary Epoch: {epoch:d}/" +
                     f"{self.trainer_max_epochs:d}\n" +
-                    f"  Loss   train / valid: " +
+                    "  Loss   train / valid: " +
                     f" {metrics_train['loss']:.2E} /" +
                     f" {metrics_valid['loss']:.2E}" +
                     f"  Best Loss valid: {metrics_best['loss']:.2E}\n"
                     f"  Property Metrics (valid):\n")
                 for prop in self.trainer_properties_train:
                     msg += (
-                        f"    {prop:10s}  MAE (Best) / RMSE (Best): " + 
+                        f"    {prop:10s}  MAE (Best) / RMSE (Best): " +
                         f" {metrics_valid[prop]['mae']:.2E}" +
                         f" ({metrics_best[prop]['mae']:.2E}) /" +
                         f" {np.sqrt(metrics_valid[prop]['mse']):.2E}" +
                         f" ({np.sqrt(metrics_best[prop]['mse']):.2E})" +
                         f" {self.model_units[prop]:s}\n")
                 logger.info("INFO:\n" + msg)
-                
-            
+
     def predict_batch(self, batch):
-        
+
         # Predict properties
         return self.model_calculator(
-            batch['atoms_number'], 
-            batch['atomic_numbers'], 
-            batch['positions'], 
-            batch['idx_i'], 
-            batch['idx_j'], 
-            batch['charge'], 
+            batch['atoms_number'],
+            batch['atomic_numbers'],
+            batch['positions'],
+            batch['idx_i'],
+            batch['idx_j'],
+            batch['charge'],
             batch['atoms_seg'],
             batch['pbc_offset'])
 
-
     def reset_metrics(self):
-        
+
         # Initialize metrics dictionary
         metrics = {}
-        
+
         # Add loss total value
         metrics['loss'] = 0.0
-        
+
         # Add data counter
         metrics['Ndata'] = 0
-        
+
         # Add training property metrics
         for prop in self.trainer_properties_train:
             metrics[prop] = {
                 'loss': 0.0,
                 'mae': 0.0,
                 'mse': 0.0}
-            
+
         return metrics
 
-
     def update_metrics(
-        self, 
+        self,
         metrics: Dict[str, float],
-        metrics_update: Dict[str, float], 
+        metrics_update: Dict[str, float],
     ) -> Dict[str, float]:
-        
+
         # Get data sizes and metric ratio
         Ndata = metrics['Ndata']
         Ndata_update = metrics_update['Ndata']
         fdata = float(Ndata)/float((Ndata + Ndata_update))
         fdata_update = 1. - fdata
-        
+
         # Update metrics
         metrics['Ndata'] = metrics['Ndata'] + metrics_update['Ndata']
         metrics['loss'] = (
-            fdata*metrics['loss'] 
+            fdata*metrics['loss']
             + fdata_update*metrics_update['loss'].detach().item())
         for prop in self.trainer_properties_train:
             for metric in metrics_update[prop].keys():
                 metrics[prop][metric] = (
-                    fdata*metrics[prop][metric] 
+                    fdata*metrics[prop][metric]
                     + fdata_update*metrics_update[prop][metric].detach().item()
                     )
-        
+
         return metrics
-        
+
     def compute_metrics(
-        self, 
-        prediction: Dict[str, Any], 
-        reference: Dict[str, Any], 
+        self,
+        prediction: Dict[str, Any],
+        reference: Dict[str, Any],
         loss_fn: Optional[object] = None,
         loss_only: Optional[bool] = True,
     ) -> Dict[str, float]:
-        
+
         # Check loss function input
         if loss_fn is None:
             loss_fn = torch.nn.L1Loss(reduction="mean")
-        
+
         # Initialize MAE calculator function if needed
         if not loss_only:
             mae_fn = torch.nn.L1Loss(reduction="mean")
             mse_fn = torch.nn.MSELoss(reduction="mean")
-        
+
         # Initialize metrics dictionary
         metrics = {}
-        
+
         # Add batch size
         metrics['Ndata'] = reference['atoms_number'].size()[0]
-        
+
         # Iterate over training properties
         for ip, prop in enumerate(self.trainer_properties_train):
-            
+
             # Initialize single property metrics dictionary
             metrics[prop] = {}
-            
+
             # Compute loss value per atom
             metrics[prop]['loss'] = loss_fn(
                 torch.flatten(prediction[prop])
-                *self.model2data_unit_conversion[prop], 
+                * self.model2data_unit_conversion[prop],
                 torch.flatten(reference[prop]))
-            
+
             # Weight and add to total loss
             if ip:
                 metrics['loss'] = metrics['loss'] + (
                     self.trainer_properties_weights[prop]
-                    *metrics[prop]['loss'])
+                    * metrics[prop]['loss'])
             else:
                 metrics['loss'] = (
                     self.trainer_properties_weights[prop]
-                    *metrics[prop]['loss'])
-            
+                    * metrics[prop]['loss'])
+
             # Compute MAE and MSE if requested
             if not loss_only:
                 metrics[prop]['mae'] = mae_fn(
                     torch.flatten(prediction[prop])
-                    *self.model2data_unit_conversion[prop], 
+                    * self.model2data_unit_conversion[prop],
                     torch.flatten(reference[prop]))
                 metrics[prop]['mse'] = mse_fn(
                     torch.flatten(prediction[prop])
-                    *self.model2data_unit_conversion[prop], 
+                    * self.model2data_unit_conversion[prop],
                     torch.flatten(reference[prop]))
 
         return metrics

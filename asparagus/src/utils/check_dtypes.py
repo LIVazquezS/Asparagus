@@ -44,7 +44,7 @@ def is_bool(x, verbose=False):
         return isinstance(x, dbool_all), type(x), "bool"
     else:
         return isinstance(x, dbool_all)
-    
+
 def is_numeric(x, verbose=False):
     if isinstance(x, torch.Tensor):
         if len(x.shape)==0:
@@ -59,7 +59,7 @@ def is_numeric(x, verbose=False):
         return result
     else:
         return result[0]
-        
+
 def is_integer(x, verbose=False):
     if isinstance(x, torch.Tensor):
         if len(x.shape)==0:
@@ -69,17 +69,23 @@ def is_integer(x, verbose=False):
     else:
         result = (
             (type(x) in dint_all and not is_bool(x)), type(x), str(dint_all))
-        
+
     if verbose:
         return result
     else:
         return result[0]
-    
-def is_object(x, verbose=False):
+
+def is_callable(x, verbose=False):
     if verbose:
         return isinstance(x, Callable), type(x), "callable object"
     else:
         return isinstance(x, Callable)
+
+def is_object(x, verbose=False):
+    if verbose:
+        return isinstance(x, object), type(x), "object"
+    else:
+        return isinstance(x, object)
 
 def is_dictionary(x, verbose=False):
     if verbose:
@@ -103,23 +109,23 @@ def is_numeric_array(x, verbose=False):
         try:
             np.asarray(x, dtype=float)
             result = (
-                True, 
-                f"({type(x)})[{type(x[0])}]", 
+                True,
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[{dnum_all}]")
         except (ValueError, TypeError):
             result = (
-                False, 
-                f"({type(x)})[{type(x[0])}]", 
+                False,
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[{dnum_all}]")
     elif is_array_like(x):
         result = (
-            True, 
+            True,
             f"({type(x)})[empty]", 
             f"({darr_all})[{dnum_all}]")
     else:
         result = (
             False, 
-            f"{type(x)}", 
+            f"{type(x)}",
             f"({darr_all})[{dnum_all}]")
 
     if verbose:
@@ -133,12 +139,12 @@ def is_integer_array(x, verbose=False):
         if (np.asarray(x, dtype = float) == np.asarray(x, dtype = int)).all():
             result = (
                 True,
-                f"{type(x)}", 
+                f"{type(x)}",
                 f"({darr_all})[{dint_all}]")
     elif is_array_like(x):
         result = (
             True, 
-            f"({type(x)})[empty]", 
+            f"({type(x)})[empty]",
             f"({darr_all})[{dint_all}]")
     else:
         result = (
@@ -156,22 +162,22 @@ def is_string_array(x, verbose=False):
         try:
             np.asarray(x, dtype=str)
             result = (
-                True, 
-                f"({type(x)})[{type(x[0])}]", 
+                True,
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[str]")
         except (ValueError, TypeError):
             result = (
-                False, 
-                f"({type(x)})[{type(x[0])}]", 
+                False,
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[str]")
     elif is_array_like(x):
         result = (
-            True, 
-            f"({type(x)})[empty]", 
+            True,
+            f"({type(x)})[empty]",
             f"({darr_all})[str]")
     else:
         result = (
-            False, 
+            False,
             f"{type(x)}",
             f"({darr_all})[str]")
 
@@ -185,22 +191,22 @@ def is_boolean_array(x, verbose=False):
         try:
             np.asarray(x, dtype=bool)
             result = (
-                True, 
-                f"({type(x)})[{type(x[0])}]", 
+                True,
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[bool]")
         except (ValueError, TypeError):
             result = (
-                False, 
-                f"({type(x)})[{type(x[0])}]", 
+                False,
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[bool]")
     elif is_array_like(x):
         result = (
-            True, 
-            f"({type(x)})[empty]", 
+            True,
+            f"({type(x)})[empty]",
             f"({darr_all})[bool]")
     else:
         result = (
-            False, 
+            False,
             f"{type(x)}",
             f"({darr_all})[bool]")
 
@@ -213,23 +219,23 @@ def is_None_array(x, verbose=False):
     if is_array_like(x) and np.asarray(x).size > 0:
         try:
             result = (
-                (np.array(x)==None).all(),
-                f"({type(x)})[{type(x[0])}]", 
+                (np.array(x) is None).all(),
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[None]")
         except (ValueError, TypeError):
             result = (
                 False,
-                f"({type(x)})[{type(x[0])}]", 
+                f"({type(x)})[{type(x[0])}]",
                 f"({darr_all})[None]")
     elif is_array_like(x):
         result = (
-            True, 
-            f"({type(x)})[empty]", 
+            True,
+            f"({type(x)})[empty]",
             f"({darr_all})[None]")
     else:
         result = (
             False,
-            f"{type(x)}", 
+            f"{type(x)}",
             f"({darr_all})[None]")
 
     if verbose:
@@ -239,7 +245,9 @@ def is_None_array(x, verbose=False):
 
 def is_grad_enabled(x, verbose=False):
     if verbose:
-        return isinstance(x, torch.autograd.Variable), type(x), "Gradient for {} is active".format(x)
+        return (
+            isinstance(x, torch.autograd.Variable), type(x),
+            f"Gradient for {x} is active")
     else:
         return isinstance(x, torch.autograd.Variable)
 

@@ -46,7 +46,6 @@ class Calculator_PhysNet(torch.nn.Module):
 
         Parameters
         ----------
-
         config: (str, dict, object)
             Either the path to json file (str), dictionary (dict) or
             settings.config class object of model parameters
@@ -123,7 +122,7 @@ class Calculator_PhysNet(torch.nn.Module):
 
         # Update global configuration dictionary
         self.config.update(config_update)
-        
+
         # Assign global arguments
         self.dtype = settings._global_dtype
         self.device = settings._global_device
@@ -223,12 +222,12 @@ class Calculator_PhysNet(torch.nn.Module):
         else:
             self.model_cutoff_split = False
 
-        # Check cutoff width 
+        # Check cutoff width
         if self.model_cutoff_width == 0.0:
             logger.warning(
                 "WARNING:\n The interaction cutoff width 'model_cutoff_width'"
                 + "is zero which might lead to indifferentiable potential"
-                + f"at the interaction cutoff at "
+                + "at the interaction cutoff at "
                 + f"{self.model_interaction_cutoff:.2f}!")
         elif self.model_cutoff_width < 0.0:
             raise ValueError(
@@ -292,6 +291,8 @@ class Calculator_PhysNet(torch.nn.Module):
         model_properties_scaling: Dict[str, List[float]]
     ):
 
+        factor = 2.0
+
         # Special case: 'energy', 'atomic_energies'
         if model_properties_scaling is None:
             self.atomic_energies_scaling = torch.nn.Parameter(
@@ -310,7 +311,10 @@ class Calculator_PhysNet(torch.nn.Module):
         ):
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    model_properties_scaling['atomic_energies'],
+                    [
+                        factor*model_properties_scaling['atomic_energies'][0],
+                        model_properties_scaling['atomic_energies'][1]
+                    ],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
@@ -324,7 +328,10 @@ class Calculator_PhysNet(torch.nn.Module):
         ):
             self.atomic_energies_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    model_properties_scaling['energy'],
+                    [
+                        factor*model_properties_scaling['energy'][0],
+                        model_properties_scaling['energy'][1]
+                    ],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
@@ -362,7 +369,10 @@ class Calculator_PhysNet(torch.nn.Module):
         ):
             self.atomic_charges_scaling = torch.nn.Parameter(
                 torch.tensor(
-                    model_properties_scaling['atomic_charges'],
+                    [
+                        factor*model_properties_scaling['atomic_charges'][0],
+                        model_properties_scaling['atomic_charges'][1]
+                    ],
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
@@ -399,7 +409,8 @@ class Calculator_PhysNet(torch.nn.Module):
                     continue
                 model_scaling[prop] = torch.nn.Parameter(
                     torch.tensor(
-                        item, dtype=self.dtype, device=self.device
+                        [factor*item[0], item[1]],
+                        dtype=self.dtype, device=self.device
                         ).expand(self.input_n_atombasis, len(item)))
 
         # Convert model scaling to torch dictionary
@@ -414,7 +425,7 @@ class Calculator_PhysNet(torch.nn.Module):
         """
         Set or change unit property parameter in respective model layers
         """
-        
+
         # Change unit properties for electrostatic and dispersion layers
         if self.model_electrostatic:
             # Synchronize total and atomic charge units
@@ -432,9 +443,47 @@ class Calculator_PhysNet(torch.nn.Module):
             self.electrostatic_model.set_unit_properties(model_unit_properties)
         if self.model_dispersion:
             self.dispersion_model.set_unit_properties(model_unit_properties)
-        
+
         # Store property unit labels in config file
         self.config.update({'model_unit_properties': model_unit_properties})
+
+    def get_trainable_parameters(
+        self,
+        no_weight_decay: Optional[bool] = True,
+    ):
+        """
+        Return a  dictionary of lists for different optimizer options.
+
+        Parameters
+        ----------
+        no_weight_decay: bool, optional, default True
+            Separate parameters on which weight decay should not be applied
+
+        Returns
+        -------
+        dict(str, List)
+            Dictionary of trainable model parameters. Contains 'default' entry
+            for all parameters not affected by special treatment. Further
+            entries are, if true, the parameter names of the input
+        """
+
+        # Trainable parameter dictionary
+        trainable_parameters = {}
+        trainable_parameters['default'] = []
+        if no_weight_decay:
+            trainable_parameters['no_weight_decay'] = []
+
+        # Iterate over all trainable model parameters
+        for name, parameter in self.named_parameters():
+            # Catch all parameters to not apply weight decay on
+            if no_weight_decay and 'scaling' in name.split('.')[0].split('_'):
+                trainable_parameters['no_weight_decay'].append(parameter)
+            elif no_weight_decay and 'dispersion_model' in name.split('.')[0]:
+                trainable_parameters['no_weight_decay'].append(parameter)
+            else:
+                trainable_parameters['default'].append(parameter)
+
+        return trainable_parameters
 
     @torch.jit.export
     def forward(
@@ -460,7 +509,7 @@ class Calculator_PhysNet(torch.nn.Module):
         # Run input model
         features, descriptors, distances = self.input_model(
             atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
-        
+
         # Run graph model
         messages = self.graph_model(features, descriptors, idx_i, idx_j)
 

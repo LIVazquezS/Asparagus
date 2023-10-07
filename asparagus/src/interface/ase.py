@@ -3,7 +3,8 @@ import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import ase
-from ase.calculators.orca import ORCA
+#from ase.calculators.orca import ORCA
+from ..debug import ORCA_Dipole
 
 from .. import utils
 from .. import debug
@@ -36,8 +37,9 @@ ase_calculator_units = {
 
 ase_calculator_avaiable = {
     'XTB'.lower(): debug.XTB,
-    'ORCA'.lower(): ORCA,
+    'ORCA'.lower(): ORCA_Dipole,
     }
+
 
 def get_ase_calculator(
     calculator,
@@ -69,8 +71,8 @@ def get_ase_calculator(
         # Check avaiability
         if calculator.lower() not in ase_calculator_avaiable:
             raise ValueError(
-                f"ASE calculator '{calculator}' is not avaiable!" +
-                f"Choose from:\n" +
+                f"ASE calculator '{calculator}' is not avaiable!"
+                + "Choose from:\n" +
                 str(ase_calculator_avaiable.keys()))
 
         # initialize ASE calculator
@@ -81,15 +83,15 @@ def get_ase_calculator(
         except TypeError as error:
             logger.error(error)
             raise TypeError(
-                f"ASE calculator '{calculator}' does not accept " +
-                f"arguments in 'calculator_args'")
+                f"ASE calculator '{calculator}' does not accept "
+                + "arguments in 'calculator_args'")
 
     else:
-        
+
         # Check for calculator name parameter in calculator class
         if hasattr(calculator, 'calculator_tag'):
             calculator_tag = calculator.calculator_tag
-        
+
     # Retrun ASE calculator and name label
     return calculator, calculator_tag
 
@@ -99,7 +101,7 @@ def get_ase_calculator(
 # ======================================
 
 def get_ase_properties(
-    system, 
+    system,
     calc_properties,
 ):
     """
@@ -116,26 +118,26 @@ def get_ase_properties(
     -------
     dict
         Property dictionary containing:
-        atoms number, atomic numbers, positions, cell size, periodic boundary 
+        atoms number, atomic numbers, positions, cell size, periodic boundary
         conditions, total charge and computed properties.
     """
-    
+
     # Initialize property dictionary
     properties = {}
-    
+
     # Atoms number
     properties['atoms_number'] = system.get_global_number_of_atoms()
-    
+
     # Atomic numbers
     properties['atomic_numbers'] = system.get_atomic_numbers()
-    
+
     # Atomic numbers
     properties['positions'] = system.get_positions()
-    
+
     # Periodic boundary conditions
     properties['cell'] = list(system.get_cell())[0]
     properties['pbc'] = system.get_pbc()
-    
+
     # Total charge
     # Try from calculator paramters
     if 'charge' in system._calc.parameters:
@@ -145,7 +147,6 @@ def get_ase_properties(
     # If charge is still None, try from computed atomic charges
     if charge is None:
         try:
-            atomic_charges = system.get_charges()
             charge = round(np.sum(system.get_charges()))
         except ase.calculators.calculator.PropertyNotImplementedError:
             charge = None
@@ -153,10 +154,10 @@ def get_ase_properties(
     if charge is None:
         charge = 0
     properties['charge'] = charge
-    
+
     for ip, prop in enumerate(calc_properties):
         if prop in properties:
             continue
         properties[prop] = system._calc.results.get(prop)
-    
+
     return properties

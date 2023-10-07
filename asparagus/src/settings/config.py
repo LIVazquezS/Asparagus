@@ -48,7 +48,7 @@ def get_config(
     """
 
     # If 'config' being a config class object
-    if utils.is_object(config):
+    if utils.is_callable(config):
 
         # Reset configuration file path
         config.set_config_file(config_file, config_global)
@@ -124,7 +124,7 @@ class Configuration():
                 "Input 'config_file' is not of valid data type!\n" +
                 "Data type 'str' is expected for the config file path " +
                 f"but '{type(config_file)}' is given.")
-        
+
         # If no 'config' input given, load from global configuration file path
         if config is None:
             self.config_dict = self.read(self.config_file)
@@ -145,38 +145,32 @@ class Configuration():
                 "Data type 'dict', 'str' or a config class object " +
                 f"is expected but '{type(config)}' is given.")
 
-        # Set config_file as 
+        # Set config_file as
         self.set_config_file(self.config_file, config_global)
-        
+
         # Update configuration dictionary with keyword arguments
         if len(kwargs):
             self.update(kwargs)
 
         # Save current configuration dictionary to file
         self.dump()
-        
 
     def __getitem__(self, args):
         return self.config_dict.get(args)
-
 
     def __setitem__(self, arg, item):
         self.config_dict[arg] = item
         self.dump()
 
-
     def __contains__(self, arg):
         return arg in self.config_dict.keys()
-
 
     def __call__(self, args):
         return self.config_dict.get(args)
 
-
     def items(self):
         for key, item in self.config_dict.items():
             yield key, item
-
 
     def get(self, args):
         if utils.is_array_like(args):
@@ -184,10 +178,8 @@ class Configuration():
         else:
             return self.config_dict.get(args)
 
-
     def keys(self):
         return self.config_dict.keys()
-
 
     def read(
         self, 
@@ -205,7 +197,6 @@ class Configuration():
 
         return config_dict
 
-
     def set_config_file(self, config_file, config_global):
         """
         Check file path of the configuration json file and, if requested,
@@ -220,10 +211,9 @@ class Configuration():
         if config_global:
             settings.set_global_config_file(self.config_file)
 
-
     def check_config_file(self, config_file):
         """
-        Check file path of the configuration json file and return 
+        Check file path of the configuration json file and return
         the current file path.
         """
 
@@ -247,7 +237,6 @@ class Configuration():
                 "is given.")
 
         return config_file
-
 
     def update(
         self,
@@ -280,7 +269,7 @@ class Configuration():
             config_new = self.read(config_new)
         elif utils.is_dictionary(config_new):
             pass
-        elif utils.is_object(config_new):
+        elif utils.is_callable(config_new):
             config_new = config_new.get_dictionary()
         else:
             raise ValueError(
@@ -290,7 +279,7 @@ class Configuration():
 
         # Return if update dictionary is empty
         if not len(config_new):
-            logger.info(f"INFO:\nEmpty update configuration dictionary!\n")
+            logger.info("INFO:\nEmpty update configuration dictionary!\n")
             return
 
         # Show update information
@@ -306,7 +295,7 @@ class Configuration():
                 "Current configuration entries will be only extended  " +
                 "by new configuration entries " +
                 "but not in case of conflicting entries.\n")
-        logger.info(f"INFO:\n" + msg)
+        logger.info("INFO:\n" + msg)
 
         # Prepare additional information output
         msg = ""
@@ -337,13 +326,12 @@ class Configuration():
 
         # Show additional information output
         if verbose:
-            logger.info(f"INFO:\n" + msg)
+            logger.info("INFO:\n" + msg)
 
         # Store changes in file
         self.dump()
 
         return
-
 
     def dump(
         self,
@@ -351,7 +339,7 @@ class Configuration():
     ):
         """
         Save configuration dictionary to json file
-        
+
         Parameters
         ----------
 
@@ -366,7 +354,7 @@ class Configuration():
         for key, item in self.config_dict.items():
 
             # Skip callable class objects
-            if utils.is_object(item):
+            if utils.is_callable(item):
                 continue
 
             # Convert numeric values to integer or float
@@ -393,7 +381,6 @@ class Configuration():
         else:
             with open(config_file, 'w') as f:
                 json.dump(config_dump, f, indent=self.config_indent)
-
 
     def check(
         self,
@@ -429,7 +416,6 @@ class Configuration():
 
     def get_file_path(self):
         return self.config_file
-
 
     def get_dictionary(self):
         return self.config_dict

@@ -5,7 +5,6 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 import numpy as np
 
 import ase
-from ase import optimize
 from ase import units
 
 from ase.constraints import Hookean
@@ -16,7 +15,6 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.md.langevin import Langevin
 
 from .. import data
-from .. import model
 from .. import settings
 from .. import utils
 from .. import sample
@@ -26,7 +24,7 @@ from ase.db import connect
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ['Sampler']
+__all__ = ['MetaSampler']
 
 
 class MetaSampler(sample.Sampler):
