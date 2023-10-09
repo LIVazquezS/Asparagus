@@ -126,19 +126,22 @@ Additional examples will be added in the future.
    - [ ] Automatic generation of input files for commonly used codes (e.g. Gaussian, Orca, MOLPRO, etc.)
    - [ ] Automatic extraction of information from output files
    - [ ] Preparation of training/ input files for the NN
+- Trainer class:
+  - [ ] Training of model ensemble 
 - Tester class: 
   - [x] Finish automatic evaluation (Luis)
 - Active learning
    - [ ] Adaptive Sampling
    - [ ] Uncertainty calculations (?)
+     - [x] Model ensemble via ASE calculator  
 - Tools class:
-  - [ ] Normal mode calculation (Luis)
+  - [x] Normal mode calculation (Luis)
   - [ ] Instantaneous normal mode calculation
   - [ ] Minimum energy path and Minimum dynamic path
   - [ ] Others(?)
 - Production: 
   - [ ] PyCharmm 
-  - [ ] ASE calculator for dynamics
+  - [x] ASE calculator for dynamics
 - Documentation:
   - [ ] Improve documentation
   - [ ] Add examples
