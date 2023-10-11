@@ -19,16 +19,16 @@
 
 We recommend to use [ Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/download.html) for the creation of a virtual environment. 
 
-Once in miniconda, you can create a virtual enviroment called *physpack* 
+Once in miniconda, you can create a virtual enviroment called *asparagus* 
 
 ``` 
-conda create --name physpack python=3.8
+conda create --name asparagus python=3.8
 ```
  
 To activate the virtual environment use the command:
 
 ```
-conda activate physpack
+conda activate asparagus
 ```
 ### Installation
 Installation must be done in the virtual environment through pip. It is important to mention that the path where you are
@@ -38,29 +38,33 @@ Install via pip:
 ``` 
 pip install -e .
 ```
+Alternatively, install via setup.py:
+``` 
+python setup.py install
+```
 
-**BEWARE**: With this command any modification that is done to the code in the folder *physpack* will be automatically reflected 
+**BEWARE**: With this command any modification that is done to the code in the folder *asparagus* will be automatically reflected 
 in the modules that you import.
 
 **NOTE**: Everytime you want to import the module, you must use the following command:
 
 ```
-from physpack import PhysPack
+from asparagus import Asparagus
 ```
-Then PhysPack is a function that takes some arguments.
+Then Asparagus is a function that takes some arguments.
 
 ### Examples
 
 Currently only Formaldehyde is available as an example. To run it, you only need to do:
  ```
-python run.py
+python run_formaldehyde.py
 ```
 
-If you want to run something different, modifications to the `config.json` are needed. To create the database, required
-you need to import the *datacontainer* module from the *physpack* package as follows:
+If you want to run something different, modifications to the `config.json` (in this example `form_config.json`) are needed. To create the database, required
+you need to import the *datacontainer* module from the *asparagus* package as follows:
 
 ```
-from physpack.src.data import DataContainer
+from asparagus import DataContainer
 ```
 
 Then you can create the database as follows:
@@ -88,12 +92,13 @@ folder generated after training. Remember that the folder name starts with the d
 
 To do the evaluation, you need to add the following line to your run file:
  ```
- model.test_model()
+ model.test()
  ```
 
 By default, the code will show you the MAE and RMSE for the energy, forces and dipole. 
 
-There are a few keywords that you can add to the function 'test_model' to change the behaviour of the evaluation.
+There are a few keywords that you can add to the function 'test' to change the behaviour of the evaluation.
+OUTDATED:
 If you add the option `plots=True`, the code will make a scatter plot with the predicted and the reference values.
 The option `show_plots=True` will show the generated scatter plot. If you want to save it, you need to add the flag
 `save_plots=True`. Other options for plotting are residuals and histograms that require the keywords `residual_plots=True,
