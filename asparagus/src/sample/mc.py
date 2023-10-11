@@ -41,7 +41,6 @@ class MCSampler(sample.Sampler):
             **kwargs,
     ):
 
-
         super().__init__(**kwargs)
 
         ################################

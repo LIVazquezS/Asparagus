@@ -165,7 +165,6 @@ class NormalModeScanner(sample.Sampler):
     def run_system(
         self,
         system: object,
-        data_file: Optional[str] = None,
     ):
         """
         Perform Normal Mode Scanning on the sample system.
@@ -246,10 +245,10 @@ class NormalModeScanner(sample.Sampler):
 
         # Add normal mode analysis results to log file
         msg = "\nStart Normal Mode Scanning at system: "
-        if data_file is None:
+        if self.nms_data_file is None:
             msg += f"{system.get_chemical_formula():s}\n"
         else:
-            msg += f"{data_file:s}\n"
+            msg += f"{self.nms_data_file:s}\n"
         msg += " Index | Frequency (cm**-1) | Vibration (CoM displacemnt)\n"
         msg += "---------------------------------------------------------\n"
         for ivib, freq in enumerate(system_frequencies):

@@ -333,9 +333,7 @@ class Sampler:
                     fmax=self.sample_systems_optimize_fmax)
 
             # Start normal mode sampling
-            self.run_system(
-                system,
-                data_file=self.sample_data_file[isys])
+            self.run_system(system)
 
     def run_system(self, system):
         raise NotImplementedError()
