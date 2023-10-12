@@ -15,7 +15,7 @@ if False:
             'charge': 1,
             'mult': 1,
             'orcasimpleinput': 'RI PBE D3BJ def2-SVP def2/J TightSCF',
-            #'orcablocks': '%pal nprocs 4 end',
+            'orcablocks': '%pal nprocs 4 end',
             'directory': 'model_zundel/sampling'},
         sample_properties=['energy', 'forces', 'dipole'],
         sample_systems_optimize=True,
@@ -36,7 +36,7 @@ if False:
     sampler.run()
 
 # Collect Data
-if True:
+if False:
     
     from asparagus import DataContainer
     
@@ -59,7 +59,7 @@ if True:
         data_overwrite=True)
 
 # Train
-if True:
+if False:
     
     model = Asparagus(
         config='zundel_config.json',
@@ -81,3 +81,44 @@ if True:
     model.test(
         test_datasets='all',
         test_directory=model.get('model_directory'))
+
+if True:
+
+    import ase
+    from ase.optimize import BFGS
+    from ase.visualize import view
+    from ase.vibrations import Vibrations
+    from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
+    from ase.md.verlet import VelocityVerlet
+    from ase.io.trajectory import Trajectory
+    import ase.units as units
+    
+    model = Asparagus(
+        config="model_zundel/config.json",
+        model_directory="model_zundel"
+        )
+    
+    calc = model.get_ase_calculator()
+    zundel = ase.io.read("data/zundel_h7o3.xyz")
+    zundel.calc = calc
+    
+    dyn = BFGS(zundel)
+    dyn.run(fmax=0.01)
+    
+    view(zundel)
+    
+    vib = Vibrations(zundel)
+    vib.clean()
+    vib.run()
+    vib.summary()
+    vib.write_mode()
+    
+    # Set the momenta corresponding to T=300K
+    MaxwellBoltzmannDistribution(zundel, temperature_K=300)
+
+    # We want to run MD with constant energy using the VelocityVerlet algorithm.
+    dyn = VelocityVerlet(zundel, 0.5 * units.fs)
+         
+    traj = Trajectory('zundel.traj', 'w', zundel)
+    dyn.attach(traj.write, interval=1)
+    dyn.run(2000)

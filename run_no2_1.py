@@ -35,6 +35,7 @@ if True:
     model.test(
         test_datasets='all',
         test_directory=model.get('model_directory'))
+
 if False:
 
     import ase

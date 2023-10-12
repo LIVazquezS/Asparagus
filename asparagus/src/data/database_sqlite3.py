@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import sqlite3
+import functools
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 from contextlib import contextmanager
@@ -82,6 +83,125 @@ structure_properties_shape = {
 }
 
 
+def lock(method):
+    """
+    Decorator for using a lock-file.
+    """
+    @functools.wraps(method)
+    def new_method(self, *args, **kwargs):
+        if self.lock is None:
+            return method(self, *args, **kwargs)
+        else:
+            with self.lock:
+                return method(self, *args, **kwargs)
+    return new_method
+
+
+def object_to_bytes(
+    obj: Any
+    ) -> bytes:
+    """
+    Serialize Python object to bytes.
+    """
+    
+    parts = [b'12345678']
+    obj = o2b(obj, parts)
+    offset = sum(len(part) for part in parts)
+    x = np.array(offset, np.int64)
+    if not np.little_endian:
+        x.byteswap(True)
+    parts[0] = x.tobytes()
+    parts.append(json.dumps(obj, separators=(',', ':')).encode())
+    return b''.join(parts)
+
+
+def bytes_to_object(
+    b: bytes
+    ) -> Any:
+    """
+    Deserialize bytes to Python object.
+    """
+    
+    x = np.frombuffer(b[:8], np.int64)
+    if not np.little_endian:
+        x = x.byteswap()
+    offset = x.item()
+    obj = json.loads(b[offset:].decode())
+    return b2o(obj, b)
+
+
+def o2b(
+    obj: Any, 
+    parts: List[bytes]
+    ):
+    
+    if (
+        obj is None 
+        or utils.is_numeric(obj) 
+        or utils.is_bool(obj) 
+        or utils.is_string(obj)
+        ):
+        return obj
+    
+    if utils.is_dictionary(obj):
+        return {key: o2b(value, parts) for key, value in obj.items()}
+    
+    if isinstance(obj, (list, tuple)):
+        return [o2b(value, parts) for value in obj]
+    
+    if isinstance(obj, np.ndarray):
+        
+        assert obj.dtype != object, \
+            'Cannot convert ndarray of type "object" to bytes.'
+        offset = sum(len(part) for part in parts)
+        if not np.little_endian:
+            obj = obj.byteswap()
+        parts.append(obj.tobytes())
+        return {'__ndarray__': [obj.shape, obj.dtype.name, offset]}
+    
+    if isinstance(obj, complex):
+        return {'__complex__': [obj.real, obj.imag]}
+    
+    objtype = type(obj)
+    raise ValueError(
+        f"Objects of type {objtype} not allowed")
+
+
+def b2o(
+    obj: Any, 
+    b: bytes
+    ) -> Any:
+    
+    if isinstance(obj, (int, float, bool, str, type(None))):
+        return obj
+
+    if isinstance(obj, list):
+        return [b2o(value, b) for value in obj]
+
+    assert isinstance(obj, dict)
+
+    x = obj.get('__complex__')
+    if x is not None:
+        return complex(*x)
+
+    x = obj.get('__ndarray__')
+    if x is not None:
+        shape, name, offset = x
+        dtype = np.dtype(name)
+        size = dtype.itemsize * np.prod(shape).astype(int)
+        a = np.frombuffer(b[offset:offset + size], dtype)
+        a.shape = shape
+        if not np.little_endian:
+            a = a.byteswap()
+        return a
+
+    dct = {key: b2o(value, b) for key, value in obj.items()}
+    objtype = dct.pop('__ase_objtype__', None)
+    if objtype is None:
+        return dct
+    return create_ase_object(objtype, dct)
+
+
 class DataBase_SQLite3(data.DataBase):
     """
     SQL lite 3 data base class
@@ -94,34 +214,40 @@ class DataBase_SQLite3(data.DataBase):
     # Used for autoincrement id
     default = 'NULL'
     
-    #def __init__(
-        #self, 
-        #data_file, 
-        #data_lock_file
-    #):
-        #"""
-        #SQLite3 dataBase object that contain reference data.
-        #This is a condensed version of the ASE Database class:
-        #https://gitlab.com/ase/ase/-/blob/master/ase/db/sqlite.py
+    def __init__(
+        self, 
+        data_file: str,
+        data_lock_file: bool,
+    ):
+        """
+        SQLite3 dataBase object that contain reference data.
+        This is a condensed version of the ASE Database class:
+        https://gitlab.com/ase/ase/-/blob/master/ase/db/sqlite.py
 
-        #Parameters
-        #----------
-            #data_file: str
-                #Reference database file
-            #data_lock_file: bool
-                #Use a lock file when manipulating the database to prevent
-                #parallel manipulation by multiple processes.
+        Parameters
+        ----------
+        data_file: str
+            Reference database file
+        data_lock_file: bool
+            Use a lock file when manipulating the database to prevent
+            parallel manipulation by multiple processes.
                 
-        #Returns
-        #-------
-            #object
-                #SQLite3 dataBase for data storing
-        #"""
+        Returns
+        -------
+            object
+                SQLite3 dataBase for data storing
+        """
         
-        ## Inherit from DataBase base class
-        #super().__init__(data_file, data_lock_file)
+        # Inherit from DataBase base class
+        super().__init__(data_file)
         
-        #return
+        # Prepare data locker
+        if data_lock_file and utils.is_string(data_file):
+            self.lock = Lock(data_file + '.lock', world=DummyMPI())
+        else:
+            self.lock = None
+        
+        return
     
     def _connect(self):
         return sqlite3.connect(self.data_file, timeout=20)
@@ -161,7 +287,7 @@ class DataBase_SQLite3(data.DataBase):
                 if self.change_count % commit_frequency == 0:
                     con.commit()
 
-
+    @lock
     def _set_metadata(self, metadata):
         
         # Convert metadata dictionary
@@ -206,8 +332,8 @@ class DataBase_SQLite3(data.DataBase):
                     self._metadata = json.loads(results[0][0])
         
         return self._metadata
-    
-    
+
+    @lock
     def _init_systems(self):
         
         # Get metadata
@@ -250,14 +376,80 @@ class DataBase_SQLite3(data.DataBase):
                 f"(version {self.version}).")
         
         return
-    
-    
+
+    def _get(self, selection, **kwargs):
+        
+        # Get row of selection
+        row = list(self.select(selection, **kwargs))
+
+        # Check selection results
+        if row is None:
+            raise KeyError('no match')
+
+        return row
+
+    def parse_selection(self, selection, **kwargs):
+        """
+        Interpret the row selection
+        """
+
+        if selection is None or selection == '':
+            cmps = []
+        elif utils.is_integer(selection):
+            cmps = [('id', '=', selection)]
+        elif utils.is_integer_array(selection):
+            cmps = [('id', '=', selection_i) for selection_i in selection]
+        else:
+            raise ValueError(
+                f"Database selection '{selection}' is not a valid input!\n" +
+                f"Provide either an index or list of indices.")
+
+        return cmps
+
+    @parallel_generator
+    def select(
+        self, 
+        selection=None, 
+        selection_filter=None, 
+        **kwargs):
+        """
+        Select rows.
+
+        Return AtomsRow iterator with results.  Selection is done
+        using key-value pairs.
+        
+        Parameters
+        ----------
+        selection: (int, list(int))
+            Row index or list of indices
+
+        selection_filter: function
+            A function that takes as input a row and returns True or False.
+
+        Returns
+        -------
+            dict
+                Returns entry of the selection.
+        """
+        
+        # Check and interpret selection
+        cmps = self.parse_selection(selection)
+        
+        # Iterate over selection
+        #row = list(self._select(cmps))
+        for row in self._select(cmps):
+        
+            # Apply potential reference data filter or not 
+            if selection_filter is None or selection_filter(row):
+                    
+                yield row
+
     def encode(self, obj):
-        return data.object_to_bytes(obj)
+        return object_to_bytes(obj)
         
         
     def decode(self, txt):
-        return data.bytes_to_object(txt)
+        return bytes_to_object(txt)
         
 
     def blob(self, item):
@@ -302,7 +494,7 @@ class DataBase_SQLite3(data.DataBase):
             
         return item
 
-
+    @lock
     def _write(self, properties, row_id):
         
         # Reference data list
@@ -367,7 +559,6 @@ class DataBase_SQLite3(data.DataBase):
                 
         return row_id
 
-
     def update(self, row_id, properties):
 
         # Reference data list
@@ -421,7 +612,7 @@ class DataBase_SQLite3(data.DataBase):
 
         return row_id
 
-
+    @lock
     def _update(self, row_id, values=None, columns=None, properties=None):
         
         if values is None and properties is None:
@@ -565,10 +756,12 @@ class DataBase_SQLite3(data.DataBase):
         
         return properties
     
-    
     @parallel_function
-    def _count(self, cmps):
-        
+    def _count(self, selection, **kwargs):
+
+        # Check selection
+        cmps = self.parse_selection(selection)
+
         sql, args = self.create_select_statement(cmps, what='COUNT(*)')
 
         with self.managed_connection() as con:
@@ -579,9 +772,8 @@ class DataBase_SQLite3(data.DataBase):
             except sqlite3.OperationalError:
                 return 0
 
-    
     @parallel_function
-    @data.lock
+    @lock
     def delete(self, row_ids):
         """
         Delete rows.
@@ -623,6 +815,3 @@ class DataBase_SQLite3(data.DataBase):
     @property
     def metadata(self):
         return self._get_metadata()
-        
-
-    

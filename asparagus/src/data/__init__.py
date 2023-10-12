@@ -8,10 +8,10 @@ from .datareader import (
     DataReader
 )
 from .database import (
-    DataBase, connect, lock, object_to_bytes, bytes_to_object
+    DataBase, connect
 )
 from .database_sqlite3 import (
-    DataBase_SQLite3
+    DataBase_SQLite3, lock, object_to_bytes, bytes_to_object
 )
 from .dataloader import (
     DataLoader
