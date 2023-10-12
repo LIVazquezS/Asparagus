@@ -1,7 +1,7 @@
 from asparagus import Asparagus
 
 # Sampling
-if True:
+if False:
     
     from asparagus import MetaSampler
     
@@ -75,7 +75,7 @@ if True:
             'forces': 50.,
             'dipole': 20.
             },
-        trainer_optimizer_args={'lr': 0.01, 'weight_decay': 0.e-5},
+        trainer_optimizer_args={'lr': 0.001, 'weight_decay': 0.e-5},
         )
     model.train()
     model.test(

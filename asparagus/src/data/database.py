@@ -155,7 +155,7 @@ class DataBase:
         raise NotImplementedError
         
     
-    @parallel_function
+    #@parallel_function
     @lock
     def write(self, properties={}, row_id=None, **kwargs):
         """
@@ -184,7 +184,7 @@ class DataBase:
         return 1
     
 
-    @parallel_function
+    #@parallel_function
     @lock
     def update(self, row_id, properties={}, **kwargs):
         """
@@ -244,7 +244,6 @@ class DataBase:
             raise KeyError('no match')
         
         return row
-    
     
     def parse_selection(self, selection, **kwargs):
         """

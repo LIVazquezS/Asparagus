@@ -170,7 +170,7 @@ def printProgressBar(
     """
 
     percent = (
-        "{0:." + str(decimals) + "f}".format(
+        ("{0:." + str(decimals) + "f}").format(
             100 * (iteration / float(total)))
         )
     filledLength = int(length * iteration // total)

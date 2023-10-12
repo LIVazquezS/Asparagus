@@ -147,11 +147,11 @@ class DataContainer():
         # Else, merge eventually config into input but keep input in case
         # of conflict
         elif (
-            config.get('data_unit_properties') is not None 
-            and data_unit_properties is not None
+            (config.get('data_unit_properties') is not None)
+            and (data_unit_properties is not None)
         ):
             data_unit_properties = {
-                **metadata.get('unit_properties'), **data_unit_properties}
+                **config.get('data_unit_properties'), **data_unit_properties}
 
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary

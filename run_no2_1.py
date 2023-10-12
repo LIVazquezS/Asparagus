@@ -2,7 +2,7 @@ from asparagus import DataContainer
 
 from asparagus import Asparagus
 
-if False:
+if True:
 
     data = DataContainer(
         config='no2_config.json',
@@ -10,13 +10,11 @@ if False:
         data_source=[
             'data/data_NO2_1.npz'],
         data_load_properties=[
-            'energy', 'total_charge', 'dipole'],
+            'energy', 'charge', 'dipole'],
         data_unit_properties={
             'energy':   'eV',
             'charge':   'e',
-            'dipole':   'eAng'},
-        data_alt_property_labels={
-            'energy':   ['V', 'E']},
+            'dipole':   'e*Ang'},
         data_overwrite=True)
 
 if True:
@@ -37,7 +35,7 @@ if True:
     model.test(
         test_datasets='all',
         test_directory=model.get('model_directory'))
-if True:
+if False:
 
     import ase
     model = Asparagus(
