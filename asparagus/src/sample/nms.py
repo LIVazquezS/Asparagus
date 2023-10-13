@@ -31,7 +31,6 @@ class NormalModeScanner(sample.Sampler):
 
     def __init__(
         self,
-        nms_data_file: Optional[str] = None,
         nms_harmonic_energy_step: Optional[float] = None,
         nms_energy_limits: Optional[Union[float, List[float]]] = None,
         nms_number_of_coupling: Optional[int] = None,
@@ -44,9 +43,6 @@ class NormalModeScanner(sample.Sampler):
         Parameters
         ----------
 
-        nms_data_file: str, optional, default 'sample.db'
-            Database file name to store the sampled systems with computed
-            reference data.
         nms_harmonic_energy_step: float, optional, default 0.05
             Within the harmonic approximation the initial normal mode
             displacement from the equilibrium positions is scaled to match
@@ -115,14 +111,14 @@ class NormalModeScanner(sample.Sampler):
         self.sample_tag = 'nmscan'
 
         # Check sample data file
-        if self.nms_data_file is None:
-            self.nms_data_file = os.path.join(
+        if self.sample_data_file is None:
+            self.sample_data_file = os.path.join(
                 self.sample_directory, f'{self.sample_counter:d}_nms.db')
-        elif not utils.is_string(self.nms_data_file):
+        elif not utils.is_string(self.sample_data_file):
             raise ValueError(
-                "Sample data file 'nms_data_file' must be a string "
+                "Sample data file 'sample_data_file' must be a string "
                 + "of a valid file path but is of type "
-                + f"'{type(self.nms_data_file)}'.")
+                + f"'{type(self.sample_data_file)}'.")
 
         # Define MD log and trajectory file path
         self.nms_log_file = os.path.join(
@@ -141,6 +137,16 @@ class NormalModeScanner(sample.Sampler):
         if utils.is_numeric(self.nms_energy_limits):
             self.nms_energy_limits = [
                 -abs(self.nms_energy_limits), abs(self.nms_energy_limits)]
+
+        #####################################
+        # # # Initialize Sample DataSet # # #
+        #####################################
+        
+        self.nms_dataset = data.DataSet(
+            self.sample_data_file,
+            self.sample_properties,
+            self.sample_unit_properties,
+            data_overwrite=True)
 
         return
 
@@ -182,7 +188,7 @@ class NormalModeScanner(sample.Sampler):
 
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
-        self.sample_dataset.add_atoms(system, system_properties)
+        self.nms_dataset.add_atoms(system, system_properties)
 
         # Attach to trajectory
         self.nms_trajectory = Trajectory(
@@ -245,10 +251,10 @@ class NormalModeScanner(sample.Sampler):
 
         # Add normal mode analysis results to log file
         msg = "\nStart Normal Mode Scanning at system: "
-        if self.nms_data_file is None:
+        if self.sample_data_file is None:
             msg += f"{system.get_chemical_formula():s}\n"
         else:
-            msg += f"{self.nms_data_file:s}\n"
+            msg += f"{self.sample_data_file:s}\n"
         msg += " Index | Frequency (cm**-1) | Vibration (CoM displacemnt)\n"
         msg += "---------------------------------------------------------\n"
         for ivib, freq in enumerate(system_frequencies):
@@ -324,7 +330,7 @@ class NormalModeScanner(sample.Sampler):
                         # Add to dataset
                         if converged:
                             system_properties = self.get_properties(system)
-                            self.sample_dataset.add_atoms(
+                            self.nms_dataset.add_atoms(
                                 system, system_properties)
 
                         # Attach to trajectory
@@ -390,7 +396,6 @@ class NormalModeSampler(sample.Sampler):
 
     def __init__(
         self,
-        nms_data_file: Optional[str] = None,
         nms_temperature: Optional[float] = None,
         nms_nsamples: Optional[int] = None,
         **kwargs
@@ -436,14 +441,14 @@ class NormalModeSampler(sample.Sampler):
         # self.config.update(config_update)
 
         # Check sample data file
-        if self.nmsamp_data_file is None:
-            self.nmsamp_data_file = os.path.join(
+        if self.sample_data_file is None:
+            self.sample_data_file = os.path.join(
                 self.sample_directory, f'{self.sample_counter:d}_nmsamp.db')
-        elif not utils.is_string(self.nmsamp_data_file):
+        elif not utils.is_string(self.sample_data_file):
             raise ValueError(
-                f"Sample data file 'nmsamp_data_file' must be a string " +
+                f"Sample data file 'sample_data_file' must be a string " +
                 f"of a valid file path but is of type " +
-                f"'{type(self.nmsamp_data_file)}'.")
+                f"'{type(self.sample_data_file)}'.")
 
         # Sampler class label
         self.sample_tag = 'nmsamp'
@@ -458,8 +463,8 @@ class NormalModeSampler(sample.Sampler):
         # # # Initialize Sample DataSet # # #
         #####################################
 
-        self.nmsamp_dataset = data.DataSet(
-            self.nmsamp_data_file,
+        self.nms_dataset = data.DataSet(
+            self.sample_data_file,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)
@@ -470,7 +475,7 @@ class NormalModeSampler(sample.Sampler):
 
         return {
             'sample_directory': self.sample_directory,
-            # 'sample_data_file': self.sample_data_file,
+            'sample_data_file': self.sample_data_file,
             'sample_systems': self.sample_systems,
             'sample_systems_format': self.sample_systems_format,
             'sample_calculator': self.sample_calculator_tag,
@@ -478,7 +483,6 @@ class NormalModeSampler(sample.Sampler):
             'sample_properties': self.sample_properties,
             'sample_systems_optimize': self.sample_systems_optimize,
             'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
-            'nms_data_file': self.nmsamp_data_file,
             'nms_temperature': self.nmsamp_temperature,
             'nms_nsamples': self.nmsamp_nsamples,
         }
@@ -509,7 +513,7 @@ class NormalModeSampler(sample.Sampler):
         """
 
         system_properties = self.get_properties(system)
-        self.nmsamp_dataset.add_atoms(system, system_properties)
+        self.nms_dataset.add_atoms(system, system_properties)
 
     def run(self,system):
         '''
@@ -528,7 +532,7 @@ class NormalModeSampler(sample.Sampler):
 
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
-        self.nmsamp_dataset.add_atoms(system, system_properties)
+        self.nms_dataset.add_atoms(system, system_properties)
 
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(

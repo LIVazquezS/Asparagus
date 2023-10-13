@@ -34,7 +34,6 @@ class MetaSampler(sample.Sampler):
     
     def __init__(
         self,
-        meta_data_file: Optional[str] = None,
         meta_cv: Optional[List[int]] = None,
         meta_gaussian_height: Optional[float] = None,
         meta_gaussian_widths: Optional[Union[float, List[float]]] = None,
@@ -56,9 +55,6 @@ class MetaSampler(sample.Sampler):
         Parameters
         ----------
 
-        meta_data_file: str, optional, default 'sample.db'
-            Database file name to store the sampled systems with computed
-            reference data.
         meta_cv: list(list(int)), optional, default []
             List of sublists defining collective variables (CVs) / reaction 
             coordinates to add Gaussian potentials. The number of atom indices
@@ -156,15 +152,15 @@ class MetaSampler(sample.Sampler):
         self.sample_tag = 'meta'
         
         # Check sample data file
-        if self.meta_data_file is None:
-            self.meta_data_file = os.path.join(
+        if self.sample_data_file is None:
+            self.sample_data_file = os.path.join(
                 self.sample_directory, 
                 f'{self.sample_counter:d}_{self.sample_tag:s}.db')
-        elif not utils.is_string(self.meta_data_file):
+        elif not utils.is_string(self.sample_data_file):
             raise ValueError(
-                f"Sample data file 'meta_data_file' must be a string " +
+                f"Sample data file 'sample_data_file' must be a string " +
                 f"of a valid file path but is of type " + 
-                f"'{type(self.meta_data_file)}'.")
+                f"'{type(self.sample_data_file)}'.")
         
         # Get number of collective variables
         Ncv = len(self.meta_cv)
@@ -250,11 +246,37 @@ class MetaSampler(sample.Sampler):
         #####################################
         
         self.meta_dataset = data.DataSet(
-            self.meta_data_file,
+            self.sample_data_file,
             self.sample_properties,
             self.sample_unit_properties,
             data_overwrite=True)
 
+    def get_info(self):
+        
+        return {
+            'sample_directory': self.sample_directory,
+            'sample_data_file': self.sample_data_file,
+            'sample_systems': self.sample_systems,
+            'sample_systems_format': self.sample_systems_format,
+            'sample_calculator': self.sample_calculator_tag,
+            'sample_calculator_args': self.sample_calculator_args,
+            'sample_properties': self.sample_properties,
+            'sample_systems_optimize': self.sample_systems_optimize,
+            'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
+            'meta_cv': self.meta_cv,        
+            'meta_gaussian_height': self.meta_gaussian_height,
+            'meta_gaussian_widths': self.meta_gaussian_widths,
+            'meta_gaussian_interval': self.meta_gaussian_interval,
+            'meta_hookean': self.meta_hookean,
+            'meta_hookean_force_constant': self.meta_hookean_force_constant,
+            'meta_temperature': self.meta_temperature,
+            'meta_time_step': self.meta_time_step,
+            'meta_simulation_time': self.meta_simulation_time,
+            'meta_save_interval': self.meta_save_interval,
+            'meta_langevin_friction': self.meta_langevin_friction,
+            'meta_initial_velocities': self.meta_initial_velocities,
+            'meta_initial_temperature': self.meta_initial_temperature,
+        }
 
     def run_system(self, system):
         """

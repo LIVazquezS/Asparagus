@@ -164,16 +164,6 @@ class Sampler:
 
         self.assign_calculator()
 
-        #####################################
-        # # # Initialize Sample DataSet # # #
-        #####################################
-
-        self.sample_dataset = data.DataSet(
-            self.sample_data_file,
-            self.sample_properties,
-            self.sample_unit_properties,
-            data_overwrite=True)
-
     def read_systems(self):
         """
         Read sample system files and return list of respective
