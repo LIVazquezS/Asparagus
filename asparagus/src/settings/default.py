@@ -125,11 +125,11 @@ _default_args = {
     'trainer_dropout_rate':         0.0,
     'trainer_evaluate_testset':     True,
     'trainer_max_checkpoints':      10,
-    'trainer_store_neighbor_list':  True,
+    'trainer_store_neighbor_list':  False,
     # Tester
     'test_datasets':                ['test'],
     'tester_properties':            None,
-    'test_store_neighbor_list':     True,
+    'test_store_neighbor_list':     False,
     # Sampler
     'sample_directory':             '',
     'sample_data_file':             'sample.db',

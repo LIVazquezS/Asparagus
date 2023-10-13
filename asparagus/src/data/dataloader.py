@@ -176,20 +176,20 @@ class DataLoader(torch.utils.data.DataLoader):
         
         Returns
         -------
-            dict
-                Collated data batch with additional properties
-                Properties:
-                    atoms_number: (Natoms,) torch.Tensor
-                    atomic_numbers: (Natoms,) torch.Tensor
-                    positions: (Natoms, 3) torch.Tensor
-                    forces: (Natoms, 3) torch.Tensor
-                    energy: (Natoms,) torch.Tensor
-                    charge: (Natoms,) torch.Tensor
-                    atoms_seg: (Natoms,) torch.Tensor
-                    idx_i: (Npairs,) torch.Tensor
-                    idx_j: (Npairs,) torch.Tensor
-                    pbc_offset: (Npairs, 3) torch.Tensor
-                    pairs_seg: (Npairs,) torch.Tensor
+        dict
+            Collated data batch with additional properties
+            Properties:
+                atoms_number: (Natoms,) torch.Tensor
+                atomic_numbers: (Natoms,) torch.Tensor
+                positions: (Natoms, 3) torch.Tensor
+                forces: (Natoms, 3) torch.Tensor
+                energy: (Natoms,) torch.Tensor
+                charge: (Natoms,) torch.Tensor
+                atoms_seg: (Natoms,) torch.Tensor
+                idx_i: (Npairs,) torch.Tensor
+                idx_j: (Npairs,) torch.Tensor
+                pbc_offset: (Npairs, 3) torch.Tensor
+                pairs_seg: (Npairs,) torch.Tensor
 
         """
 

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['DataBase', 'connect']
 
-def connect(data_file, data_lock_file=True):
+def connect(data_file, mode='r', lock_file=True):
     """
     Create connection to database.
 
@@ -27,7 +27,9 @@ def connect(data_file, data_lock_file=True):
     ----------
         data_file: str
             Database file path
-        data_lock_file: bool
+        mode: str
+            Mode to open file ('r': just reading, 'w': writing, 'a': appending)
+        lock_file: bool
             Use a lock file
             
     Returns
@@ -35,8 +37,10 @@ def connect(data_file, data_lock_file=True):
         object
             Database interface object
     """
+    #return data.DataBase_hdf5(
+        #data_file, mode)
     return data.DataBase_SQLite3(
-        data_file, data_lock_file)
+        data_file, lock_file)
 
 
 class DataBase:
@@ -189,6 +193,8 @@ class DataBase:
             Returns entry of the selection.
         """
         
+        if utils.is_integer(selection):
+            selection = [selection]
         return self._get(selection, **kwargs)
 
     def _get(self, selection, **kwargs):

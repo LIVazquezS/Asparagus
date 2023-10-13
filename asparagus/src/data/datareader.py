@@ -158,15 +158,18 @@ class DataReader():
         """
 
         # Check if data source is empty
-        with data.connect(data_source) as db:
-            Ndata = db.count()
+        if os.path.isfile(data_source):
+            with data.connect(data_source, mode='r') as db:
+                Ndata = db.count()
+        else:
+            Ndata = 0
         if Ndata == 0:
             logger.warning(
                 f"WARNING:\nData source '{data_source:s}' is empty!")
             return
 
         # Get data sample to compare property labels
-        with data.connect(data_source) as db:
+        with data.connect(data_source, mode='r') as db:
             data_sample = db.get(1)[0]
 
         # Check alternative property labels
@@ -212,7 +215,7 @@ class DataReader():
                 + f"in database '{data_source}'!\n")
 
         # Get data source metadata
-        with data.connect(data_source) as db:
+        with data.connect(data_source, mode='r') as db:
             source_metadata = db.get_metadata()
 
         # Property match summary and unit conversion
@@ -291,7 +294,7 @@ class DataReader():
         logger.info(message)
 
         # Open source dataset
-        db_source = data.connect(data_source)
+        db_source = data.connect(data_source, mode='r')
 
         # If not dataset file is given, load source data to memory
         if self.data_file is None:
@@ -337,7 +340,7 @@ class DataReader():
             # Add atom systems to database
             all_atoms_properties = self.data_file
             atoms_properties = {}
-            with data.connect(self.data_file) as db:
+            with data.connect(self.data_file, mode='a') as db:
 
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database " +
@@ -564,7 +567,7 @@ class DataReader():
             # Add atom systems to database
             all_atoms_properties = self.data_file
             atoms_properties = {}
-            with data.connect(self.data_file) as db:
+            with data.connect(self.data_file, mode='a') as db:
 
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database " +
@@ -899,7 +902,7 @@ class DataReader():
             # Add atom systems to database
             all_atoms_properties = self.data_file
             atoms_properties = {}
-            with data.connect(self.data_file) as db:
+            with data.connect(self.data_file, mode='a') as db:
 
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database "
@@ -1023,7 +1026,7 @@ class DataReader():
             # Atoms system data
             atoms_properties = {}
 
-            with data.connect(self.data_file) as db:
+            with data.connect(self.data_file, mode='a') as db:
 
                 # Fundamental properties
                 atoms_properties['atoms_number'] = (

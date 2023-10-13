@@ -217,7 +217,7 @@ class DataBase_SQLite3(data.DataBase):
     def __init__(
         self, 
         data_file: str,
-        data_lock_file: bool,
+        lock_file: bool,
     ):
         """
         SQLite3 dataBase object that contain reference data.
@@ -228,7 +228,7 @@ class DataBase_SQLite3(data.DataBase):
         ----------
         data_file: str
             Reference database file
-        data_lock_file: bool
+        lock_file: bool
             Use a lock file when manipulating the database to prevent
             parallel manipulation by multiple processes.
                 
@@ -242,7 +242,7 @@ class DataBase_SQLite3(data.DataBase):
         super().__init__(data_file)
         
         # Prepare data locker
-        if data_lock_file and utils.is_string(data_file):
+        if lock_file and utils.is_string(data_file):
             self.lock = Lock(data_file + '.lock', world=DummyMPI())
         else:
             self.lock = None
@@ -381,7 +381,7 @@ class DataBase_SQLite3(data.DataBase):
         
         # Get row of selection
         row = list(self.select(selection, **kwargs))
-
+        
         # Check selection results
         if row is None:
             raise KeyError('no match')

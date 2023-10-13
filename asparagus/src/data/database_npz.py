@@ -58,7 +58,7 @@ class DataBase_npz(data.DataBase):
     def __init__(
         self, 
         data_file, 
-        data_lock_file
+        lock_file
     ):
         """
         Numpy Database object that contain reference data.
@@ -67,7 +67,7 @@ class DataBase_npz(data.DataBase):
         ----------
             data_file: str
                 Reference database file
-            data_lock_file: bool
+            lock_file: bool
                 Use a lock file when manipulating the database to prevent
                 parallel manipulation by multiple processes.
                 
@@ -78,7 +78,7 @@ class DataBase_npz(data.DataBase):
         """
         
         # Inherit from DataBase base class
-        super().__init__(data_file, data_lock_file)
+        super().__init__(data_file, lock_file)
         
         return
     

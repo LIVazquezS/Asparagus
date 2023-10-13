@@ -104,8 +104,11 @@ class DataSet():
         self,
     ) -> int:
 
-        with data.connect(self.data_file) as db:
-            return db.count()
+        if os.path.isfile(self.data_file):
+            with data.connect(self.data_file) as db:
+                return db.count()
+        else:
+            return 0
 
     def __getitem__(
         self,
@@ -154,7 +157,7 @@ class DataSet():
         idx: int,
     ) -> Dict[str, torch.tensor]:
 
-        with data.connect(self.data_file) as db:
+        with data.connect(self.data_file, mode='r') as db:
             row = db.get(idx + 1)[0]
 
         return row
@@ -165,7 +168,7 @@ class DataSet():
         properties: List[Dict[str, torch.tensor]],
     ):
 
-        with data.connect(self.data_file) as db:
+        with data.connect(self.data_file, mode='a') as db:
             for idx, props in zip(idcs, properties):
                 row_id = db.write(props, row_id=idx + 1)
 
@@ -190,7 +193,7 @@ class DataSet():
         properties: List[Dict[str, torch.tensor]],
     ):
 
-        with data.connect(self.data_file) as db:
+        with data.connect(self.data_file, mode='a') as db:
             for idx, props in zip(idcs, properties):
                 row_id = db.update(row_id=idx + 1, properties=props)
 
@@ -214,7 +217,7 @@ class DataSet():
             data_file = self.data_file
 
         # Read metadata from database file
-        with data.connect(data_file) as db:
+        with data.connect(data_file, mode='r') as db:
             return db.get_metadata()
 
     def set_metadata(
@@ -235,7 +238,7 @@ class DataSet():
             metadata = self.metadata
 
         # Set metadata
-        with data.connect(data_file) as db:
+        with data.connect(data_file, mode='a') as db:
             db.set_metadata(metadata)
 
     def check_metadata(
@@ -272,7 +275,7 @@ class DataSet():
             data_file = self.data_file
 
         # Get metadata from dataset
-        if os.path.exists(data_file):
+        if os.path.isfile(data_file):
             metadata = self.get_metadata(data_file)
         else:
             metadata = {}
@@ -415,7 +418,7 @@ class DataSet():
 
         # Initialize database
         self.set_metadata(data_file=data_file, metadata=metadata)
-        with data.connect(data_file) as db:
+        with data.connect(data_file, mode='a') as db:
             db.init_systems()
 
     def load(

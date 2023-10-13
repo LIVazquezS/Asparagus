@@ -281,7 +281,7 @@ class DataContainer():
 
         # Check data set parameters
         if os.path.isfile(self.data_file):
-            with data.connect(self.data_file) as db:
+            with data.connect(self.data_file, mode='r') as db:
                 Ndata = db.count()
             if not Ndata:
                 logger.warning(

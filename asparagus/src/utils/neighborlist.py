@@ -111,7 +111,7 @@ class ASENeighborList(NeighborList):
             
             # Atom system selection
             select = atoms_seg==iseg
-            
+
             # Generate ASE Atoms object
             seg_atoms = Atoms(
                 numbers=atomic_numbers[select], 
