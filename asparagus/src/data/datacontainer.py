@@ -66,7 +66,7 @@ class DataContainer():
             Unit of the atom positions ('Ang' or 'Bohr') and other unit
             cell information.
         data_load_properties: List(str), optional,
-                default ['energy', 'forces', 'charge', 'dipole']
+                default ['energy', 'forces', 'dipole']
             Set of properties to store in the DataSet
         data_unit_properties: dictionary, optional, default {'energy':'eV'}
             Dictionary from properties (keys) to corresponding unit as a
@@ -279,8 +279,8 @@ class DataContainer():
         # # # Check DataSet # # #
         #########################
 
-        # Check data set parameters
-        if os.path.isfile(self.data_file):
+        # Check data set parameters if file does not get overwritten
+        if not self.data_overwrite and os.path.isfile(self.data_file):
             with data.connect(self.data_file, mode='r') as db:
                 Ndata = db.count()
             if not Ndata:
@@ -552,7 +552,10 @@ class DataContainer():
             property_scaling[prop] = [0.0, 0.0]
 
         # Check property scaling status
-        if metadata['data_uptodate_property_scaling'] and not overwrite:
+        if (
+            metadata.get('data_uptodate_property_scaling') is not None 
+            and not overwrite
+        ):
             return metadata.get('data_property_scaling')
 
         # Iterate over training data properties and compute property mean

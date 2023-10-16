@@ -109,7 +109,11 @@ class MetaSampler(sample.Sampler):
             Meta(-Dynamics) Sampler class object
         """
         
-        super().__init__(**kwargs)
+        # Sampler class label
+        self.sample_tag = 'meta'
+        
+        # Initialize parent class
+        super().__init__(sample_tag=self.sample_tag, **kwargs)
         
         ##################################
         # # # Check Meta Class Input # # #
@@ -147,20 +151,6 @@ class MetaSampler(sample.Sampler):
 
         # Update global configuration dictionary
         #self.config.update(config_update)
-        
-        # Sampler class label
-        self.sample_tag = 'meta'
-        
-        # Check sample data file
-        if self.sample_data_file is None:
-            self.sample_data_file = os.path.join(
-                self.sample_directory, 
-                f'{self.sample_counter:d}_{self.sample_tag:s}.db')
-        elif not utils.is_string(self.sample_data_file):
-            raise ValueError(
-                f"Sample data file 'sample_data_file' must be a string " +
-                f"of a valid file path but is of type " + 
-                f"'{type(self.sample_data_file)}'.")
         
         # Get number of collective variables
         Ncv = len(self.meta_cv)
@@ -221,8 +211,7 @@ class MetaSampler(sample.Sampler):
                     raise ValueError(
                         f"Atom index {ii:d} in Hookean constraint number " +
                         f"{ihk:d} is not an integer but of type {type(idx)}!")
-        
-        
+
         # Define log file paths
         self.meta_simulation_log_file = os.path.join(
             self.sample_directory, 
@@ -249,13 +238,13 @@ class MetaSampler(sample.Sampler):
             self.sample_data_file,
             self.sample_properties,
             self.sample_unit_properties,
-            data_overwrite=True)
+            data_overwrite=self.sample_data_overwrite)
 
     def get_info(self):
         
         return {
-            'sample_directory': self.sample_directory,
             'sample_data_file': self.sample_data_file,
+            'sample_directory': self.sample_directory,
             'sample_systems': self.sample_systems,
             'sample_systems_format': self.sample_systems_format,
             'sample_calculator': self.sample_calculator_tag,
@@ -263,6 +252,7 @@ class MetaSampler(sample.Sampler):
             'sample_properties': self.sample_properties,
             'sample_systems_optimize': self.sample_systems_optimize,
             'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
+            'sample_data_overwrite': self.sample_data_overwrite,
             'meta_cv': self.meta_cv,        
             'meta_gaussian_height': self.meta_gaussian_height,
             'meta_gaussian_widths': self.meta_gaussian_widths,

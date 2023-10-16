@@ -30,8 +30,8 @@ class Sampler:
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
-        sample_directory: Optional[str] = None,
         sample_data_file: Optional[str] = None,
+        sample_directory: Optional[str] = None,
         sample_systems: Optional[Union[str, List[str], object]] = None,
         sample_systems_format: Optional[Union[str, List[str]]] = None,
         sample_calculator: Optional[Union[str, object]] = None,
@@ -39,6 +39,8 @@ class Sampler:
         sample_properties: Optional[List[str]] = None,
         sample_systems_optimize: Optional[bool] = None,
         sample_systems_optimize_fmax: Optional[float] = None,
+        sample_data_overwrite: Optional[bool] = None,
+        sample_tag: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -50,13 +52,14 @@ class Sampler:
         config: (str, dict, object)
             Either the path to json file (str), dictionary (dict) or
             settings.config class object of model parameters
-        sample_directory: str, optional, default ''
-            Working directory where to store the database file of the sampled
-            system data, eventually temporary ASE calculator files,
-            ASE trajectory files and/or model calculator files.
-        sample_data_file: str, optional, default 'sample.db'
+        sample_data_file: str, optional, default None
             Database file name to store a selected set of systems with
-            computed reference data.
+            computed reference data. If None, data file name is the respective
+            sample method tag plus the '.db' ending.            
+        sample_directory: str, optional, default None
+            Working directory where to store eventually temporary ASE 
+            calculator files, ASE trajectory files and/or model calculator 
+            files. If None, files will be stored in parent directory.
         sample_systems: (str, list, object), optional, default ''
             System coordinate file or a list of system coordinate files or
             ASE atoms objects that are considered as initial conformations for
@@ -84,6 +87,12 @@ class Sampler:
         sample_systems_optimize_fmax: float, optional, default 0.01
             Instruction flag, if the system coordinates shall be
             optimized using the ASE calculator defined by 'sample_calculator'.
+        sample_data_overwrite: bool, optional, default False
+            If False, add new sampling data to an eventually existing data
+            file. If True, overwrite an existing one.
+        sample_tag: str, optional, default 'sample'
+            Sampling method tag of the specific sampling methods for
+            log and ASE trajectory files or the data file name if not defined.
 
         Returns
         -------
@@ -149,9 +158,20 @@ class Sampler:
         self.config = config
 
         # Generate working directory
-        if not os.path.exists(self.sample_directory):
+        if self.sample_directory is None or not len(self.sample_directory):
+            self.sample_directory = '.'
+        elif not os.path.exists(self.sample_directory):
             os.makedirs(self.sample_directory)
 
+        # Check sample data file
+        if self.sample_data_file is None:
+            self.sample_data_file = f'{self.sample_tag:s}.db'
+        elif not utils.is_string(self.sample_data_file):
+            raise ValueError(
+                f"Sample data file 'sample_data_file' must be a string " +
+                f"of a valid file path but is of type " + 
+                f"'{type(self.sample_data_file)}'.")
+        
         ###########################
         # # # Prepare Systems # # #
         ###########################

@@ -62,7 +62,7 @@ class DataSet():
         data_file: str
             Reference Asparagus database file
         load_properties: List(str)optional, default None
-            Subset of properties to load
+            Subset of properties to load.
         unit_properties: dict, optional, default None
             Dictionary from properties (keys) to corresponding unit as a
             string (item), e.g.:
@@ -304,6 +304,23 @@ class DataSet():
         Check and merge loaded property definition of metadata and input
         """
 
+        # Compatibility check from previous version to remove eventually
+        # 'positions' or 'charge' from loaded properties as they are stored in
+        # the database by default. Also remove from 'load_properties' list for
+        # the same reason.
+        if metadata.get('load_properties') is not None:
+            metadata['load_properties'] = list(metadata['load_properties'])
+            if 'positions' in metadata['load_properties']:
+                metadata['load_properties'].remove('positions')
+            if 'charge' in metadata['load_properties']:
+                metadata['load_properties'].remove('charge')
+        if load_properties is not None:
+            load_properties = list(load_properties)
+            if 'positions' in load_properties:
+                load_properties.remove('positions')
+            if 'charge' in load_properties:
+                load_properties.remove('charge')
+
         # Get loaded properties from metadata
         meta_load_properties = metadata.get('load_properties')
 
@@ -314,7 +331,7 @@ class DataSet():
                 + "by the dataset.")
         # If metadata is not defined put input - take input
         elif load_properties is not None and meta_load_properties is None:
-            metadata['load_properties'] = load_properties
+            metadata['load_properties'] = list(load_properties)
         # If metadata is defined, but input is not - take metadata (useless)
         elif load_properties is None and meta_load_properties is not None:
             load_properties = metadata['load_properties']
@@ -363,22 +380,39 @@ class DataSet():
                 if meta_unit_properties.get(prop) is None:
                     metadata['unit_properties'][prop] = item
                     check_units.append(False)
-                elif meta_unit_properties.get(prop) != item:
-                    message = (
-                        f"WARNING:\nDeviation in property unit for '{prop}' "
-                        + "between input 'unit_properties' and metadata in "
-                        + f"dataset '{self.data_file}'!\n"
-                        + " dataset metadata: "
-                        + f"'{metadata['unit_properties'][prop]}'\n"
-                        + f" Current input: '{item}'")
-                    if overwrite_unit_properties:
-                        check_units.append(False)
-                        message += "\nDataset unit is overwritten!"
-                    else:
-                        check_units.append(True)
-                    logger.warning(message)
                 else:
-                    check_units.append(False)
+                    conversion, match = utils.check_units(
+                        meta_unit_properties.get(prop), item)
+                    if match:
+                        check_units.append(False)
+                    elif conversion==1.0:
+                        message = (
+                            "INFO:\nDeviation in property unit labels for "
+                            + f"'{prop}' between input 'unit_properties' and "
+                            + f"metadata in dataset '{self.data_file}', but "
+                            + "with conversion factor of 1.0!\n"
+                            + " Dataset metadata: "
+                            + f"'{metadata['unit_properties'][prop]}'\n"
+                            + f" Current input: '{item}'\n")
+                        logger.info(message)
+                        check_units.append(False)
+                    else:
+                        message = (
+                            f"Deviation in property unit for '{prop}' "
+                            + "between input 'unit_properties' and metadata"
+                            + f"in dataset '{self.data_file}'!\n"
+                            + " Dataset metadata: "
+                            + f"'{metadata['unit_properties'][prop]}'\n"
+                            + f" Current input: '{item}'\n")
+                        if overwrite_unit_properties:
+                            check_units.append(False)
+                            message = "WARNING:\n" + message
+                            message += "Dataset unit is overwritten!\n"
+                            logger.warning(message)
+                        else:
+                            check_units.append(True)
+                            message = "ERROR:\n" + message
+                            logger.error(message)
             if any(check_units):
                 raise ValueError(
                     "Property units in existing dataset file "

@@ -40,7 +40,11 @@ class MCSampler(sample.Sampler):
             **kwargs,
     ):
 
-        super().__init__(**kwargs)
+        # Sampler class label
+        self.sample_tag = 'mc'
+
+        # Initialize parent class
+        super().__init__(sample_tag=self.sample_tag, **kwargs)
 
         ################################
         # # # Check MC Class Input # # #
@@ -79,20 +83,6 @@ class MCSampler(sample.Sampler):
         # Update global configuration dictionary
         # self.config.update(config_update)
 
-        # Sampler class label
-        self.sample_tag = 'mc'
-
-        # Check sample data file
-        if self.sample_data_file is None:
-            self.sample_data_file = os.path.join(
-                self.sample_directory,
-                f'{self.sample_counter:d}_{self.sample_tag:s}.db')
-        elif not utils.is_string(self.sample_data_file):
-            raise ValueError(
-                f"Sample data file 'sample_data_file' must be a string " +
-                f"of a valid file path but is of type " +
-                f"'{type(self.sample_data_file)}'.")
-
         # Define MC log file path
         self.mc_log_file = os.path.join(
             self.sample_directory,
@@ -116,15 +106,15 @@ class MCSampler(sample.Sampler):
             self.sample_data_file,
             self.sample_properties,
             self.sample_unit_properties,
-            data_overwrite=True)
+            data_overwrite=self.sample_data_overwrite)
 
         return
 
     def get_info(self):
 
         return {
-            'sample_directory': self.sample_directory,
             'sample_data_file': self.sample_data_file,
+            'sample_directory': self.sample_directory,
             'sample_systems': self.sample_systems,
             'sample_systems_format': self.sample_systems_format,
             'sample_calculator': self.sample_calculator_tag,
@@ -132,6 +122,7 @@ class MCSampler(sample.Sampler):
             'sample_properties': self.sample_properties,
             'sample_systems_optimize': self.sample_systems_optimize,
             'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
+            'sample_data_overwrite': self.sample_data_overwrite,
             'mc_temperature': self.mc_temperature,
             'mc_time_step': self.mc_time_step,
             'mc_simulation_time': self.mc_simulation_time,
