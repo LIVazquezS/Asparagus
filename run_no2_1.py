@@ -2,11 +2,13 @@ from asparagus import DataContainer
 
 from asparagus import Asparagus
 
+data_format = "h5"
+
 if True:
 
     data = DataContainer(
         config='no2_config.json',
-        data_file='data/no2_1.db',
+        data_file='data/no2_1.{:s}'.format(data_format),
         data_source=[
             'data/data_NO2_1.npz'],
         data_load_properties=[
@@ -17,11 +19,16 @@ if True:
             'dipole':   'e*Ang'},
         data_overwrite=True)
 
+    #print(data.train_set.get(1))
+    #for item in data.train_loader:
+        #print(item)
+        #exit()
+
 if True:
 
     model = Asparagus(
         config='no2_config.json',
-        data_file='data/no2_1.db',
+        data_file='data/no2_1.{:s}'.format(data_format),
         model_directory="model_NO2_1",
         model_interaction_cutoff=12.0,
         model_cutoff_width=2.0,

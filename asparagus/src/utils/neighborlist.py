@@ -105,7 +105,7 @@ class ASENeighborList(NeighborList):
         else:
             is_pbc = False
             pbc_offset = None
-    
+
         # Iterate over system segments
         for iseg, idx_off in enumerate(atomic_numbers_cumsum):
             
@@ -144,7 +144,7 @@ class ASENeighborList(NeighborList):
         idx_j = torch.cat(idx_j, dim=0).to(dtype=atomic_numbers.dtype)
         if is_pbc:
             pbc_offset = torch.cat(pbc_offset, dim=0).to(dtype=positions.dtype)
-        
+
         return idx_i, idx_j, pbc_offset
 
 

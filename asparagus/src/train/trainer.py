@@ -483,10 +483,10 @@ class Trainer:
         # Set maximum model cutoff for neighbor list calculation
         self.data_train.init_neighbor_list(
             cutoff=self.model_calculator.model_interaction_cutoff,
-            store=True)
+            store=self.trainer_store_neighbor_list)
         self.data_valid.init_neighbor_list(
             cutoff=self.model_calculator.model_interaction_cutoff,
-            store=True)
+            store=self.trainer_store_neighbor_list)
 
         ##########################
         # # # Start Training # # #

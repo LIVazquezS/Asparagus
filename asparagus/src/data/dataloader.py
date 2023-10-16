@@ -196,8 +196,8 @@ class DataLoader(torch.utils.data.DataLoader):
         # Collected batch system properties
         coll_batch = {}
 
-        # Get batch batch_size
-        Nbatch = len(batch)
+        # Get batch size a.k.a. number of systems
+        Nsys = len(batch)
 
         # Get atoms number per system segment
         coll_batch['atoms_number'] = torch.tensor(
@@ -205,16 +205,20 @@ class DataLoader(torch.utils.data.DataLoader):
 
         # System segment index of atom i
         coll_batch['atoms_seg'] = torch.repeat_interleave(
-            torch.arange(Nbatch, dtype=torch.int64), 
+            torch.arange(Nsys, dtype=torch.int64), 
             repeats=coll_batch['atoms_number'], dim=0)
-        
+
         # Atomic numbers properties
         coll_batch['atomic_numbers'] = torch.cat(
             [b['atomic_numbers'] for b in batch], 0).to(torch.int64)
 
         # Periodic boundary conditions
         coll_batch['pbc'] = torch.cat(
-            [b['pbc'] for b in batch], 0).to(torch.bool)
+            [b['pbc'] for b in batch], 0).to(torch.bool).reshape(Nsys, 3)
+
+        # Unit cell sizes
+        coll_batch['cell'] = torch.cat(
+            [b['cell'] for b in batch], 0).reshape(Nsys, -1)
 
         # Get segment size cumulative sum if pair parameter are available
         if batch[0].get('idx_i') is not None:
@@ -230,7 +234,7 @@ class DataLoader(torch.utils.data.DataLoader):
             
             # Skip previous parameter and None
             if (
-                    prop_i in ['atoms_number', 'atomic_numbers', 'pbc']
+                    prop_i in ['atoms_number', 'atomic_numbers', 'pbc', 'cell']
                     or batch[0].get(prop_i) is None
             ):
 
@@ -249,6 +253,7 @@ class DataLoader(torch.utils.data.DataLoader):
                         dim=0).to(torch.int64)
 
                 except AttributeError:
+
                     raise AttributeError(
                         "Most likely, pair indices of one data frame is None, "
                         + "because the data seed or dataset has changed after "
@@ -280,7 +285,7 @@ class DataLoader(torch.utils.data.DataLoader):
 
         # System segment index of atom pair i,j
         idx_seg = torch.repeat_interleave(
-            torch.arange(Nbatch, dtype=torch.int64), repeats=Npairs, dim=0)
+            torch.arange(Nsys, dtype=torch.int64), repeats=Npairs, dim=0)
 
         # Add atom pairs segment index to collective batch
         coll_batch['pairs_seg'] = idx_seg
