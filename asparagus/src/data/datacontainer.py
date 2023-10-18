@@ -553,7 +553,8 @@ class DataContainer():
 
         # Check property scaling status
         if (
-            metadata.get('data_uptodate_property_scaling') is not None 
+            metadata.get('data_uptodate_property_scaling') is not None
+            and metadata['data_uptodate_property_scaling']
             and not overwrite
         ):
             return metadata.get('data_property_scaling')

@@ -2,7 +2,7 @@ from asparagus import DataContainer
 
 from asparagus import Asparagus
 
-data_format = "h5"
+data_format = "db"
 
 if True:
 
