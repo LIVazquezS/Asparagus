@@ -66,8 +66,8 @@ structure_properties_dtype = {
     'idx_j':            np.int32,
     'pbc_offset':       np.float32,
 }
-properties_numpy_dtype = np.float32
-properties_torch_dtype = torch.float32
+properties_numpy_dtype = np.float64
+properties_torch_dtype = torch.float64
 
 # Structural property labels and array shape
 structure_properties_shape = {

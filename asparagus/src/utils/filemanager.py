@@ -273,7 +273,7 @@ class FileManager():
 
         # Delete in case the lowest checkpoint files
         if len(num_checkpoints) >= max_checkpoints:
-            for ckpt_num in num_checkpoints[:-(max_checkpoints - 1)]:
+            for ckpt_num in num_checkpoints[:-max_checkpoints]:
                 ckpt_name = os.path.join(
                     self.ckpt_dir, f'model_{ckpt_num:d}.pt')
                 os.remove(ckpt_name)

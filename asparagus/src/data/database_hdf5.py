@@ -35,7 +35,7 @@ structure_properties_dtype = {
     'idx_j':            np.int32,
     'pbc_offset':       np.float32,
 }
-properties_numpy_dtype = np.float32
+properties_numpy_dtype = np.float64
 
 # Structural property labels and array shape
 structure_properties_shape = {
@@ -104,14 +104,6 @@ class DataBase_hdf5(data.DataBase):
         if self.data.get('metadata') is not None:
             del self.data['metadata']
         self.data['metadata'] = md
-        
-        ## Update or set metadata
-        #if self.data.get('metadata') is None:
-            #self.data.create_group('metadata')
-        #for key, item in md.items():
-            #if key in self.data['metadata']:
-                #del self.data['metadata'][key]
-            #self.data['metadata'][key] = item
 
         return
     

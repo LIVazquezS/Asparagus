@@ -37,10 +37,10 @@ def connect(data_file, mode='r', lock_file=True):
         object
             Database interface object
     """
-    return data.DataBase_hdf5(
-        data_file, mode)
-    #return data.DataBase_SQLite3(
-        #data_file, lock_file)
+    #return data.DataBase_hdf5(
+        #data_file, mode)
+    return data.DataBase_SQLite3(
+        data_file, lock_file)
 
 
 class DataBase:

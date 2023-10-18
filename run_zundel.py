@@ -99,7 +99,7 @@ if True:
         )
     
     calc = model.get_ase_calculator()
-    zundel = ase.io.read("data/zundel_h7o3.xyz")
+    zundel = ase.io.read("data/zundel_h5o2.xyz")
     zundel.calc = calc
     
     dyn = BFGS(zundel)
