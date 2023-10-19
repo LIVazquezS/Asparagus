@@ -254,8 +254,9 @@ class Calculator_PhysNet(torch.nn.Module):
 
         elif self.model_electrostatic and not self.model_dipole:
 
-            raise ValueError(
-                "PhysNet model cannot provide electrostatic contribution "
+            logger.warning(
+                "WARNING:\n"
+                + "PhysNet model cannot provide electrostatic contribution "
                 + "to the atomic energies without the prediction of "
                 + "atomic charges or dipole moment via atomic charges!")
 

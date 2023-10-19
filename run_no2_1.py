@@ -4,7 +4,7 @@ from asparagus import Asparagus
 
 data_format = "db"
 
-if True:
+if False:
 
     data = DataContainer(
         config='no2_config.json',
@@ -38,7 +38,7 @@ if True:
         trainer_max_epochs=100_000,
         trainer_properties_weights={'energy': 50., 'dipole': 1.}
         )
-    model.train()
+    #model.train()
     model.test(
         test_datasets='all',
         test_directory=model.get('model_directory'))
