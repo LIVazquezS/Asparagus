@@ -93,12 +93,21 @@ if True:
     from ase.io.trajectory import Trajectory
     import ase.units as units
     
-    model = Asparagus(
-        config="model_zundel/config.json",
-        model_directory="model_zundel"
+    #model = Asparagus(
+        #config="model_zundel/config.json",
+        #model_directory="model_zundel"
+        #)
+    #calc = model.get_ase_calculator()
+    
+    from asparagus.src.debug import ORCA_Dipole
+    calc = ORCA_Dipole(
+        charge=1,
+        mult=1,
+        orcasimpleinput='RI PBE D3BJ def2-SVP def2/J TightSCF',
+        orcablocks='%pal nprocs 4 end',
+        directory='orca',
         )
     
-    calc = model.get_ase_calculator()
     zundel = ase.io.read("data/zundel_h5o2.xyz")
     zundel.calc = calc
     
@@ -106,7 +115,7 @@ if True:
     dyn.run(fmax=0.01)
     
     view(zundel)
-    
+    exit()
     vib = Vibrations(zundel)
     vib.clean()
     vib.run()
