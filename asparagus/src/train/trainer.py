@@ -447,17 +447,21 @@ class Trainer:
         # checkpoint file
         latest_checkpoint = self.filemanager.load_checkpoint(best=False)
 
+        self.trainer_epoch_start = 1
         if latest_checkpoint is not None:
+            # Assign model parameters
             self.model_calculator.load_state_dict(
                 latest_checkpoint['model_state_dict'])
-            self.trainer_optimizer.load_state_dict(
-                latest_checkpoint['optimizer_state_dict'])
-            self.trainer_scheduler.load_state_dict(
-                latest_checkpoint['scheduler_state_dict'])
-            self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
-        else:
-            self.trainer_epoch_start = 1
-
+            # Assign optimizer, scheduler and epoch parameter if available
+            if latest_checkpoint.get('optimizer_state_dict') is not None:
+                self.trainer_optimizer.load_state_dict(
+                    latest_checkpoint['optimizer_state_dict'])
+            if latest_checkpoint.get('scheduler_state_dict') is not None:
+                self.trainer_scheduler.load_state_dict(
+                    latest_checkpoint['scheduler_state_dict'])
+            if latest_checkpoint.get('epoch') is not None:
+                self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
+        
         # Initialize training mode for calculator
         # (torch.nn.Module function to activate, e.g., parameter dropout)
         self.model_calculator.train()

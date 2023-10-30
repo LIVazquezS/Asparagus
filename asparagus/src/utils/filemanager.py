@@ -161,13 +161,20 @@ class FileManager():
             with the lowest indices will be deleted.
         """
 
-        # Current model training state
-        state = {
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict(),
-            'epoch': epoch,
-            }
+        # For best model, just store model parameter
+        if best:
+            state = {
+                'model_state_dict': model.state_dict(),
+                'epoch': epoch,
+                }
+        # Else the complete current model training state
+        else:
+            state = {
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'epoch': epoch,
+                }
 
         # Checkpoint file name
         if best:

@@ -80,8 +80,9 @@ class DataBase_hdf5(data.DataBase):
         
         # Inherit from DataBase base class
         super().__init__(data_file)
+        self.data = None
         self.mode = mode
-        
+
         return
 
     def __enter__(self):
@@ -91,6 +92,7 @@ class DataBase_hdf5(data.DataBase):
     def __exit__(self, exc_type, exc_value, tb):
         if self.data.name:
             self.data.close()
+            self.data = None
         if exc_type is not None:
             raise exc_type
         return

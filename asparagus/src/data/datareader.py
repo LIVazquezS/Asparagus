@@ -293,9 +293,6 @@ class DataReader():
         # Print Source information
         logger.info(message)
 
-        # Open source dataset
-        db_source = data.connect(data_source, mode='r')
-
         # If not dataset file is given, load source data to memory
         if self.data_file is None:
 
@@ -304,50 +301,14 @@ class DataReader():
             logger.info(
                 f"INFO:\nLoad {Ndata} data point from '{data_source}'!\n")
 
-            for idx in range(Ndata):
+            # Open source dataset
+            with data.connect(data_source, mode='r') as db_source:
 
-                # Atoms system data
-                atoms_properties = {}
-
-                # Get atoms object and property data
-                source = db_source.get(idx + 1)[0]
-
-                # Fundamental properties
-                atoms_properties['atoms_number'] = source['atoms_number']
-                atoms_properties['atomic_numbers'] = source['atomic_numbers']
-                atoms_properties['positions'] = (
-                    unit_conversion['positions']*source['positions'])
-                atoms_properties['cell'] = (
-                    unit_conversion['positions']*source['cell'])
-                atoms_properties['pbc'] = source['pbc']
-                if 'charge' not in source.keys():
-                    atoms_properties['charge'] = 0.0
-                else:
-                    atoms_properties['charge'] = source['charge']
-
-                # Collect properties
-                for prop, item in assigned_properties.items():
-                    if prop in load_properties:
-                        atoms_properties[prop] = (
-                            unit_conversion[prop]*source[item])
-
-                # Add atoms system data
-                all_atoms_properties.append(atoms_properties)
-
-        # If dataset file is given, write to dataset
-        else:
-
-            # Add atom systems to database
-            all_atoms_properties = self.data_file
-            atoms_properties = {}
-            with data.connect(self.data_file, mode='a') as db:
-
-                logger.info(
-                    f"INFO:\nWriting '{data_source}' to database " +
-                    f"'{self.data_file}'!\n" +
-                    f"{Ndata} data point will be added.\n")
-
+                # Iterate over source data
                 for idx in range(Ndata):
+
+                    # Atoms system data
+                    atoms_properties = {}
 
                     # Get atoms object and property data
                     source = db_source.get(idx + 1)[0]
@@ -372,8 +333,54 @@ class DataReader():
                             atoms_properties[prop] = (
                                 unit_conversion[prop]*source[item])
 
-                    # Write to ASE database file
-                    db.write(properties=atoms_properties)
+                    # Add atoms system data
+                    all_atoms_properties.append(atoms_properties)
+
+        # If dataset file is given, write to dataset
+        else:
+
+            # Add atom systems to database
+            all_atoms_properties = self.data_file
+            atoms_properties = {}
+            with data.connect(self.data_file, mode='a') as db:
+
+                logger.info(
+                    f"INFO:\nWriting '{data_source}' to database " +
+                    f"'{self.data_file}'!\n" +
+                    f"{Ndata} data point will be added.\n")
+
+                # Open source dataset
+                with data.connect(data_source, mode='r') as db_source:
+
+                    # Iterate over source data
+                    for idx in range(Ndata):
+
+                        # Get atoms object and property data
+                        source = db_source.get(idx + 1)[0]
+
+                        # Fundamental properties
+                        atoms_properties['atoms_number'] = (
+                            source['atoms_number'])
+                        atoms_properties['atomic_numbers'] = (
+                            source['atomic_numbers'])
+                        atoms_properties['positions'] = (
+                            unit_conversion['positions']*source['positions'])
+                        atoms_properties['cell'] = (
+                            unit_conversion['positions']*source['cell'])
+                        atoms_properties['pbc'] = source['pbc']
+                        if 'charge' not in source.keys():
+                            atoms_properties['charge'] = 0.0
+                        else:
+                            atoms_properties['charge'] = source['charge']
+
+                        # Collect properties
+                        for prop, item in assigned_properties.items():
+                            if prop in load_properties:
+                                atoms_properties[prop] = (
+                                    unit_conversion[prop]*source[item])
+
+                        # Write to ASE database file
+                        db.write(properties=atoms_properties)
 
         # Print completion message
         logger.info(
@@ -512,9 +519,6 @@ class DataReader():
         # Print Source information
         logger.info(message)
 
-        # Open source dataset
-        db_source = ase_db.connect(data_source)
-
         # If not dataset file is given, load source data to memory
         if self.data_file is None:
 
@@ -523,58 +527,14 @@ class DataReader():
             logger.info(
                 f"INFO:\nLoad {Ndata} data point from '{data_source}'!\n")
 
-            for idx in range(Ndata):
+            # Open source dataset
+            with ase_db.connect(data_source) as db_source:
 
-                # Atoms system data
-                atoms_properties = {}
-
-                # Get atoms object and property data
-                atoms = db_source.get_atoms(idx + 1)
-                source = db_source.get(idx + 1)
-
-                # Fundamental properties
-                atoms_properties['atoms_number'] = (
-                    atoms.get_global_number_of_atoms())
-                atoms_properties['atomic_numbers'] = (
-                    atoms.get_atomic_numbers())
-                atoms_properties['positions'] = (
-                    unit_conversion['positions']*atoms.get_positions())
-                atoms_properties['cell'] = (
-                    unit_conversion['positions']
-                    * np.array(list(atoms.get_cell())))[0]
-                atoms_properties['pbc'] = atoms.get_pbc()
-                if 'charge' in source:
-                    atoms_properties['charge'] = source['charge']
-                elif 'charges' in source:
-                    atoms_properties['charge'] = sum(source['charges'])
-                elif 'initial_charges' in source:
-                    atoms_properties['charge'] = sum(source['initial_charges'])
-                else:
-                    atoms_properties['charge'] = 0.0
-
-                # Collect properties
-                for prop, item in assigned_properties.items():
-                    if prop in load_properties:
-                        atoms_properties[prop] = (
-                            unit_conversion[prop]*source[item])
-
-                # Add atoms system data
-                all_atoms_properties.append(atoms_properties)
-
-        # If dataset file is given, write to dataset
-        else:
-
-            # Add atom systems to database
-            all_atoms_properties = self.data_file
-            atoms_properties = {}
-            with data.connect(self.data_file, mode='a') as db:
-
-                logger.info(
-                    f"INFO:\nWriting '{data_source}' to database " +
-                    f"'{self.data_file}'!\n" +
-                    f"{Ndata} data point will be added.\n")
-
+                # Iterate over source data
                 for idx in range(Ndata):
+
+                    # Atoms system data
+                    atoms_properties = {}
 
                     # Get atoms object and property data
                     atoms = db_source.get_atoms(idx + 1)
@@ -589,7 +549,7 @@ class DataReader():
                         unit_conversion['positions']*atoms.get_positions())
                     atoms_properties['cell'] = (
                         unit_conversion['positions']
-                        * np.array(atoms.get_cell()))[0]
+                        * np.array(list(atoms.get_cell())))[0]
                     atoms_properties['pbc'] = atoms.get_pbc()
                     if 'charge' in source:
                         atoms_properties['charge'] = source['charge']
@@ -607,8 +567,61 @@ class DataReader():
                             atoms_properties[prop] = (
                                 unit_conversion[prop]*source[item])
 
-                    # Write to ASE database file
-                    db.write(properties=atoms_properties)
+                    # Add atoms system data
+                    all_atoms_properties.append(atoms_properties)
+
+        # If dataset file is given, write to dataset
+        else:
+
+            # Add atom systems to database
+            all_atoms_properties = self.data_file
+            atoms_properties = {}
+            with data.connect(self.data_file, mode='a') as db:
+
+                logger.info(
+                    f"INFO:\nWriting '{data_source}' to database " +
+                    f"'{self.data_file}'!\n" +
+                    f"{Ndata} data point will be added.\n")
+
+                # Open source dataset
+                with ase_db.connect(data_source) as db_source:
+
+                    # Iterate over source data
+                    for idx in range(Ndata):
+
+                        # Get atoms object and property data
+                        atoms = db_source.get_atoms(idx + 1)
+                        source = db_source.get(idx + 1)
+
+                        # Fundamental properties
+                        atoms_properties['atoms_number'] = (
+                            atoms.get_global_number_of_atoms())
+                        atoms_properties['atomic_numbers'] = (
+                            atoms.get_atomic_numbers())
+                        atoms_properties['positions'] = (
+                            unit_conversion['positions']*atoms.get_positions())
+                        atoms_properties['cell'] = (
+                            unit_conversion['positions']
+                            * np.array(atoms.get_cell()))[0]
+                        atoms_properties['pbc'] = atoms.get_pbc()
+                        if 'charge' in source:
+                            atoms_properties['charge'] = source['charge']
+                        elif 'charges' in source:
+                            atoms_properties['charge'] = sum(source['charges'])
+                        elif 'initial_charges' in source:
+                            atoms_properties['charge'] = sum(
+                                source['initial_charges'])
+                        else:
+                            atoms_properties['charge'] = 0.0
+
+                        # Collect properties
+                        for prop, item in assigned_properties.items():
+                            if prop in load_properties:
+                                atoms_properties[prop] = (
+                                    unit_conversion[prop]*source[item])
+
+                        # Write to ASE database file
+                        db.write(properties=atoms_properties)
 
         # Print completion message
         logger.info(
