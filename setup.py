@@ -19,6 +19,7 @@ setup(
         'numpy', 
         'tensorboard', 
         'torch', 
-        'torch-ema'] 
+        'torch-ema',
+        'xtb']
     #TODO: Add more dependencies and option to be read from a file
 )

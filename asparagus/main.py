@@ -43,7 +43,7 @@ class Asparagus(torch.nn.Module):
 
         job: str
             Define the kind of job to be performed by the NNP, e.g.,
-            'train', 'ase', 'pycharmm', ...
+            'train', 'ase', 'pycharmm', ... (Still defined?)
         config: (str, dict, object)
             Either the path to json file (str), dictionary (dict) or
             settings.config class object of model parameters
@@ -519,3 +519,107 @@ class Asparagus(torch.nn.Module):
             )
 
         return self.ase_calculator
+
+    def get_pycharmm_calculator(self,
+        # Total number of atoms
+        num_atoms: int,
+        # PhysNet atom indices
+        ml_atom_indices: List[int],
+        # PhysNet atom numbers
+        ml_atom_numbers: List[int],
+        # Fluctuating ML charges for ML-MM electrostatic interaction
+        ml_fluctuating_charges: List[float],
+        # System atom charges (All atoms)
+        ml_mm_atoms_charge: List[float],
+        # Total charge of the system
+        ml_total_charge: float,
+        #Cutoff for ML interactions
+        ml_cutoff: float,
+        # Cutoff for long range interactions
+        lr_cutoff: float,
+        # Cutoff distance for ML/MM electrostatic interactions
+        mlmm_rcut: float,
+        # Cutoff width for ML/MM electrostatic interactions
+        mlmm_width: float,
+        config: Optional[Union[str, dict, object]] = None,
+        config_file: Optional[str] = None,
+        model_checkpoint: Optional[int] = None,**kwargs):
+
+        """
+        Initialize PyCharmm calculator class object of the model calculator
+        """
+
+
+        ###########################################
+        # # # Check PyCharmm Calculator Input # # #
+        ###########################################
+
+        # Assign model parameter configuration library
+        if config is None:
+            config_pycharmm = settings.get_config(
+                self.config, config_file, **kwargs)
+        else:
+            config_pycharmm = settings.get_config(
+                config, config_file, **kwargs)
+
+        # Check model parameter configuration and set default
+        config_pycharmm.check()
+
+        # Check for empty config dictionary
+        if "model_directory" not in config_pycharmm:
+            raise SyntaxError(
+                "Configuration does not provide information for a model "
+                + "calculator. Please check the input in 'config'.")
+
+        ##################################
+        # # # Prepare NNP Calculator # # #
+        ##################################
+
+        # Assign NNP calculator
+        if self.model_calculator is None:
+            # Assign NNP calculator model
+            self.model_calculator = self._get_Calculator(
+                config_pycharmm,
+                **kwargs)
+
+        # Add calculator info to configuration dictionary
+        if hasattr(self.model_calculator, "get_info"):
+            config_pycharmm.update(
+                self.model_calculator.get_info(),
+                verbose=False)
+
+        # Initialize checkpoint file manager and load best model
+        filemanager = utils.FileManager(config_pycharmm, **kwargs)
+        if model_checkpoint is None:
+            latest_checkpoint = filemanager.load_checkpoint(best=True)
+        elif utils.is_integer(model_checkpoint):
+            latest_checkpoint = filemanager.load_checkpoint(
+                num_checkpoint=model_checkpoint)
+        else:
+            raise ValueError(
+                "Input 'model_checkpoint' must be either None to load best "
+                + "model checkpoint or an integer of a respective checkpoint "
+                + "file.")
+        self.model_calculator.load_state_dict(
+            latest_checkpoint['model_state_dict'])
+
+        ##################################
+        # # # Prepare ASE Calculator # # #
+        ##################################
+
+        self.pycharmm_calculator = interface.PyCharmm_Calculator(
+            self.model_calculator,
+            num_atoms=num_atoms,
+            ml_atom_indices=ml_atom_indices,
+            ml_atom_numbers=ml_atom_numbers,
+            ml_fluctuating_charges=ml_fluctuating_charges,
+            ml_mm_atoms_charge=ml_mm_atoms_charge,
+            ml_total_charge=ml_total_charge,
+            ml_cutoff=ml_cutoff,
+            lr_cutoff=lr_cutoff,
+            mlmm_rcut=mlmm_rcut,
+            mlmm_width=mlmm_width,
+            )
+
+        return self.pycharmm_calculator
+

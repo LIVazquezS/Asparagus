@@ -10,7 +10,7 @@ from .radial import (
     get_radial_fn
 )
 
-from .physnet import (
+from .physnet_module import (
     InteractionBlock, OutputBlock, ResidualLayer
 )
 

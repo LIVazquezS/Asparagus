@@ -36,7 +36,6 @@ def get_metadata(
         dict,
             Asparagus dataset metadata
     """
-
     if os.path.exists(data_file):
         return DataSet(data_file).get_metadata()
     else:

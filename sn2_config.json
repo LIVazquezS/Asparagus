@@ -1,0 +1,233 @@
+{
+    "config_file": "sn2_config.json",
+    "sample_directory": "sn2_samples",
+    "sample_systems": [
+        "data_sn2/pre_min.xyz"
+    ],
+    "sample_systems_format": "xyz",
+    "sample_calculator": "XTB",
+    "sample_calculator_args": {},
+    "sample_properties": [
+        "energy",
+        "forces",
+        "dipole"
+    ],
+    "sample_systems_optimize": false,
+    "sample_systems_optimize_fmax": 0.001,
+    "sample_data_overwrite": false,
+    "sample_tag": "meta",
+    "sampler_schedule": {
+        "1_meta": {
+            "sample_data_file": "meta.db",
+            "sample_directory": "sn2_samples",
+            "sample_systems": [
+                "data_sn2/fs_min.xyz"
+            ],
+            "sample_systems_format": [
+                "xyz"
+            ],
+            "sample_calculator": "XTB",
+            "sample_calculator_args": {},
+            "sample_properties": [
+                "energy",
+                "forces",
+                "dipole"
+            ],
+            "sample_systems_optimize": false,
+            "sample_systems_optimize_fmax": 0.001,
+            "sample_data_overwrite": false,
+            "meta_cv": [
+                [
+                    0,
+                    1
+                ],
+                [
+                    0,
+                    5
+                ]
+            ],
+            "meta_gaussian_height": 0.1,
+            "meta_gaussian_widths": [
+                0.2,
+                0.2
+            ],
+            "meta_gaussian_interval": 10,
+            "meta_hookean": [
+                [
+                    0,
+                    1,
+                    6.0,
+                    5.0
+                ],
+                [
+                    0,
+                    5,
+                    6.0,
+                    5.0
+                ]
+            ],
+            "meta_hookean_force_constant": 5.0,
+            "meta_temperature": 300,
+            "meta_time_step": 1.0,
+            "meta_simulation_time": 3000.0,
+            "meta_save_interval": 10,
+            "meta_langevin_friction": 1.0,
+            "meta_initial_velocities": true,
+            "meta_initial_temperature": 300.0
+        },
+        "sample_systems_idx": null,
+        "2_meta": {
+            "sample_data_file": "meta.db",
+            "sample_directory": "sn2_samples",
+            "sample_systems": [
+                "data_sn2/pre_min.xyz"
+            ],
+            "sample_systems_format": [
+                "xyz"
+            ],
+            "sample_calculator": "XTB",
+            "sample_calculator_args": {},
+            "sample_properties": [
+                "energy",
+                "forces",
+                "dipole"
+            ],
+            "sample_systems_optimize": false,
+            "sample_systems_optimize_fmax": 0.001,
+            "sample_data_overwrite": false,
+            "meta_cv": [
+                [
+                    "-",
+                    0,
+                    1,
+                    1,
+                    5
+                ]
+            ],
+            "meta_gaussian_height": 0.1,
+            "meta_gaussian_widths": [
+                0.2
+            ],
+            "meta_gaussian_interval": 10,
+            "meta_hookean": [
+                [
+                    0,
+                    5,
+                    6.0,
+                    5.0
+                ]
+            ],
+            "meta_hookean_force_constant": 5.0,
+            "meta_temperature": 300,
+            "meta_time_step": 1.0,
+            "meta_simulation_time": 5000.0,
+            "meta_save_interval": 10,
+            "meta_langevin_friction": 1.0,
+            "meta_initial_velocities": true,
+            "meta_initial_temperature": 100.0
+        }
+    },
+    "sample_counter": 2,
+    "data_source": [
+        "md.db",
+        "meta.db"
+    ],
+    "data_file": "sn2.db",
+    "data_format": [],
+    "data_alt_property_labels": {},
+    "data_unit_positions": "Ang",
+    "data_load_properties": [
+        "energy",
+        "forces",
+        "dipole"
+    ],
+    "data_unit_properties": {
+        "positions": "Ang",
+        "energy": "eV",
+        "forces": "eV/Ang",
+        "charge": "e",
+        "dipole": "eAng"
+    },
+    "data_num_train": 480,
+    "data_num_valid": 60,
+    "data_num_test": 60,
+    "data_train_batch_size": 128,
+    "data_valid_batch_size": 128,
+    "data_test_batch_size": 128,
+    "data_num_workers": 1,
+    "data_workdir": ".",
+    "data_overwrite": false,
+    "data_seed": 48533,
+    "model_properties_scaling": {
+        "energy": [
+            0.10768592934747179,
+            -47.50949875480201
+        ],
+        "forces": [
+            0.8021015330360196,
+            -3.610187526375251e-18
+        ],
+        "dipole": [
+            0.3559628479938022,
+            -0.06724319919789622
+        ]
+    },
+    "model_type": "PhysNet",
+    "model_properties": [
+        "energy",
+        "forces"
+    ],
+    "model_interaction_cutoff": 8.0,
+    "model_cutoff_width": 2.0,
+    "model_repulsion": false,
+    "model_electrostatic": true,
+    "model_dispersion": true,
+    "model_dispersion_trainable": true,
+    "input_type": "PhysNetRBF",
+    "input_n_atombasis": 128,
+    "input_n_radialbasis": 64,
+    "input_cutoff_descriptor": 8.0,
+    "input_cutoff_fn": "Poly6",
+    "input_rbf_center_start": 1.0,
+    "input_rbf_trainable": true,
+    "input_n_maxatom": 94,
+    "input_atom_features_range": 1.7320508075688772,
+    "graph_type": "PhysNetMP",
+    "graph_n_blocks": 5,
+    "graph_n_residual_interaction": 3,
+    "graph_n_residual_atomic": 2,
+    "output_type": "PhysNetOut",
+    "output_n_residual": 1,
+    "output_properties": [
+        "energy",
+        "forces"
+    ],
+    "trainer_restart": false,
+    "trainer_max_epochs": 10000,
+    "trainer_properties_train": [],
+    "trainer_properties_metrics": {
+        "else": "MSE"
+    },
+    "trainer_properties_weights": {
+        "energy": 1.0,
+        "forces": 50.0,
+        "else": 1.0
+    },
+    "trainer_optimizer": "AMSgrad",
+    "trainer_optimizer_args": {
+        "lr": 0.001,
+        "weight_decay": 1e-05
+    },
+    "trainer_scheduler": "ExponentialLR",
+    "trainer_scheduler_args": {
+        "gamma": 0.999
+    },
+    "trainer_ema": true,
+    "trainer_ema_decay": 0.99,
+    "trainer_max_gradient_norm": 1000.0,
+    "trainer_save_interval": 5,
+    "trainer_validation_interval": 5,
+    "trainer_evaluate_testset": true,
+    "trainer_max_checkpoints": 1,
+    "trainer_store_neighbor_list": false
+}
