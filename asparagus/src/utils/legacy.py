@@ -129,11 +129,20 @@ def convert_from_tensorflow(
     # Get Asparagus config dictionary
     config_legacy = get_torch_config(config_data)
 
+    model = Asparagus(config_legacy)
+    model_calc = Asparagus(config_legacy)._get_Calculator(config_legacy)
+    model_calc.load_state_dict(model_state)
+    
+    print(model)
+    print(model_calc)
+    
+    exit()
+    
     # Initialize Filemanager
     filemanager = utils.FileManager(
         model_directory=model_directory)
 
-    # 
+    
 
     ## Load one asparagus model
     #model_param = torch.load("formaldehyde_best_model.pt")
@@ -160,11 +169,6 @@ def get_torch_config(config_data):
     
     # Calculator Model
     config_legacy['model_type'] = 'PhysNet_original'
-    model = Asparagus(config_legacy)
-    calc = model.get_ase_calculator
-    print(model)
-    print(calc)
-    exit()
     
     return config_legacy
     

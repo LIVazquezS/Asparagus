@@ -253,7 +253,7 @@ class Input_PhysNetRBF_original(torch.nn.Module):
             PhysNet RBF input model object
         """
 
-        super(Input_PhysNetRBF, self).__init__()
+        super(Input_PhysNetRBF_original, self).__init__()
         
         # Get configuration object
         config = settings.get_config(config)
