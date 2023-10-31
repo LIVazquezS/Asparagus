@@ -17,75 +17,6 @@ logger = logging.getLogger(__name__)
 __all__ = ['get_output_model', 'Output_PhysNet']
 
 #======================================
-# Output Model Assignment  
-#======================================
-
-def get_output_model(
-    config: Optional[Union[str, dict, object]] = None,
-    output_type: Optional[str] = None,
-    **kwargs
-):
-    """
-    Output module selection
-
-    Parameters
-    ----------
-    config: (str, dict, object)
-        Either the path to json file (str), dictionary (dict) or
-        settings.config class object of model parameters
-    output_type: str
-        Output model transforming features into demanded properties
-    **kwargs: dict, optional
-        Additional arguments for parameter initialization 
-
-    Returns
-    -------
-    callable object
-        Output model object to transform features into demanded properties
-    """
-
-    # Get configuration object
-    config = settings.get_config(config)
-
-    # Check input parameter, set default values if necessary and
-    # update the configuration dictionary
-    config_update = {}
-    for arg, item in locals().items():
-
-        # Skip 'config' argument and possibly more
-        if arg in ['self', 'config', 'config_update', 'kwargs', '__class__']:
-            continue
-
-        # Take argument from global configuration dictionary if not defined
-        # directly
-        if item is None:
-            item = config.get(arg)
-
-        # Set default value if the argument is not defined (None)
-        if arg in settings._default_args.keys() and item is None:
-            item = settings._default_args[arg]
-
-        # Check datatype of defined arguments
-        if arg in settings._dtypes_args.keys():
-            match = utils.check_input_dtype(
-                arg, item, settings._dtypes_args, raise_error=True)
-
-        # Append to update dictionary
-        config_update[arg] = item
-
-    # Update global configuration dictionary
-    config.update(config_update)
-
-    # Output type assignment
-    output_type = config.get('output_type')
-
-    if output_type.lower() == 'PhysNetOut'.lower():
-        return Output_PhysNet(
-            config,
-            **kwargs)
-
-
-#======================================
 # Output Models
 #======================================
 
@@ -371,4 +302,95 @@ class Output_PhysNet(torch.nn.Module):
             }
 
 
+#======================================
+# Output Model Assignment  
+#======================================
 
+<<<<<<< HEAD
+=======
+output_model_available = {
+    'PhysNetOut'.lower(): Output_PhysNet,
+    }
+
+def get_output_model(
+    config: Optional[Union[str, dict, object]] = None,
+    output_type: Optional[str] = None,
+    **kwargs
+):
+    """
+    Output module selection
+
+    Parameters
+    ----------
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    output_type: str
+        Output model transforming features into demanded properties
+    **kwargs: dict, optional
+        Additional arguments for parameter initialization 
+
+    Returns
+    -------
+    callable object
+        Output model object to transform features into demanded properties
+    """
+
+    # Get configuration object
+    config = settings.get_config(config)
+
+    # Check input parameter, set default values if necessary and
+    # update the configuration dictionary
+    config_update = {}
+    for arg, item in locals().items():
+
+        # Skip 'config' argument and possibly more
+        if arg in ['self', 'config', 'config_update', 'kwargs', '__class__']:
+            continue
+
+        # Take argument from global configuration dictionary if not defined
+        # directly
+        if item is None:
+            item = config.get(arg)
+
+        # Set default value if the argument is not defined (None)
+        if arg in settings._default_args.keys() and item is None:
+            item = settings._default_args[arg]
+
+        # Check datatype of defined arguments
+        if arg in settings._dtypes_args.keys():
+            match = utils.check_input_dtype(
+                arg, item, settings._dtypes_args, raise_error=True)
+
+        # Append to update dictionary
+        config_update[arg] = item
+
+    # Update global configuration dictionary
+    config.update(config_update)
+
+    # Check output model type
+    if config.get('output_type') is None:
+        model_type = config.get('model_type')
+        if settings._available_output_model.get(model_type) is None:
+            raise SyntaxError(
+                "No output model type could assigned from defined model "
+                + f"type '{model_type:s}'!")
+        config['output_type'] = settings._available_output_model.get(
+            model_type)
+    output_type = config['output_type']
+
+    # Output model type assignment
+    if (
+        output_type.lower() in 
+        [key.lower() for key in output_model_available.keys()]
+    ):
+        return output_model_available[output_type.lower()](
+            config,
+            **kwargs)
+    else:
+        raise ValueError(
+            f"Output model type output '{output_type:s}' is not valid!" +
+            "Choose from:\n" + str(output_model_available.keys()))
+    
+    return
+>>>>>>> 9060d0567e22ffd6a2e96e53053219eef99a38d9

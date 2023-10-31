@@ -21,7 +21,8 @@ __all__ = ['get_calculator']
 # ======================================
 
 calculator_avaiable = {
-    'PhysNet'.lower(): Calculator_PhysNet
+    'PhysNet'.lower(): Calculator_PhysNet,
+    'PhysNet_original'.lower(): Calculator_PhysNet,
     }
 
 def get_calculator(
@@ -44,7 +45,7 @@ def get_calculator(
         model_num_threads: int, optional, default None
             Maximum number of threads for Pytorch. If None, use Pytorch
             default number of threads.
-        model_type: str, optional, default 'PhysNetRBF'
+        model_type: str, optional, default 'PhysNet'
             Calculator model type of the NN potential
             e.g. 'PhysNetRBF'
         **kwargs: dict, optional
@@ -88,8 +89,10 @@ def get_calculator(
     # Update global configuration dictionary
     config.update(config_update)
 
-    # Calculator model assignment
-    model_type = config.get('model_type')
+    # Calculator model type assignment
+    if config.get('model_type') is None:
+        config['model_type'] = settings._default_calculator_model
+    model_type = config['model_type']
 
     # Set model calculator number of threads
     if config.get('model_num_threads') is not None:

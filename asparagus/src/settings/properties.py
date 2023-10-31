@@ -1,26 +1,3 @@
-#======================================
-# Model type labels
-#======================================
-
-# Valid model type labels with known build up
-_valid_model_type = [
-    'PhysNet',
-]
-
-# Valid input model type labels
-_valid_input_model_type = [
-    'PhysNetRBF',
-]
-
-# Valid graph model type labels
-_valid_graph_model_type = [
-    'PhysNetMP',
-]
-
-# Valid output model type labels
-_valid_output_model_type = [
-    'PhysNetOut',
-]
 
 #======================================
 # Cutoff function labels

@@ -1,7 +1,7 @@
 from asparagus import Asparagus
 
 # Sampling
-if True:
+if False:
     
     from asparagus import NormalModeScanner
     
@@ -12,7 +12,7 @@ if True:
         sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
         sample_systems_format='xyz',
         sample_systems_optimize=True,
-        sample_systems_optimize_fmax=0.005,
+        sample_systems_optimize_fmax=0.001,
         nms_harmonic_energy_step=0.001,
         nms_energy_limits=1.00,
         nms_number_of_coupling=1,

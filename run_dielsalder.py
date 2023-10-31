@@ -1,7 +1,7 @@
 
 from asparagus import DataContainer
 
-from asparagus import MDSampler, NormalModeScanner, MetaSampler, ReCalculator
+from asparagus import MDSampler, NormalModeScanner, MetaSampler
 
 from asparagus import Asparagus
 
@@ -24,7 +24,7 @@ if False:
     utils.check_units("3/2*Bohr**0.5", "3/2*Ang**0.5", verbose=True)
     utils.check_units("1.5*Bohr**0.5", "1.5*Ang**0.5", verbose=True)
 
-if True:
+if False:
 
     sampler = MetaSampler(
         config='diels_alder_config.json',
@@ -118,7 +118,7 @@ if True:
             'dipole':   'e*Ang'},
         data_overwrite=True)
 
-if True:
+if False:
 
     model = Asparagus(
         config='diels_alder_config.json',

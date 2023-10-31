@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['DataBase', 'connect']
 
-def connect(data_file, mode='r', lock_file=True):
+def connect(data_file, mode='r', lock_file=True, use_sql=True):
     """
     Create connection to database.
 
@@ -27,20 +27,24 @@ def connect(data_file, mode='r', lock_file=True):
     ----------
         data_file: str
             Database file path
-        mode: str
+        mode: str, optional, default 'r'
             Mode to open file ('r': just reading, 'w': writing, 'a': appending)
-        lock_file: bool
+        lock_file: bool, optional, default True
             Use a lock file
+        use_sql: bool, optional, default ???
+             If True, reference data file is a SQL database, else hdf5.
             
     Returns
     -------
         object
             Database interface object
     """
-    #return data.DataBase_hdf5(
-        #data_file, mode)
-    return data.DataBase_SQLite3(
-        data_file, lock_file)
+    if use_sql:
+        return data.DataBase_SQLite3(
+            data_file, lock_file)
+    else:
+        return data.DataBase_hdf5(
+            data_file, mode)
 
 
 class DataBase:

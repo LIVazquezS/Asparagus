@@ -1,5 +1,5 @@
 from .input import (
-    get_input_model, Input_PhysNetRBF
+    get_input_model, Input_PhysNetRBF, Input_PhysNetRBF_original
 )
 
 from .graph import (
@@ -7,7 +7,7 @@ from .graph import (
 )
 
 from .output import (
-    get_output_model, Output_PhysNet, Get_Properties
+    get_output_model, Output_PhysNet
 )
 
 from .calculator import (
