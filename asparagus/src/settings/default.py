@@ -2,25 +2,28 @@ import numpy as np
 import torch
 
 # ======================================
-# Default Models
+# General Model Type Settings
 # ======================================
 
 # Default calculator model
 _default_calculator_model = 'PhysNet'
 
-# Default input model of respective 'model_type'
-_default_input_model = {
+# Available input model of respective 'model_type'
+_available_input_model = {
     'PhysNet':                      'PhysNetRBF',
+    'PhysNet_original':             'PhysNetRBF_original',
     }
 
-# Default graph model of respective 'model_type'
-_default_graph_model = {
+# Available graph model of respective 'model_type'
+_available_graph_model = {
     'PhysNet':                      'PhysNetMP',
+    'PhysNet_original':             'PhysNetMP',
     }
 
-# Default output model of respective 'model_type'
-_default_output_model = {
+# Available output model of respective 'model_type'
+_available_output_model = {
     'PhysNet':                      'PhysNetOut',
+    'PhysNet_original':             'PhysNetOut',
     }
 
 # ======================================
@@ -36,7 +39,7 @@ _default_args = {
     'model_restart':                False,
     'model_calculator':             None,
     'model_num_threads':            None,
-    'model_type':                   _default_calculator_model,
+    'model_type':                   None,
     'model_path':                   'best_model',
     'model_properties':             ['energy', 'forces'],
     'model_unit_properties':        None,
@@ -53,8 +56,7 @@ _default_args = {
     'model_seed':                   np.random.randint(1E6),
     # Input module
     'input_calculator':             None,
-    'input_type':                   _default_input_model.get(
-                                        _default_calculator_model),
+    'input_type':                   None,
     'input_n_atombasis':            128,
     'input_n_radialbasis':          64,
     'input_cutoff_descriptor':      8.0,
@@ -66,16 +68,14 @@ _default_args = {
     'input_atom_features_range':    np.sqrt(3),
     # Graph module
     'graph_calculator':             None,
-    'graph_type':                   _default_graph_model.get(
-                                        _default_calculator_model),
+    'graph_type':                   None,
     'graph_n_blocks':               5,
     'graph_n_residual_interaction': 3,
     'graph_n_residual_atomic':      2,
     'graph_activation_fn':          None,
     # Output module
     'output_calculator':            None,
-    'output_type':                  _default_output_model.get(
-                                        _default_calculator_model),
+    'output_type':                  None,
     'output_n_residual':            1,
     'output_properties':            ['energy', 'forces'],
     'output_unit_properties':       {'energy': 'eV',

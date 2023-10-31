@@ -94,20 +94,17 @@ class Asparagus(torch.nn.Module):
 
         return
 
-
     def __getitem__(self, args):
         """
         Return item(s) from configuration dictionary
         """
         return self.config.get(args)
 
-
     def get(self, args):
         """
         Return item(s) from configuration dictionary
         """
         return self.config.get(args)
-
 
     def train(
         self,
@@ -208,7 +205,6 @@ class Asparagus(torch.nn.Module):
         self.trainer.train()
 
         return
-
 
     def test(
         self,
@@ -320,69 +316,6 @@ class Asparagus(torch.nn.Module):
 
         return
 
-
-    #def test_model(
-        #self, 
-        #checkpoint=None, verbose=True,
-        #save_npz=False, npz_name='test_vals.npz',
-        #save_csv=False, csv_name='test_vals.csv',
-        #plot=False, plots_to_show=None, save_plots=False, show_plots=False,
-        #residual_plots=False, residuals_to_show=None, save_residuals=False, show_residuals=False,
-        #histogram_plots=False, histograms_to_show=None, save_histograms=False, show_histograms=False,
-        #**kwargs):
-        #"""
-        #Testing model in the test set.
-        #I am not sure if checking the config file is required here.
-        #"""
-        ###################################
-        ## # # Prepare Reference Data # # #
-        ###################################
-
-        ## Assign DataContainer
-        #if self.data_container is None:
-            #self.data_container = self._get_DataContainer(
-                #self.config,
-                #**kwargs)
-
-        ## Check for checkpoint
-        #if checkpoint is not None:
-            #self.checkpoint = checkpoint
-
-        ## Assign NNP calculator
-        #if self.model_calculator is None:
-
-            ## Get property scaling guess from reference data to link
-            ## 'normalized' output to average reference data shift and
-            ## distribution width.
-            #if ('model_properties_scaling' not in kwargs.keys() or
-                    #'model_properties_scaling' not in self.config):
-                #model_properties_scaling = (
-                        #self.data_container.get_property_scaling())
-
-                #self.config.update(
-                        #{'model_properties_scaling': model_properties_scaling})
-
-            ## Assign NNP calculator model
-            #self.model_calculator = self._get_Calculator(self.config)
-
-        ## Assign NNP Tester
-        #if self.tester is None:
-            #self.tester = train.Testing(
-                #self.config, 
-                #self.data_container,
-                #self.model_calculator, 
-                #self.checkpoint)
-        
-        ## Run testing
-        #self.tester.test(verbose=verbose,save_npz=save_npz, npz_name=npz_name,
-             #save_csv=save_csv, csv_name=csv_name,
-             #plot=plot, plots_to_show=plots_to_show, save_plots=save_plots, show_plots=show_plots,
-             #residual_plots=residual_plots, residuals_to_show=residuals_to_show, save_residuals=save_residuals,show_residuals=show_residuals,
-             #histogram_plots=histogram_plots, histograms_to_show=histograms_to_show, save_histograms=save_histograms, show_histograms=show_histograms)
-        
-        #return
-
-
     def _get_DataContainer(
         self,
         config: Union[dict, object],
@@ -407,7 +340,6 @@ class Asparagus(torch.nn.Module):
             return data.DataContainer(
                 config=config,
                 **kwargs)
-
 
     def _get_Calculator(
         self,

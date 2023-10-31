@@ -15,77 +15,6 @@ logger = logging.getLogger(__name__)
 __all__ = ['get_graph_model', 'Graph_PhysNetMP']
 
 #======================================
-# Graph Model Assignment  
-#======================================
-
-def get_graph_model(
-    config: Optional[Union[str, dict, object]] = None,
-    graph_type: Optional[str] = None,
-    **kwargs
-):
-    """
-    Input module selection
-    
-    Parameters
-    ----------
-    
-    config: (str, dict, object)
-        Either the path to json file (str), dictionary (dict) or
-        settings.config class object of model parameters
-    graph_type: str, optional, default 'RBF'
-        Graph model representation of the information processing
-        e.g. 'PhysNetMP'
-    **kwargs: dict, optional
-        Additional arguments for parameter initialization
-    
-    Returns
-    -------
-    callable object
-        Graph model object to process atomistic and structural information
-    """
-    
-    # Get configuration object
-    config = settings.get_config(config)
-    
-    # Check input parameter, set default values if necessary and
-    # update the configuration dictionary
-    config_update = {}
-    for arg, item in locals().items():
-        
-        # Skip 'config' argument and possibly more
-        if arg in ['self', 'config', 'config_update', 'kwargs', '__class__']:
-            continue
-        
-        # Take argument from global configuration dictionary if not defined
-        # directly
-        if item is None:
-            item = config.get(arg)
-        
-        # Set default value if the argument is not defined (None)
-        if arg in settings._default_args.keys() and item is None:
-            item = settings._default_args[arg]
-        
-        # Check datatype of defined arguments
-        if arg in settings._dtypes_args.keys():
-            match = utils.check_input_dtype(
-                arg, item, settings._dtypes_args, raise_error=True)
-        
-        # Append to update dictionary
-        config_update[arg] = item
-        
-    # Update global configuration dictionary
-    config.update(config_update)
-    
-    # Graph type assignment
-    graph_type = config.get('graph_type')
-    
-    if graph_type.lower() == 'PhysNetMP'.lower():
-        return Graph_PhysNetMP(
-            config,
-            **kwargs)
-
-
-#======================================
 # Graph Models
 #======================================
 
@@ -177,13 +106,7 @@ class Graph_PhysNetMP(torch.nn.Module):
         # Assign global arguments
         self.dtype = settings._global_dtype
         self.device = settings._global_device
-        
-        # Assign arguments
-        #self.graph_n_blocks = graph_n_blocks
-        #self.graph_n_residual_interaction = graph_n_residual_interaction
-        #self.graph_n_residual_atomic = graph_n_residual_atomic
-        #self.graph_activation_fn = graph_activation_fn
-        
+
         # Get graph model interface parameters 
         self.input_n_atombasis = config.get('input_n_atombasis')
         self.input_n_radialbasis = config.get('input_n_radialbasis')
@@ -237,4 +160,95 @@ class Graph_PhysNetMP(torch.nn.Module):
             'graph_n_residual_interaction': self.graph_n_residual_interaction,
             'graph_n_residual_atomic': self.graph_n_residual_atomic,
             }
+
+
+#======================================
+# Graph Model Assignment  
+#======================================
+
+graph_model_available = {
+    'PhysNetMP'.lower(): Graph_PhysNetMP,
+    }
+
+def get_graph_model(
+    config: Optional[Union[str, dict, object]] = None,
+    graph_type: Optional[str] = None,
+    **kwargs
+):
+    """
+    Input module selection
     
+    Parameters
+    ----------
+    
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    graph_type: str, optional, default 'RBF'
+        Graph model representation of the information processing
+        e.g. 'PhysNetMP'
+    **kwargs: dict, optional
+        Additional arguments for parameter initialization
+    
+    Returns
+    -------
+    callable object
+        Graph model object to process atomistic and structural information
+    """
+    
+    # Get configuration object
+    config = settings.get_config(config)
+    
+    # Check input parameter, set default values if necessary and
+    # update the configuration dictionary
+    config_update = {}
+    for arg, item in locals().items():
+        
+        # Skip 'config' argument and possibly more
+        if arg in ['self', 'config', 'config_update', 'kwargs', '__class__']:
+            continue
+        
+        # Take argument from global configuration dictionary if not defined
+        # directly
+        if item is None:
+            item = config.get(arg)
+        
+        # Set default value if the argument is not defined (None)
+        if arg in settings._default_args.keys() and item is None:
+            item = settings._default_args[arg]
+        
+        # Check datatype of defined arguments
+        if arg in settings._dtypes_args.keys():
+            match = utils.check_input_dtype(
+                arg, item, settings._dtypes_args, raise_error=True)
+        
+        # Append to update dictionary
+        config_update[arg] = item
+        
+    # Update global configuration dictionary
+    config.update(config_update)
+
+    # Check graph model type
+    if config.get('graph_type') is None:
+        model_type = config.get('model_type')
+        if settings._available_graph_model.get(model_type) is None:
+            raise SyntaxError(
+                "No graph model type could assigned from defined model "
+                + f"type '{model_type:s}'!")
+        config['graph_type'] = settings._available_graph_model.get(model_type)
+    graph_type = config['graph_type']
+
+    # Graph model type assignment
+    if (
+        graph_type.lower() in 
+        [key.lower() for key in graph_model_available.keys()]
+    ):
+        return graph_model_available[graph_type.lower()](
+            config,
+            **kwargs)
+    else:
+        raise ValueError(
+            f"Graph model type graph '{graph_type:s}' is not valid!" +
+            "Choose from:\n" + str(graph_model_available.keys()))
+    
+    return

@@ -6,7 +6,7 @@ import torch
 from .. import utils
 
 __all__ = [
-    'get_radial_fn', 'PhysNetRBF', 'PhysNetRBF_original'
+    'get_radial_fn', 'RBF_PhysNet', 'RBF_PhysNet_original'
     ]
 
 
@@ -14,7 +14,7 @@ __all__ = [
 # Radial basis functions
 #======================================
 
-class PhysNetRBF(torch.nn.Module):
+class RBF_PhysNet(torch.nn.Module):
     """
     PhysNet type radial basis functions (RBFs).
     """
@@ -51,7 +51,7 @@ class PhysNetRBF(torch.nn.Module):
                 Input model object to encode atomistic structural information
         """
 
-        super(PhysNetRBF, self).__init__()
+        super(RBF_PhysNet, self).__init__()
 
         self.rbf_n_basis = rbf_n_basis
         self.rbf_cutoff_fn = rbf_cutoff_fn
@@ -96,7 +96,7 @@ class PhysNetRBF(torch.nn.Module):
         return rbf
 
 
-class PhysNetRBF_original(torch.nn.Module):
+class RBF_PhysNet_original(torch.nn.Module):
     """
     Original PhysNet type radial basis functions (RBFs) with double exponential
     expression.
@@ -134,7 +134,7 @@ class PhysNetRBF_original(torch.nn.Module):
             Input model object to encode atomistic structural information
         """
 
-        super(PhysNetRBF_original, self).__init__()
+        super(RBF_PhysNet_original, self).__init__()
 
         self.rbf_n_basis = rbf_n_basis
         self.rbf_cutoff_fn = rbf_cutoff_fn
@@ -180,8 +180,8 @@ class PhysNetRBF_original(torch.nn.Module):
 #======================================
 
 functions_avaiable = {
-    'PhysNetRBF'.lower(): PhysNetRBF,
-    'PhysNetRBF_original'.lower(): PhysNetRBF_original,
+    'RBF_PhysNet'.lower(): RBF_PhysNet,
+    'RBF_PhysNet_original'.lower(): RBF_PhysNet_original,
     }
 
 

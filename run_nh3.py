@@ -1,7 +1,7 @@
 from asparagus import Asparagus
 
 # Sampling
-if True:
+if False:
     
     from asparagus import NormalModeScanner
     
