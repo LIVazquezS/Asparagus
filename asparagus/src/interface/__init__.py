@@ -5,3 +5,7 @@ from .ase import(
 from .model_ase import(
     ASE_Calculator
 )
+
+from .model_pycharmm import (
+    PyCharmm_Calculator
+)

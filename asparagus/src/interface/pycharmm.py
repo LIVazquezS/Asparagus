@@ -37,3 +37,4 @@ CHARMM_calculator_units = {
     'dipole':           'eAng',
     }
 
+

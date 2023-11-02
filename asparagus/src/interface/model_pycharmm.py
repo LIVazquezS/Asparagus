@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['PyCharmm_Calculator']
 
+CHARMM_calculator_units = {
+    'positions':        'Ang',
+    'energy':           'kcal/mol',
+    'forces':           'kcal/mol/Ang',
+    'hessian':          'kcal/mol/Ang/Ang',
+    'charge':           'e',
+    'atomic_charges':   'e',
+    'dipole':           'eAng',
+    }
 
 class PyCharmm_Calculator:
 
@@ -141,6 +150,23 @@ class PyCharmm_Calculator:
                 self.model_calculator.model_interaction_cutoff)
             self.model_calculator.eval()
 
+        # Units check
+        # Get property unit conversions from model units to ASE units
+        self.model_unit_properties = (
+            self.model_calculator.model_unit_properties)
+        self.charmm_unit_properties = {}
+        # Convert positions
+        conversion, _ = utils.check_units(
+            CHARMM_calculator_units['positions'],
+            self.model_unit_properties['positions'])
+        self.charmm_unit_properties['positions'] = conversion
+        # Other units
+        for prop in self.implemented_properties:
+            conversion, _ = utils.check_units(
+                CHARMM_calculator_units[prop],
+                self.model_unit_properties[prop])
+            self.charmm_unit_properties[prop] = conversion
+
         # Initialize the non-bonded interaction calculator
         if self.ml_fluctuating_charges:
             self.non_bonded = Charmm_electrostatic(
@@ -158,7 +184,6 @@ class PyCharmm_Calculator:
 #         charge = batch['charge']
 #         idx_seg = batch['atoms_seg']
 #         pbc_offset = batch.get('pbc_offset')
-
 
     def calculate_charmm(self,Natom,Ntrans,Natim,x,y,z,dx,dy,dz,imattr,
                          Nmlp,Nmlmmp, idxi,idxj,idxu,idxv,idxp):
@@ -184,6 +209,7 @@ class PyCharmm_Calculator:
         mlmm_idxi = torch.tensor(idxu[:Nmlmmp],dtype=torch.int64).shape(Nmlmmp)
         mlmm_idxk = torch.tensor(idxv[:Nmlmmp],dtype=torch.int64).shape(Nmlmmp)
         mlmm_idxk_p = torch.tensor(idxp[:Nmlmmp],dtype=torch.int64).shape(Nmlmmp)
+        atom_seg = torch.zeros(Natom,dtype=torch.int64)
 
         # Create batch for evaluating the model
         atoms_batch = {}
@@ -192,7 +218,8 @@ class PyCharmm_Calculator:
         atoms_batch['positions'] = mlmm_R
         atoms_batch['idx_i'] = ml_idxi
         atoms_batch['idx_j'] = ml_idxj
-
+        atoms_batch['pbc_offset'] = None
+        atoms_batch['atom_seg'] = atom_seg
 
         # Compute model properties
         results = {}
@@ -213,29 +240,35 @@ class PyCharmm_Calculator:
         else:
             results = self.model_calculator(atoms_batch)
 
+        # Unit conversion
+        self.results = {}
+        for prop in self.implemented_properties:
+            self.results[prop] = (
+                results[prop]*self.charmm_unit_properties[prop])
+
         # Calculate electrostatic energy
         if self.non_bonded is not None:
             mlmm_Eele =  self.non_bonded.non_bonded(
-                mlmm_R, results['atomic_charges'], mlmm_idxi, mlmm_idxk, mlmm_idxk_p)
+                mlmm_R, self.results['atomic_charges'], mlmm_idxi, mlmm_idxk, mlmm_idxk_p)
         else:
             mlmm_Eele = 0.0
 
-        results['energy'] = results['energy'] + mlmm_Eele
+        self.results['energy'] = self.results['energy'] + mlmm_Eele
 
         # Re-Calculate forces with the electrostatic energy
         gradient = torch.autograd.grad(
-            torch.sum(results['energy']),
+            torch.sum(self.results['energy']),
             mlmm_R,
             create_graph=True)[0]
         if gradient is not None:
-            results['forces'] = -gradient
+            self.results['forces'] = -gradient
         else:
-            results['forces'] = torch.zeros_like(mlmm_R)
+            self.results['forces'] = torch.zeros_like(mlmm_R)
 
         # Add unit conversion
 
-        E = results['energy'].detach().numpy()
-        F = results['forces'].detach().numpy().ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        E = self.results['energy'].detach().numpy()
+        F = self.results['forces'].detach().numpy().ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         # Reshaping forces
         for idxa in range(Natom):
             ii = 3*idxa

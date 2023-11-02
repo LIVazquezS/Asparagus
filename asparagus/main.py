@@ -460,13 +460,11 @@ class Asparagus(torch.nn.Module):
         # PhysNet atom numbers
         ml_atom_numbers: List[int],
         # Fluctuating ML charges for ML-MM electrostatic interaction
-        ml_fluctuating_charges: List[float],
+        ml_fluctuating_charges: bool,
         # System atom charges (All atoms)
         ml_mm_atoms_charge: List[float],
         # Total charge of the system
-        ml_total_charge: float,
-        #Cutoff for ML interactions
-        ml_cutoff: float,
+        ml_total_charge: Optional[float],
         # Cutoff for long range interactions
         lr_cutoff: float,
         # Cutoff distance for ML/MM electrostatic interactions
@@ -535,8 +533,11 @@ class Asparagus(torch.nn.Module):
         self.model_calculator.load_state_dict(
             latest_checkpoint['model_state_dict'])
 
+        if ml_total_charge is None:
+            ml_total_charge = 0
+
         ##################################
-        # # # Prepare ASE Calculator # # #
+        # # # Prepare Calculator # # #
         ##################################
 
         self.pycharmm_calculator = interface.PyCharmm_Calculator(
@@ -547,7 +548,6 @@ class Asparagus(torch.nn.Module):
             ml_fluctuating_charges=ml_fluctuating_charges,
             ml_mm_atoms_charge=ml_mm_atoms_charge,
             ml_total_charge=ml_total_charge,
-            ml_cutoff=ml_cutoff,
             lr_cutoff=lr_cutoff,
             mlmm_rcut=mlmm_rcut,
             mlmm_width=mlmm_width,
