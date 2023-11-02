@@ -1,52 +1,48 @@
-#Basic importantions
-import numpy as np
-
 import sys
-import ctypes
 import pandas
-import pycharmm
-
-#NN imports
-import torch
+import ctypes
 import logging
-import torch.nn as nn
+import numpy as np
+from typing import Optional, List, Dict, Tuple, Union, Any
+
+import torch
+
 from .. import utils
 from .. import layers
-
-
-from typing import Optional, List, Dict, Tuple, Union, Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 __all__ = ['PyCharmm_Calculator']
 
+
 class PyCharmm_Calculator:
 
     def __init__(
-            self,
-            model_calculator: Union[object, List[object]],
-            # Total number of atoms
-            num_atoms: int,
-            # PhysNet atom indices
-            ml_atom_indices: List[int],
-            # PhysNet atom numbers
-            ml_atom_numbers: List[int],
-            # Fluctuating ML charges for ML-MM electrostatic interaction
-            ml_fluctuating_charges: bool,
-            # System atom charges (All atoms)
-            ml_mm_atoms_charge: List[float],
-            # Total charge of the system
-            ml_total_charge: float,
-            # Cutoff distance for ML/MM electrostatic interactions
-            mlmm_rcut: float,
-            # Cutoff width for ML/MM electrostatic interactions
-            mlmm_width: float,
-            # By default only energy and forces are calculated, maybe in the future dipoles
-            implemented_properties: Optional[List[str]] = None,
-            kehalf: float = 7.199822675975274,
-            dtype=torch.float64,
-            **kwargs):
+        self,
+        model_calculator: Union[object, List[object]],
+        # Total number of atoms
+        num_atoms: int,
+        # PhysNet atom indices
+        ml_atom_indices: List[int],
+        # PhysNet atom numbers
+        ml_atom_numbers: List[int],
+        # Fluctuating ML charges for ML-MM electrostatic interaction
+        ml_fluctuating_charges: bool,
+        # System atom charges (All atoms)
+        ml_mm_atoms_charge: List[float],
+        # Total charge of the system
+        ml_total_charge: float,
+        # Cutoff distance for ML/MM electrostatic interactions
+        mlmm_rcut: float,
+        # Cutoff width for ML/MM electrostatic interactions
+        mlmm_width: float,
+        # By default only energy and forces are calculated, maybe in the future dipoles
+        implemented_properties: Optional[List[str]] = None,
+        kehalf: float = 7.199822675975274,
+        dtype=torch.float64,
+        **kwargs
+    ):
 
         # Initialize basic parameters
         self.num_atoms = num_atoms
@@ -280,7 +276,7 @@ class Charmm_electrostatic:
         idxr = torch.squeeze(torch.where(sum_distance < self.mlmm_rcut**2,sum_distance,
                                          torch.zeros_like(sum_distance)))
 
-        p = nn.ReLU(inplace=True)
+        p = torch.nn.ReLU(inplace=True)
         # Interacting atom pair distances
         Dik_temp = torch.gather(sum_distance,0,idxr) #Check shape of idxr
         Dik = torch.sqrt(p(Dik_temp))
