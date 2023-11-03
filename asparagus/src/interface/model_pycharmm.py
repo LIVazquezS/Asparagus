@@ -86,10 +86,11 @@ class PyCharmm_Calculator:
         self.ml_idxp = torch.tensor(ml_idxp, dtype=torch.int64)
 
         # Electrostatic interaction range
-        self._mlmm_rcut = torch.tensor(mlmm_rcut, dtype=torch.float64)
-        self._mlmm_rcut2 = torch.tensor(mlmm_rcut**2, dtype=torch.float64)
-        self._mlmm_width = torch.tensor(mlmm_width, dtype=torch.float64)
+        self.mlmm_rcut = torch.tensor(mlmm_rcut, dtype=torch.float64)
+        self.mlmm_rcut2 = torch.tensor(mlmm_rcut**2, dtype=torch.float64)
+        self.mlmm_width = torch.tensor(mlmm_width, dtype=torch.float64)
         self.kehalf = kehalf
+
         # Set the dtype
         self.dtype = dtype
 
@@ -149,6 +150,11 @@ class PyCharmm_Calculator:
             self.interaction_cutoff = (
                 self.model_calculator.model_interaction_cutoff)
             self.model_calculator.eval()
+        # Check cutoff of CHARMM and the ML model
+        self.max_rcut = np.max([self.interaction_cutoff, self.mlmm_rcut])
+
+
+
 
         # Units check
         # Get property unit conversions from model units to ASE units
@@ -170,7 +176,7 @@ class PyCharmm_Calculator:
         # Initialize the non-bonded interaction calculator
         if self.ml_fluctuating_charges:
             self.non_bonded = Charmm_electrostatic(
-                self._mlmm_rcut, self._mlmm_width, self.ml_idxp,
+                self.mlmm_rcut, self.mlmm_width, self.max_rcut, self.ml_idxp,
                 self.ml_mm_atoms_charge, kehalf=self.kehalf)
         else:
             self.non_bonded = None
@@ -288,12 +294,13 @@ class PyCharmm_Calculator:
 
 class Charmm_electrostatic:
 
-    def __init__(self,mlmm_rcut,mlmm_width,ml_idxp, ml_mm_atoms_charge
+    def __init__(self,mlmm_rcut,mlmm_width,max_rcut,ml_idxp, ml_mm_atoms_charge
                  ,switch_fn='CHARMM',kehalf=7.199822675975274):
 
         self.mlmm_rcut = mlmm_rcut
         self.ml_idxp = ml_idxp
         self.ml_mm_atoms_charge = ml_mm_atoms_charge
+        self.max_rcut2 = max_rcut**2
         # Initialize the class for cutoff
         switch_class = layers.get_cutoff_fn(switch_fn)
         self.switch_fn = switch_class(self.mlmm_rcut, mlmm_width)
@@ -306,7 +313,7 @@ class Charmm_electrostatic:
         Rk = torch.gather(R,0,idxk.view(-1,1).repeat(1,3))
 
         sum_distance = torch.sum((Ri-Rk)**2,dim=-1)
-        idxr = torch.squeeze(torch.where(sum_distance < self.mlmm_rcut**2,sum_distance,
+        idxr = torch.squeeze(torch.where(sum_distance < self.max_rcut2,sum_distance,
                                          torch.zeros_like(sum_distance)))
 
         p = torch.nn.ReLU(inplace=True)

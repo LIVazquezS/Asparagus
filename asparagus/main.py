@@ -465,8 +465,6 @@ class Asparagus(torch.nn.Module):
         ml_mm_atoms_charge: List[float],
         # Total charge of the system
         ml_total_charge: Optional[float],
-        # Cutoff for long range interactions
-        lr_cutoff: float,
         # Cutoff distance for ML/MM electrostatic interactions
         mlmm_rcut: float,
         # Cutoff width for ML/MM electrostatic interactions
@@ -548,7 +546,6 @@ class Asparagus(torch.nn.Module):
             ml_fluctuating_charges=ml_fluctuating_charges,
             ml_mm_atoms_charge=ml_mm_atoms_charge,
             ml_total_charge=ml_total_charge,
-            lr_cutoff=lr_cutoff,
             mlmm_rcut=mlmm_rcut,
             mlmm_width=mlmm_width,
             )
