@@ -352,35 +352,41 @@ class Configuration():
 
         # Iterate over configuration parameters
         for key, item in self.config_dict.items():
-
+            
             # Skip callable class objects
             if utils.is_callable(item):
                 continue
-
+            
             # Convert numeric values to integer or float
             if utils.is_integer(item):
                 config_dump[key] = int(item)
             elif utils.is_numeric(item):
                 config_dump[key] = float(item)
-            # Convert arrays to python lists
-            elif utils.is_array_like(item):
-                config_dump[key] = list(item)
-            # Also store dictionaries
+            # Also store dictionaries,
             elif utils.is_dictionary(item):
                 config_dump[key] = item
-            # and strings
+            # strings or bools
             elif utils.is_string(item) or utils.is_bool(item):
                 config_dump[key] = item
+            # and converted arrays as python lists,
             # but nothing else which might be to fancy
+            elif utils.is_array_like(item):
+                config_dump[key] = list(item)
             else:
                 continue
 
         if config_file is None:
             with open(self.config_file, 'w') as f:
-                json.dump(config_dump, f, indent=self.config_indent)
+                json.dump(
+                    config_dump, f, 
+                    indent=self.config_indent,
+                    default=str)
         else:
             with open(config_file, 'w') as f:
-                json.dump(config_dump, f, indent=self.config_indent)
+                json.dump(
+                    config_dump, f, 
+                    indent=self.config_indent,
+                    default=str)
 
     def check(
         self,

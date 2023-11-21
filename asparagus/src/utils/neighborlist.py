@@ -108,7 +108,7 @@ class ASENeighborList(NeighborList):
 
         # Iterate over system segments
         for iseg, idx_off in enumerate(atomic_numbers_cumsum):
-            
+
             # Atom system selection
             select = atoms_seg==iseg
 
@@ -168,13 +168,15 @@ class TorchNeighborList(NeighborList):
         atoms_seg: torch.Tensor,
         atomic_numbers_cumsum: torch.Tensor,
         cutoff: float,
-    ):
-        
+    ) -> (torch.Tensor, torch.Tensor, torch.Tensor):
+
         # Check if shifts are needed for periodic boundary conditions
         if torch.any(pbc):
-            shifts = self._get_shifts(cell, pbc, cutoff)
+            is_pbc = True
+            pbc_offset = self._get_shifts(cell, pbc, cutoff)
         else:
-            shifts = torch.zeros(
+            is_pbc = False
+            pbc_offset = torch.zeros(
                 0, 3, device=cell.device, dtype=positions.dtype)
 
         # Compute pair indices
@@ -268,9 +270,9 @@ class TorchNeighborList(NeighborList):
         (https://github.com/aiqm/torchani/blob/master/torchani/aev.py)
         
         Arguments:
-            cell (:class:`torch.Tensor`): tensor of shape (3, 3) of the three
-                vectors defining unit cell: 
-                tensor([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]])
+            cell (:class:`torch.Tensor`): tensor of shape (3, 3) 
+                of the three vectors defining unit cell: 
+                    tensor([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]])
             pbc (:class:`torch.Tensor`): boolean vector of size 3 storing
                 if pbc is enabled for that direction.
 

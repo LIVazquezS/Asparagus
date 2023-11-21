@@ -106,6 +106,7 @@ _dtypes_args = {
     'nms_energy_limits':            [utils.is_numeric, utils.is_numeric_array],
     'nms_number_of_coupling':       [utils.is_numeric],
     'nms_limit_of_steps':           [utils.is_numeric],
+    'nms_limit_com_shift':          [utils.is_numeric],
     'md_temperature':               [utils.is_numeric],
     'md_time_step':                 [utils.is_numeric],
     'md_simulation_time':           [utils.is_numeric],

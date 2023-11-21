@@ -275,7 +275,6 @@ class DataLoader(torch.utils.data.DataLoader):
 
         # Compute pair indices and position offsets if not available
         if batch[0].get('idx_i') is None:
-            
             if self.neighbor_list is None:
                 self.init_neighbor_list()
             coll_batch = self.neighbor_list(coll_batch)

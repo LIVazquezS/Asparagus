@@ -712,6 +712,7 @@ class DataReader():
         # Atom positions
         if 'positions' in assigned_properties.keys():
             positions = source[assigned_properties['positions']]
+            Ndim = positions.shape[1]
         else:
             raise ValueError(
                 "Property 'positions' not found in npz dataset "
@@ -894,9 +895,11 @@ class DataReader():
 
                 # Fundamental properties
                 atoms_properties['atoms_number'] = atoms_number[idx]
-                atoms_properties['atomic_numbers'] = atomic_numbers[idx]
+                atoms_properties['atomic_numbers'] = (
+                    atomic_numbers[idx][:atoms_number[idx]])
                 atoms_properties['positions'] = (
-                    unit_conversion['positions']*positions[idx])
+                    unit_conversion['positions']
+                    * positions[idx][:atoms_number[idx], :])
                 atoms_properties['cell'] = (
                     unit_conversion['positions']*cell[idx])
                 atoms_properties['pbc'] = pbc[idx]
@@ -904,7 +907,17 @@ class DataReader():
 
                 # Collect properties
                 for prop, item in source_properties.items():
-                    atoms_properties[prop] = item[idx]
+                    # If atoms number dependent property
+                    if (
+                        len(item[idx].shape) and 
+                        item[idx].shape[0] == Ndim
+                    ):
+                        atoms_properties[prop] = (
+                            unit_conversion[prop]
+                            * item[idx][:atoms_number[idx]])
+                    else:
+                        atoms_properties[prop] = (
+                            unit_conversion[prop]*item[idx])
 
                 # Add atoms system data
                 all_atoms_properties.append(atoms_properties)
@@ -926,9 +939,11 @@ class DataReader():
                     
                     # Fundamental properties
                     atoms_properties['atoms_number'] = atoms_number[idx]
-                    atoms_properties['atomic_numbers'] = atomic_numbers[idx]
+                    atoms_properties['atomic_numbers'] = (
+                        atomic_numbers[idx][:atoms_number[idx]])
                     atoms_properties['positions'] = (
-                        unit_conversion['positions']*positions[idx])
+                        unit_conversion['positions']
+                        * positions[idx][:atoms_number[idx], :])
                     atoms_properties['cell'] = (
                         unit_conversion['positions']*cell[idx])
                     atoms_properties['pbc'] = pbc[idx]
@@ -936,7 +951,17 @@ class DataReader():
 
                     # Collect properties
                     for prop, item in source_properties.items():
-                        atoms_properties[prop] = item[idx]
+                        # If atoms number dependent property
+                        if (
+                            len(item[idx].shape) and 
+                            item[idx].shape[0] == Ndim
+                        ):
+                            atoms_properties[prop] = (
+                                unit_conversion[prop]
+                                * item[idx][:atoms_number[idx]])
+                        else:
+                            atoms_properties[prop] = (
+                                unit_conversion[prop]*item[idx])
 
                     # Write to ASE database file
                     db.write(properties=atoms_properties)

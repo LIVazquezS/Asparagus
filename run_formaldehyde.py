@@ -36,7 +36,7 @@ if False:
             },
         data_overwrite=True)
 
-if False:
+if True:
 
     model = Asparagus(
         config='form_config.json',
@@ -53,11 +53,8 @@ if False:
     model.train(
         trainer_validation_interval=10,
         )
-    #model.test(
-        #test_datasets='all',
-        #test_directory=model.get('model_directory'))
     model.test(
-        test_datasets='test',
+        test_datasets='all',
         test_directory=model.get('model_directory'))
 
 if True:

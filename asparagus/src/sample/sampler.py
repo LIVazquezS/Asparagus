@@ -184,6 +184,24 @@ class Sampler:
 
         self.assign_calculator()
 
+        #############################
+        # # # Prepare Optimizer # # #
+        #############################
+        
+        if self.sample_systems_optimize:
+
+            # Assign ASE optimizer
+            optimizer_tag = "bfgs"
+            self.ase_optimizer = optimize.BFGS
+            
+            # Assign optimization log and  trajectory file name
+            self.ase_optimizer_log_file = os.path.join(
+                self.sample_directory,
+                f'{self.sample_counter:d}_{optimizer_tag:s}.log')
+            self.ase_optimizer_trajectory_file = os.path.join(
+                self.sample_directory,
+                f'{self.sample_counter:d}_{optimizer_tag:s}.traj')
+
     def read_systems(self):
         """
         Read sample system files and return list of respective
@@ -335,12 +353,13 @@ class Sampler:
             # If requested, perform structure optimization
             if self.sample_systems_optimize:
 
-                # Assign ASE optimizer
-                ase_optimizer = optimize.BFGS
-
                 # Perform structure optimization
-                ase_optimizer(system).run(
-                    fmax=self.sample_systems_optimize_fmax)
+                self.ase_optimizer(
+                    system,
+                    logfile=self.ase_optimizer_log_file,
+                    trajectory=self.ase_optimizer_trajectory_file,
+                    ).run(
+                        fmax=self.sample_systems_optimize_fmax)
 
             # Start normal mode sampling
             self.run_system(system)

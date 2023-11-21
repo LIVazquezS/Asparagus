@@ -306,8 +306,6 @@ class Output_PhysNet(torch.nn.Module):
 # Output Model Assignment  
 #======================================
 
-<<<<<<< HEAD
-=======
 output_model_available = {
     'PhysNetOut'.lower(): Output_PhysNet,
     }
@@ -393,4 +391,4 @@ def get_output_model(
             "Choose from:\n" + str(output_model_available.keys()))
     
     return
->>>>>>> 9060d0567e22ffd6a2e96e53053219eef99a38d9
+

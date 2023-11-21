@@ -53,6 +53,13 @@ class PyCharmm_Calculator:
         **kwargs
     ):
 
+        # Set the dtype
+        self.dtype = dtype
+
+        ################################
+        # # # Set PyCHARMM Options # # #
+        ################################
+
         # Initialize basic parameters
         self.num_atoms = num_atoms
 
@@ -63,19 +70,21 @@ class PyCharmm_Calculator:
         self.mm_num_atoms = self.num_atoms - self.ml_num_atoms
 
         # ML atom indices
-        self.ml_indices =  torch.tensor(ml_atom_indices, dtype=torch.float64)
+        self.ml_indices =  torch.tensor(ml_atom_indices, dtype=self.dtype)
 
         # ML atom numbers
-        self.ml_numbers = torch.tensor(ml_atom_numbers, dtype=torch.int64)
+        self.ml_numbers = torch.tensor(ml_atom_numbers, dtype=self.dtype)
 
         # ML fluctuating charges
         self.ml_fluctuating_charges = ml_fluctuating_charges
 
         # ml mm atoms
-        self.ml_mm_atoms_charge = torch.tensor(ml_mm_atoms_charge, dtype=torch.float64)
+        self.ml_mm_atoms_charge = torch.tensor(
+            ml_mm_atoms_charge, dtype=self.dtype)
 
         # ML atom total charge
-        self.ml_total_charge = torch.tensor(ml_total_charge, dtype=torch.float64)
+        self.ml_total_charge = torch.tensor(
+            ml_total_charge, dtype=self.dtype)
 
         # ML atoms - atom indices pointing from MLMM position to ML position
         # 0, 1, 2 ..., ml_num_atoms: ML atom 1, 2, 3 ... ml_num_atoms + 1
@@ -85,17 +94,14 @@ class PyCharmm_Calculator:
             ml_idxp[ai] = ia
         self.ml_idxp = torch.tensor(ml_idxp, dtype=torch.int64)
 
-        # Electrostatic interaction range
-        self.mlmm_rcut = torch.tensor(mlmm_rcut, dtype=torch.float64)
-        self.mlmm_rcut2 = torch.tensor(mlmm_rcut**2, dtype=torch.float64)
-        self.mlmm_width = torch.tensor(mlmm_width, dtype=torch.float64)
-        self.kehalf = kehalf
+        # Non-bonding interaction range
+        self.mlmm_rcut = torch.tensor(mlmm_rcut, dtype=self.dtype)
+        self.mlmm_rcut2 = torch.tensor(mlmm_rcut**2, dtype=self.dtype)
+        self.mlmm_width = torch.tensor(mlmm_width, dtype=self.dtype)
 
-        # Set the dtype
-        self.dtype = dtype
-
-
-        # Settings of the model calculator
+        ################################
+        # # # Set Model Calculator # # #
+        ################################
 
         # In case of model calculator is a list of models
         if utils.is_array_like(model_calculator):
@@ -134,9 +140,9 @@ class PyCharmm_Calculator:
                             + "Specify 'implemented_properties' with "
                             + "properties all model calculator support.")
 
-        ##################################
-        # # # Set Calculator Options # # #
-        ##################################
+        #############################
+        # # # Set ML/MM Options # # #
+        #############################
 
         # Get model interaction cutoff and set evaluation mode
         if self.model_ensemble:
@@ -150,35 +156,53 @@ class PyCharmm_Calculator:
             self.interaction_cutoff = (
                 self.model_calculator.model_interaction_cutoff)
             self.model_calculator.eval()
+
         # Check cutoff of CHARMM and the ML model
         self.max_rcut = np.max([self.interaction_cutoff, self.mlmm_rcut])
 
-
-
-
-        # Units check
-        # Get property unit conversions from model units to ASE units
+        # Get property unit conversions from model units to CHARMM units
         self.model_unit_properties = (
             self.model_calculator.model_unit_properties)
+        
         self.charmm_unit_properties = {}
-        # Convert positions
+        self.model2charmm_unit_conversion = {}
+        
+        # Positions unit conversion
         conversion, _ = utils.check_units(
             CHARMM_calculator_units['positions'],
             self.model_unit_properties['positions'])
         self.charmm_unit_properties['positions'] = conversion
-        # Other units
+        self.model2charmm_unit_conversion['positions'] = conversion
+        
+        # Implemented property units conversion
         for prop in self.implemented_properties:
             conversion, _ = utils.check_units(
                 CHARMM_calculator_units[prop],
                 self.model_unit_properties[prop])
             self.charmm_unit_properties[prop] = conversion
+            self.model2charmm_unit_conversion[prop] = conversion
 
         # Initialize the non-bonded interaction calculator
         if self.ml_fluctuating_charges:
+            
+            # Convert 1/(2*4*pi*epsilon) from e**2/eV/Ang to CHARMM units
+            kehalf_ase = 7.199822675975274
+            conversion, _ = utils.check_units(
+                self.model_unit_properties.get('energy'))
+            self.kehalf = torch.tensor(
+                [kehalf_ase*1.**2/conversion/1.],
+                dtype=self.dtype)
+
             self.non_bonded = Charmm_electrostatic(
-                self.mlmm_rcut, self.mlmm_width, self.max_rcut, self.ml_idxp,
-                self.ml_mm_atoms_charge, kehalf=self.kehalf)
+                self.mlmm_rcut, 
+                self.mlmm_width, 
+                self.max_rcut, 
+                self.ml_idxp,
+                self.ml_mm_atoms_charge, 
+                kehalf=self.kehalf)
+
         else:
+
             self.non_bonded = None
 
 # Note: It needs to create a dictionary that contains the following values:
@@ -190,32 +214,48 @@ class PyCharmm_Calculator:
 #         charge = batch['charge']
 #         idx_seg = batch['atoms_seg']
 #         pbc_offset = batch.get('pbc_offset')
+    def calculate_charmm(
+        self,
+        Natom,
+        Ntrans,
+        Natim,
+        x, y, z,
+        dx, dy, dz,
+        imattr,
+        Nmlp,
+        Nmlmmp, 
+        idxi, idxj,
+        idxu, idxv,
+        idxp):
+        """
+        This function matches the signature of the corresponding MLPot in 
+        PyCHARMM.
+        """
 
-    def calculate_charmm(self,Natom,Ntrans,Natim,x,y,z,dx,dy,dz,imattr,
-                         Nmlp,Nmlmmp, idxi,idxj,idxu,idxv,idxp):
-        '''
-
-        This function matches the signature of the corresponding MLPOt in Pycharmm
-        '''
-
-        #Assing all positions
+        # Assign all positions
         if Ntrans:
-            mlmm_R = torch.transpose(torch.tensor(
-                [x[:Natim],y[:Natim],z[:Natim]],dtype=self.dtype).shape(3,Natom)
-                                     ,0,1)
+            mlmm_R = torch.transpose(
+                torch.tensor(
+                    [x[:Natim], y[:Natim], z[:Natim]], dtype=self.dtype
+                ).shape(3, Natom),
+            0, 1)
         else:
-            mlmm_R = torch.transpose(torch.tensor(
-                [x[:Natom],y[:Natom],z[:Natom]],dtype=self.dtype).shape(3,Natom)
-                                     ,0,1)
-        # Define indexes
-        #Machine learning indexes
-        ml_idxi = torch.tensor(idxi[:Nmlp],dtype=torch.int64).shape(Nmlp)
-        ml_idxj = torch.tensor(idxj[:Nmlp],dtype=torch.int64).shape(Nmlp)
-        # ML-MM indexes
-        mlmm_idxi = torch.tensor(idxu[:Nmlmmp],dtype=torch.int64).shape(Nmlmmp)
-        mlmm_idxk = torch.tensor(idxv[:Nmlmmp],dtype=torch.int64).shape(Nmlmmp)
-        mlmm_idxk_p = torch.tensor(idxp[:Nmlmmp],dtype=torch.int64).shape(Nmlmmp)
-        atom_seg = torch.zeros(Natom,dtype=torch.int64)
+            mlmm_R = torch.transpose(
+                torch.tensor(
+                    [x[:Natom], y[:Natom], z[:Natom]], dtype=self.dtype
+                ).shape(3, Natom),
+            0, 1)
+
+        # Define indices
+        ml_idxi = torch.tensor(idxi[:Nmlp], dtype=torch.int64).shape(Nmlp)
+        ml_idxj = torch.tensor(idxj[:Nmlp], dtype=torch.int64).shape(Nmlp)
+        mlmm_idxi = torch.tensor(
+            idxu[:Nmlmmp], dtype=torch.int64).shape(Nmlmmp)
+        mlmm_idxk = torch.tensor(
+            idxv[:Nmlmmp], dtype=torch.int64).shape(Nmlmmp)
+        mlmm_idxk_p = torch.tensor(
+            idxp[:Nmlmmp], dtype=torch.int64).shape(Nmlmmp)
+        atom_seg = torch.zeros(Natom, dtype=torch.int64)
 
         # Create batch for evaluating the model
         atoms_batch = {}
@@ -226,7 +266,8 @@ class PyCharmm_Calculator:
         atoms_batch['idx_j'] = ml_idxj
         atoms_batch['pbc_offset'] = None
         atoms_batch['atom_seg'] = atom_seg
-
+        print(atoms_batch)
+        exit()
         # Compute model properties
         results = {}
         if self.model_ensemble:

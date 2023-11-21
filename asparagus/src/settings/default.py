@@ -146,6 +146,7 @@ _default_args = {
     'nms_energy_limits':            1.0,
     'nms_number_of_coupling':       1,
     'nms_limit_of_steps':           10,
+    'nms_limit_com_shift':          0.1,
     'md_temperature':               300.,
     'md_time_step':                 1.,
     'md_simulation_time':           1.E5,

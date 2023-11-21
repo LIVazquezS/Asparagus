@@ -10,6 +10,7 @@ import ase
 from ase import units
 
 from ase import vibrations
+from ase.constraints import FixAtoms
 
 from ase.io.trajectory import Trajectory
 
@@ -35,6 +36,7 @@ class NormalModeScanner(sample.Sampler):
         nms_energy_limits: Optional[Union[float, List[float]]] = None,
         nms_number_of_coupling: Optional[int] = None,
         nms_limit_of_steps: Optional[int] = None,
+        nms_limit_com_shift: Optional[float] = None,
         **kwargs,
     ):
         """
@@ -61,6 +63,11 @@ class NormalModeScanner(sample.Sampler):
         nms_limit_of_steps: int, optional, default 10
             Maximum limit of coupled normal mode displacements in one direction
             to sample the system conformations.
+        nms_limit_com_shift: float, optional, default 0.1 Angstrom
+            Center of mass shift threshold to identify translational normal
+            modes from vibrational (and rotational). Normalized Normal modes
+            with a center of mass shift larger than the threshold are not
+            considered in the normal mode scan.
 
         Returns
         -------
@@ -157,25 +164,25 @@ class NormalModeScanner(sample.Sampler):
             'nms_harmonic_energy_step': self.nms_harmonic_energy_step,
             'nms_energy_limits': self.nms_energy_limits,
             'nms_number_of_coupling': self.nms_number_of_coupling,
+            'nms_limit_com_shift': self.nms_limit_com_shift,
             'nms_limit_of_steps': self.nms_limit_of_steps,
         }
 
     def run_system(
         self,
         system: object,
+        nms_indices: Optional[List[int]] = None,
     ):
         """
         Perform Normal Mode Scanning on the sample system.
         """
 
-        # Prepare system parameter
-        Natoms = system.get_global_number_of_atoms()
-        Nmodes = 3*Natoms
-
         # Compute initial state properties
         # TODO Special calculate property function to handle special properties
         # not supported by ASE such as, e.g., charge, hessian, etc.
-        self.sample_calculator.calculate(system)
+        self.sample_calculator.calculate(
+            system,
+            properties=self.sample_properties)
         system_init_potential = system._calc.results['energy']
 
         # Add initial state properties to dataset
@@ -188,9 +195,26 @@ class NormalModeScanner(sample.Sampler):
             mode='a', properties=self.sample_properties)
         self.write_trajectory(system)
 
+        # Get non-fixed atoms indices
+        if nms_indices is None:
+            indices = range(system.get_global_number_of_atoms())
+        else:
+            indices = np.array(nms_indices, dtype=int)
+        for constraint in system.constraints:
+            if isinstance(constraint, FixAtoms):
+                indices = [
+                    idx for idx in indices 
+                    if idx not in constraint.index]
+        indices = np.array(indices)
+        
+        # Prepare system parameter
+        Natoms = len(indices)
+        Nmodes = 3*Natoms
+
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
             system,
+            indices=indices,
             name=os.path.join(self.sample_directory, "vib"))
         ase_vibrations.clean()
         ase_vibrations.run()
@@ -201,15 +225,15 @@ class NormalModeScanner(sample.Sampler):
 
         # (Trans. + Rot. + ) Vibrational modes normalized to 1
         system_modes = np.array([
-            ase_vibrations.get_mode(imode).reshape(Natoms, 3)
+            ase_vibrations.get_mode(imode)[indices].reshape(Natoms, 3)
             / np.sqrt(np.sum(
-                ase_vibrations.get_mode(imode).reshape(Natoms, 3)**2))
+                ase_vibrations.get_mode(imode)[indices].reshape(Natoms, 3)**2))
             for imode in range(Nmodes)])
 
         # Reduced mass per mode (in amu)
         system_redmass = np.array([
             1./np.sum(
-                system_modes[imode]**2/system.get_masses().reshape(
+                system_modes[imode]**2/system.get_masses()[indices].reshape(
                     Natoms, 1))
             for imode in range(Nmodes)])
 
@@ -221,21 +245,24 @@ class NormalModeScanner(sample.Sampler):
         # Compute and store equilibrium positions and center of mass,
         # moments of inertia and principle axis of inertia
         system_init_positions = system.get_positions()
-        system_init_com = system.get_center_of_mass()
+        system_init_com = system[indices].get_center_of_mass()
 
         # Compute and compare same quantities for displaced system
         system_com_shift = np.zeros(Nmodes, dtype=float)
+
         for imode, mode in enumerate(system_modes):
 
             # COM shift
-            system.set_positions(system_init_positions + mode)
-            system_displ_com = system.get_center_of_mass()
+            system_mode_positions = system_init_positions.copy()
+            system_mode_positions[indices] += mode
+            system.set_positions(system_mode_positions, apply_constraint=False)
+            system_displ_com = system[indices].get_center_of_mass()
             system_com_shift[imode] = np.sqrt(np.sum(
                 (system_init_com - system_displ_com)**2))
 
         # Vibrational modes are assumed with center of mass shifts smaller
-        # than 1.e-3 Angstrom displacement
-        system_vib_modes = system_com_shift < 1.e-2
+        # than 1.e-1 Angstrom displacement
+        system_vib_modes = system_com_shift < self.nms_limit_com_shift
 
         # Displacement factor for energy step (in eV)
         system_displfact = np.sqrt(
@@ -259,7 +286,7 @@ class NormalModeScanner(sample.Sampler):
             flog.write(msg)
 
         # Iterate over number of normal mode combinations
-        steps = np.arange(0, self.nms_limit_of_steps, 1) + 1
+        steps = np.arange(1, self.nms_limit_of_steps + 1, 1)
         vib_modes = np.where(system_vib_modes)[0]
         for icomp in range(1, self.nms_number_of_coupling + 1):
 
@@ -291,15 +318,20 @@ class NormalModeScanner(sample.Sampler):
                         # Set elongation step on initial system positions
                         for imode, modei in enumerate(imodes):
                             current_step_positions = (
-                                system_init_positions
-                                + system_displfact[modei]*system_modes[modei]
-                                * current_step[imode])
-                        system.set_positions(current_step_positions)
+                                system_init_positions.copy())
+                            current_step_positions[indices] += (
+                                system_displfact[modei]*current_step[imode]
+                                * system_modes[modei])
+                        system.set_positions(
+                            current_step_positions,
+                            apply_constraint=False)
 
                         # Compute observables and check potential threshold
                         try:
 
-                            self.sample_calculator.calculate(system)
+                            self.sample_calculator.calculate(
+                                system,
+                                properties=self.sample_properties)
                             current_properties = system._calc.results
                             current_potential = current_properties['energy']
 
@@ -346,13 +378,15 @@ class NormalModeScanner(sample.Sampler):
                             istep += 1
                             for jstep in range(istep, Nsteps):
                                 if np.any(
-                                        np.array(all_steps[jstep])
-                                        < step_size
+                                    np.array(all_steps[jstep]) < step_size
                                 ):
                                     istep = jstep
                                     break
-                            else:
-                                istep = Nsteps
+                            #else:
+                                #istep = Nsteps
+
+                            # Set flag
+                            done = True
 
                         else:
 
@@ -361,6 +395,19 @@ class NormalModeScanner(sample.Sampler):
 
                         # Check step size progress
                         if istep >= Nsteps:
+                            
+                            # Update log file
+                            msg = "Vib. modes: ("
+                            for imode, isign in zip(imodes, signs):
+                                if isign > 0:
+                                    msg += f"+{imode + 1:d}, "
+                                else:
+                                    msg += f"-{imode + 1:d}, "
+                            msg += f") - {istep:4d} steps added\n"
+                            with open(self.nms_log_file, 'a') as flog:
+                                flog.write(msg)
+
+                            # Set flag
                             done = True
 
         return
@@ -434,13 +481,20 @@ class NormalModeSampler(sample.Sampler):
             setattr(self, arg, item)
 
         # Update global configuration dictionary
-        # self.config.update(config_update)
+        self.config.update(config_update)
+
+        # Define MD log and trajectory file path
+        self.nms_log_file = os.path.join(
+            self.sample_directory,
+            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
+        self.nms_trajectory_file = os.path.join(
+            self.sample_directory,
+            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
 
         # Check sample properties for energy property which is required for
         # normal mode scanning
         if 'energy' not in self.sample_properties:
             self.sample_properties.append('energy')
-
 
         #####################################
         # # # Initialize Sample DataSet # # #
@@ -467,29 +521,33 @@ class NormalModeSampler(sample.Sampler):
             'sample_systems_optimize': self.sample_systems_optimize,
             'sample_systems_optimize_fmax': self.sample_systems_optimize_fmax,
             'sample_data_overwrite': self.sample_data_overwrite,
-            'nms_temperature': self.nmsamp_temperature,
-            'nms_nsamples': self.nmsamp_nsamples,
+            'nms_temperature': self.nms_temperature,
+            'nms_nsamples': self.nms_nsamples,
         }
 
-    def R(self,fct, nmodes, T=300):
-        random_num = np.random.uniform(size=nmodes) ** 2
+    def R(self, fct, nmodes, T=300):
+        
+        random_num = np.random.uniform(size=nmodes)**2
         sign = [-1 if i < 0.5 else 1 for i in random_num]
         fix_fcts = [0.05 if i < 0.05 else i for i in fct]
         R = []
+        
         for i, j in enumerate(fix_fcts):
-            R_i = sign[i] * np.sqrt((3 * random_num[i] * units.kB * T) / j)
+            R_i = sign[i] * np.sqrt((3*random_num[i]*units.kB*T)/j)
             R.append(R_i)
-        R_vec = np.array(R)
-        return R_vec
+        
+        return np.array(R)
 
-    def new_coord(self,nmodes,vib_disp, mass_sqrt, fcts, T=300):
+    def new_coord(self, nmodes, vib_disp, mass_sqrt, fcts, T=300):
+        
         Rx = self.R(nmodes, fcts, T)
         new_disp = []
+        
         for i, j in enumerate(vib_disp):
             disp_i = mass_sqrt[i] * Rx[i] * j
             new_disp.append(disp_i)
-        disp = np.sum(new_disp, axis=0)
-        return disp
+        
+        return np.sum(new_disp, axis=0)
 
     def save_properties(self, system):
         """
@@ -499,28 +557,50 @@ class NormalModeSampler(sample.Sampler):
         system_properties = self.get_properties(system)
         self.nms_dataset.add_atoms(system, system_properties)
 
-    def run(self,system):
-        '''
-        Running the system
-        This only considers vibrational degrees of freedom. Rotational and translational degrees of freedom are not considered.
-
-        '''
-
-        print('You are doing normal mode sampling, we recommend you to use the normal mode sampling class')
-        # Prepare system parameter
-        Natoms = system.get_global_number_of_atoms()
-        Nmodes = 3 * Natoms
+    def run(
+        self,
+        system: object,
+        nms_indices: Optional[List[int]] = None,
+    ):  
+        """
+        Perform Normal Mode Sampling on the sample system.
+        """
 
         # Compute initial state properties
-        self.sample_calculator.calculate(system)
+        self.sample_calculator.calculate(
+            system, 
+            properties=self.sample_properties)
 
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
         self.nms_dataset.add_atoms(system, system_properties)
 
+        # Attach to trajectory
+        self.nms_trajectory = Trajectory(
+            self.nms_trajectory_file, atoms=system,
+            mode='a', properties=self.sample_properties)
+        self.write_trajectory(system)
+
+        # Get non-fixed atoms indices
+        if nms_indices is None:
+            indices = range(system.get_global_number_of_atoms())
+        else:
+            indices = np.array(nms_indices, dtype=int)
+        for constraint in system.constraints:
+            if isinstance(constraint, FixAtoms):
+                indices = [
+                    idx for idx in indices 
+                    if idx not in constraint.index]
+        indices = np.array(indices)
+        
+        # Prepare system parameter
+        Natoms = len(indices)
+        Nmodes = 3*Natoms
+
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
             system,
+            indices=indices,
             name=os.path.join(self.sample_directory, f"vib"))
         ase_vibrations.clean()
         ase_vibrations.run()
@@ -531,34 +611,43 @@ class NormalModeSampler(sample.Sampler):
 
         # (Trans. + Rot. + ) Vibrational modes normalized to 1
         system_modes = np.array([
-            ase_vibrations.get_mode(imode).reshape(Natoms, 3)
+            ase_vibrations.get_mode(imode)[indices].reshape(Natoms, 3)
             / np.sqrt(np.sum(
-                ase_vibrations.get_mode(imode).reshape(Natoms, 3) ** 2))
+                ase_vibrations.get_mode(imode)[indices].reshape(Natoms, 3) ** 2))
             for imode in range(Nmodes)])
 
         # Reduced mass per mode (in amu)
         system_redmass = np.array([
             1. / np.sum(
-                system_modes[imode] ** 2 / system.get_masses().reshape(
+                system_modes[imode]**2/system.get_masses()[indices].reshape(
                     Natoms, 1))
             for imode in range(Nmodes)])
 
         # Force constant per mode (in eV/Angstrom**2)
         system_forceconst = (
-                4.0 * np.pi ** 2 * (np.abs(system_frequencies) * 1.e2 * units._c) ** 2
-                * system_redmass * units._amu * units.J * 1.e-20)
+            4.0*np.pi**2*(np.abs(system_frequencies)*1.e2*units._c)**2
+            * system_redmass*units._amu*units.J*1.e-20)
 
         # Compute and store equilibrium positions and center of mass,
         # moments of inertia and principle axis of inertia
         system_init_positions = system.get_positions()
         for _ in range(self.nmsamp_nsamples):
-            new_position = system_init_positions + self.new_coord(Nmodes, system_modes, system_redmass, system_forceconst
-                                                                  , self.nmsamp_temperature)
+            
+            new_position = system_init_positions.copy()
+            new_position[indices] += self.new_coord(
+                Nmodes, system_modes, system_redmass, system_forceconst, 
+                self.nmsamp_temperature)
             system.set_positions(new_position)
+
             try:
-                self.sample_calculator.calculate(system)
+
+                self.sample_calculator.calculate(
+                    system,
+                    properties=self.sample_properties)
                 self.save_properties(system)
+
             except:
+
                 print('This configuration is not stable')
                 pass
 

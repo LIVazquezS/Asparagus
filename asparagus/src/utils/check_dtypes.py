@@ -186,6 +186,9 @@ def is_string_array(x, verbose=False):
     else:
         return result[0]
 
+def is_bool_array(x, verbose=False):
+    return is_boolean_array(x, verbose=verbose)
+
 def is_boolean_array(x, verbose=False):
     if is_array_like(x) and np.asarray(x).size > 0:
         try:

@@ -4,7 +4,7 @@ from asparagus import Asparagus
 
 data_format = "db"
 
-if False:
+if True:
 
     data = DataContainer(
         config='no2_config.json',
@@ -18,11 +18,6 @@ if False:
             'charge':   'e',
             'dipole':   'e*Ang'},
         data_overwrite=True)
-
-    #print(data.train_set.get(1))
-    #for item in data.train_loader:
-        #print(item)
-        #exit()
 
 if True:
 
