@@ -316,9 +316,8 @@ class NormalModeScanner(sample.Sampler):
                         current_step = np.array(signs)*step_size
 
                         # Set elongation step on initial system positions
+                        current_step_positions = system_init_positions.copy()
                         for imode, modei in enumerate(imodes):
-                            current_step_positions = (
-                                system_init_positions.copy())
                             current_step_positions[indices] += (
                                 system_displfact[modei]*current_step[imode]
                                 * system_modes[modei])
@@ -363,18 +362,9 @@ class NormalModeScanner(sample.Sampler):
                         # Check energy threshold
                         if threshold_reached:
 
-                            # Update log file
-                            msg = "Vib. modes: ("
-                            for imode, isign in zip(imodes, signs):
-                                if isign > 0:
-                                    msg += f"+{imode + 1:d}, "
-                                else:
-                                    msg += f"-{imode + 1:d}, "
-                            msg += f") - {istep:4d} steps added\n"
-                            with open(self.nms_log_file, 'a') as flog:
-                                flog.write(msg)
-
-                            # Check for next suitable step size index
+                            # Check for next suitable step size index and avoid
+                            # combination of step sizes which were already 
+                            # above the energy threshold before.
                             istep += 1
                             for jstep in range(istep, Nsteps):
                                 if np.any(
@@ -382,11 +372,8 @@ class NormalModeScanner(sample.Sampler):
                                 ):
                                     istep = jstep
                                     break
-                            #else:
-                                #istep = Nsteps
-
-                            # Set flag
-                            done = True
+                            else:
+                                done = True
 
                         else:
 
@@ -394,7 +381,7 @@ class NormalModeScanner(sample.Sampler):
                             istep += 1
 
                         # Check step size progress
-                        if istep >= Nsteps:
+                        if done or istep >= Nsteps:
                             
                             # Update log file
                             msg = "Vib. modes: ("
@@ -407,7 +394,7 @@ class NormalModeScanner(sample.Sampler):
                             with open(self.nms_log_file, 'a') as flog:
                                 flog.write(msg)
 
-                            # Set flag
+                            # Set flag in case maximum Nsteps is reached
                             done = True
 
         return
