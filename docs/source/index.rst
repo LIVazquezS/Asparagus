@@ -21,8 +21,7 @@ Add here examples
 ----------------
 Api Documentation
 ----------------
-.. toctree::
-   api
+:doc:`api`
 
 About
 =====

@@ -1,6 +1,11 @@
 API
 ===
 
-.. autosummary::
-   :toctree: generated
-   api/asparagus
+Contents
+--------
+
+.. toctree::
+   :maxdepth: 4
+
+   api/src
+

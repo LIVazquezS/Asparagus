@@ -1,5 +1,8 @@
 # Configuration file for the Sphinx documentation builder.
+import os
+import sys
 
+sys.path.insert(0, os.path.abspath(os.path.join('..', '..','asparagus')))
 # -- Project information
 
 project = 'Asparagus bundle'
@@ -15,6 +18,7 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'myst_parser',

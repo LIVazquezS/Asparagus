@@ -7,9 +7,9 @@ What is Asparagus?
 
 Asparagus is our attempt to make the creation of potential energy surfaces with machine learning as easy as possible.
 
----------------------
+---------------------------------
 What can Asparagus do?
----------------------
+---------------------------------
 
 - Sampling: Asparagus can sample the potential energy surface using a variety of methods. See the sampling page for more information.
 - Training: Asparagus can train a neural network to reproduce the sampled data. See the training page for more information.
