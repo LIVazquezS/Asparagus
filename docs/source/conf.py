@@ -2,7 +2,7 @@
 
 # -- Project information
 
-project = 'Asparagus Suite'
+project = 'Asparagus bundle'
 copyright = '2023, L.I.Vazquez-Salazar, K. Toepfer & M. Meuwly'
 author = 'L.I.Vazquez-Salazar & K. Toepfer'
 
@@ -17,6 +17,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'myst_parser',
 ]
 
 intersphinx_mapping = {
