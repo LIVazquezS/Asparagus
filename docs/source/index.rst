@@ -1,12 +1,32 @@
-Asparagus Net documentation!
+Asparagus documentation!
 ===================================
 
-What is this?
- - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch.
- - A Suit for the automatic construction of Potential Energy Surface (PES) since sampling to production.
+This is the documentation of the Asparagus project. Asparagus is a python package that allows you to create a machine learning
+potential energy surface from sampling to production.
 
-Check out the :doc:`usage` section for further information, including
-how to :ref:`installation` the project.
+Contents
+========
+
+------------
+Installation
+------------
+Please check out the :doc:`installation` section for further information.
+
+---------------
+Getting Started
+---------------
+
+Add here examples
+
+----------------
+Api Documentation
+----------------
+
+
+About
+=====
+
+Please check out the :doc:`about` section for further information.
 
 .. note::
 
