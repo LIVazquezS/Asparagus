@@ -3,4 +3,4 @@ API
 
 .. autosummary::
    :toctree: generated
-   asparagus
+   ./asparagus
