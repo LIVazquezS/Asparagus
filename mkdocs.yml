@@ -1,0 +1,19 @@
+site_name: Asparagus Bunch-Documentation
+repo_url: https://github.com/LIVazquezS/Asparagus
+site_author: L.I.Vazquez-Salazar, K. Toepfer, M. Meuwly
+copyright: Copyright © 2023  K. Toepfer, L.I.Vazquez-Salazar, M. Meuwly
+nav:
+    - Home: index.md
+    - "Examples": examples.md
+          - "Formaldehyde"
+          - "Zundel"
+          - "Sn2"
+          - "Tools"
+    - Tutorials: tutorials.md
+    - About: about.md
+    - Contact: contact.md
+#    - "My Docs":
+#        - "Subpage": subpage.md
+#        - "Subpage 2": subpage2.md
+theme: readthedocs
+
