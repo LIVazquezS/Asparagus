@@ -2,7 +2,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join('..', '..','asparagus')))
+sys.path.insert(0, os.path.abspath(os.path.join('.','..', '..','asparagus')))
 # -- Project information
 
 project = 'Asparagus bundle'
@@ -19,15 +19,18 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    'myst_parser',
-]
+    'myst_parser',]
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
 }
+
+autodoc_mock_imports = ['ase', 'torch', 'torch-ema', 'numpy', 'tensorboard', 'xtb','h5py','pandas','matplotlib','seaborn','scipy','pytest']
+
 intersphinx_disabled_domains = ['std']
 
 templates_path = ['_templates']

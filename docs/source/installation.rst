@@ -26,7 +26,7 @@ To activate the virtual environment use the command:
 
        mamba activate asparagus
 
-**Note**: If you are using Miniconda, just replace `mamba` by `conda`.
+**Note**: If you are using Miniconda, just replace ``mamba`` by ``conda``.
 
 Dependencies
 ============
@@ -36,7 +36,7 @@ Asparagus depends on the following packages:
    - Python :math:`\geq` 3.8 (We recommend to use 3.8.12, **DO NOT** (for the moment) use 3.9)
    - PyTorch :math:`\geq` 1.10
    - Torch-ema :math:`\geq` 0.3
-   - TensorBoardX :math:`\geq` 2.4
+   - TensorBoard :math:`\geq` 2.4
    - Atomic Simulation Environment (ASE)  :math:`\geq` 3.21
    - xtb
 
