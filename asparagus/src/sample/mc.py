@@ -156,12 +156,12 @@ class MCSampler(sample.Sampler):
 
         # Initialize trajectory
         self.mc_trajectory = Trajectory(
-            self.md_trajectory_file, atoms=system, 
+            self.mc_trajectory_file, atoms=system,
             mode='a', properties=self.sample_properties)
         
         # Perform MC simulation
         traj_steps = int(self.mc_simulation_time / self.mc_time_step)
-        traj = self.monte_carlo_steps(initial_system, traj_steps)
+        self.monte_carlo_steps(initial_system, traj_steps)
 
     def monte_carlo_steps(
         self,
@@ -217,7 +217,7 @@ class MCSampler(sample.Sampler):
                 # Reset the position of the atom
                 system[atom].position = old_position
 
-        return trajectory
+        return
 
 
     def save_properties(self, system):

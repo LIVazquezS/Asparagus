@@ -9,12 +9,12 @@ import numpy as np
 
 import torch
 
-import tensorflow as tf
+# import tensorflow as tf
 
 from .. import settings
 from .. import utils
 
-from ... import Asparagus
+# from ... import Asparagus
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

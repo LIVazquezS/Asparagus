@@ -49,7 +49,7 @@ class ASE_Calculator(ase_calc.Calculator):
         atoms_charge: float, optional, default 0.0
             Total charge of the respective ASE Atoms object.
         implemented_properties: (str, list(str)), optional, default None
-            Properties predicted by the model calculator. If None, than
+            Properties predicted by the model calculator. If None, then
             all model properties (of the first model if ensemble) are
             available.
         use_neighbor_list: bool, optional, default True
@@ -58,7 +58,7 @@ class ASE_Calculator(ase_calc.Calculator):
             boundary conditions.
             If False, all possible atom pair indices are considered.
             If ASE Atoms object is periodic, neighbor list function will be
-            used anyways.
+            used anyway.
 
         Returns
         -------

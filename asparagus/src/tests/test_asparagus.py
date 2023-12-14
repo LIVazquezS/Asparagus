@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-import asparagus
+# import asparagus
 
 
 def test_asparagus_imported():
