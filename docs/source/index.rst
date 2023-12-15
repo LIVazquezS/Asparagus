@@ -4,6 +4,10 @@ Asparagus documentation!
 This is the documentation of the Asparagus project. Asparagus is a python package that allows you to create a machine learning
 potential energy surface from sampling to production.
 
+
+
+
+
 Contents
 ========
 
@@ -18,9 +22,9 @@ Getting Started
 
 Add here examples
 
-----------------
+-----------------
 Api Documentation
-----------------
+-----------------
 :doc:`api`
 
 About
@@ -31,4 +35,8 @@ Please check out the :doc:`about` section for further information.
 .. note::
 
    This project is under active development.
+
+.. toctree::
+   :caption: Contents:
+    about
 

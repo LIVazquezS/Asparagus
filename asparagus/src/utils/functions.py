@@ -121,10 +121,17 @@ def gather_nd(
     """
     The input indices must be a 2d tensor in the form of [[a,b,..,c],...],
     which represents the location of the elements.
-    This function comes from:
-        https://discuss.pytorch.org/t/implement-tf-gather-nd-in-pytorch/37502/6
+    This function comes from: https://discuss.pytorch.org/t/implement-tf-gather-nd-in-pytorch/37502/6
     
     Parameters
+    ----------
+
+    params: torch.Tensor
+        A tensor of any shape.
+    indices: torch.Tensor
+        A 2d tensor in the form of [[a,b,..,c],...]
+
+
     """
     
     # Normalize indices values
@@ -157,16 +164,29 @@ def printProgressBar(
     printEnd="\r",
 ):
     """
+
     Call in a loop to create terminal progress bar
-    @params:
-    iteration   - Required  : current iteration (Int)
-    total       - Required  : total iterations (Int)
-    prefix      - Optional  : prefix string (Str)
-    suffix      - Optional  : suffix string (Str)
-    decimals    - Optional  : positive number of decimals in percent complete
-    length      - Optional  : character length of bar (Int)
-    fill        - Optional  : bar fill character (Str)
-    printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+
+    Parameters
+    ----------
+
+    iteration (int) Required:
+        current iteration (Int)
+    total (int) Required:
+        total iterations
+    prefix (str) Optional:
+        prefix string
+    suffix (str) Optional:
+        suffix string
+    decimals Optional:
+        positive number of decimals in percent complete
+    length (Int) Optional:
+        Character length of bar (Int)
+    fill (str) Optional:
+        bar fill character
+    printEnd (str) Optional:
+        end character (e.g. "\/r", "\/r\/n") (Str)
+
     """
 
     percent = (

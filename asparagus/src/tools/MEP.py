@@ -33,22 +33,33 @@ class MEP:
     It follows the gradient of the vector of the Transition state, therefore it is necessary to calculate the hessian of the transition state.
 
 
-    args:
+    Parameters:
+    -----------
 
-    atoms: ase.Atoms object (required) It is the transition state geometry.
-    atoms_charge: list (optional) list of charges of the atoms.
-    config: dict (optional) dictionary with the configuration of the model.
-    config_file: str (optional) name of the configuration file.
-    model_checkpoint: int (optional) number of the checkpoint file to load.
-    implemented_properties: list (optional) list of the implemented properties.
-    use_neighbor_list: bool (optional) use neighbor list to calculate the forces.
-    label: str (optional) label of the calculator.
-    eps: float (optional) step size to follow the gradient.
-    number_of_steps: int (optional) number of steps to follow the gradient.
-    output: str (optional) name of the output trajectory if not defined it is equal to mep.traj.
-    output_file: str (optional) name of the output file with the energy and steps of the MEP.
-
-
+    atoms: ase.Atoms object
+        It is the transition state geometry.
+    atoms_charge: list (optional)
+        List of charges of the atoms.
+    config: dict (optional)
+        Dictionary with the configuration of the model.
+    config_file: str (optional)
+        Name of the configuration file.
+    model_checkpoint: int (optional)
+        Number of the checkpoint file to load.
+    implemented_properties: list (optional)
+        List of the implemented properties.
+    use_neighbor_list: bool (optional)
+        Use neighbor list to calculate the forces.
+    label: str (optional)
+        Label of the calculator.
+    eps: float (optional)
+        Step size to follow the gradient.
+    number_of_steps: int (optional)
+        Number of steps to follow the gradient.
+    output: str (optional)
+        Name of the output trajectory if not defined it is equal to mep.traj.
+    output_file: str (optional)
+        Name of the output file with the energy and steps of the MEP.
     '''
 
     def __init__(self,atoms=None,
