@@ -12,35 +12,30 @@ def segment_sum(
     debug: Optional[bool] = False,
 ) -> torch.Tensor:
     """
-    Analogous to tf.segment_sum 
+    Analogous to tf.segment_sum
     (https://www.tensorflow.org/api_docs/python/tf/math/segment_sum).
-    
+
     Parameters
     ----------
     data: torch.Tensor
         A pytorch tensor of the data for segmented summation.
     segment_ids: torch.Tensor, shape(N)
         A 1-D tensor containing the indices for the segmentation.
-    
+
     Returns
     -------
     torch.Tensor
-        A tensor of the same type as data containing the results of the 
+        A tensor of the same type as data containing the results of the
         segmented summation.
     """
-    
+
     if debug:
-        
-        #This makes the code slower use only when debugging
-        #if not all(
-            #segment_ids[i] <= segment_ids[i + 1] 
-            #for i in range(len(segment_ids) - 1)
-        #):
+
         if not all(
-            segment_i <= segment_j for segment_i, segment_j 
+            segment_i <= segment_j for segment_i, segment_j
             in zip(segment_ids[:-1], segment_ids[1:])
         ):
-        
+
             raise AssertionError("Elements of 'segment_ids' must be sorted")
 
         if len(segment_ids.shape) != 1:
@@ -59,14 +54,14 @@ def segment_sum(
 def unsorted_segment_sum(
     data: torch.Tensor,
     segment_ids: torch.Tensor,
-    num_segments: int, 
-    device: Optional[str] = 'cpu', 
+    num_segments: int,
+    device: Optional[str] = 'cpu',
     debug: Optional[bool] = False,
 ) -> torch.Tensor:
     """
     Computes the sum along segments of a tensor. Analogous to
     tf.unsorted_segment_sum.
-    
+
     Parameters
     ----------
     data: torch.Tensor
@@ -75,13 +70,13 @@ def unsorted_segment_sum(
         The segment indices tensor.
     num_segments: int
         The number of segments.
-    
+
     Returns
     -------
     torch.Tensor
         A tensor of same data type as the data argument.
     """
-    
+
     if debug:
 
         assert all([i in data.shape for i in segment_ids.shape]), "'segment_ids.shape' should be a prefix of 'data.shape'!"
@@ -94,7 +89,7 @@ def unsorted_segment_sum(
         assert data.shape == segment_ids.shape, "'data.shape' and 'segment_ids.shape' should be equal!"
 
     else:
-        
+
         s = torch.prod(torch.tensor(data.shape[1:])).long().to(device)
         segment_ids = segment_ids.repeat_interleave(s).view(
             segment_ids.shape[0], *data.shape[1:]).to(device)
@@ -115,29 +110,21 @@ def softplus_inverse(x):
 
 
 def gather_nd(
-    params, 
+    params,
     indices,
 ):
     """
     The input indices must be a 2d tensor in the form of [[a,b,..,c],...],
     which represents the location of the elements.
     This function comes from: https://discuss.pytorch.org/t/implement-tf-gather-nd-in-pytorch/37502/6
-    
+
     Parameters
     ----------
-
     params: torch.Tensor
         A tensor of any shape.
     indices: torch.Tensor
         A 2d tensor in the form of [[a,b,..,c],...]
-
-
     """
-    
-    # Normalize indices values
-    #params_size = list(params.size())
-    #assert len(indices.size()) == 2
-    #assert len(params_size) >= indices.size(1)
 
     # Generate indices
     indices = indices.t().long()
@@ -185,8 +172,7 @@ def printProgressBar(
     fill (str) Optional:
         bar fill character
     printEnd (str) Optional:
-        end character (e.g. "\/r", "\/r\/n") (Str)
-
+        end character (e.g. "/r", "/r/n") (Str)
     """
 
     percent = (
