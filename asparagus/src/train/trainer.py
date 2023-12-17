@@ -64,7 +64,7 @@ class Trainer:
             Either the path to json file (str), dictionary (dict) or
             settings.config class object of model parameters
         data_container: callable object, optional
-            Data container object of the reference data set. 
+            Data container object of the reference data set.
             If not provided, the data container will be initialized according
             to config input.
         model_calculator: callable object, optional
@@ -437,7 +437,21 @@ class Trainer:
 
         return model_units
 
-    def train(self, verbose=True, debug=False):
+    def train(
+        self,
+        verbose=True,
+        debug=False,
+    ):
+        """
+        Train NN potential model.
+
+        Parameters
+        ----------
+        verbose: bool, optional, default True
+            Show progress bar for the current epoch.
+        debug: bool, optional, dafault False
+            Enable torch autograd anomaly detection.
+        """
 
         ####################################
         # # # Prepare Model and Metric # # #
@@ -461,7 +475,7 @@ class Trainer:
                     latest_checkpoint['scheduler_state_dict'])
             if latest_checkpoint.get('epoch') is not None:
                 self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
-        
+
         # Initialize training mode for calculator
         # (torch.nn.Module function to activate, e.g., parameter dropout)
         self.model_calculator.train()

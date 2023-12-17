@@ -174,6 +174,9 @@ class Calculator_PhysNet(torch.nn.Module):
         # Calculator class type
         self.model_type = 'PhysNet'
 
+        # Convert 'model_properties' to list
+        self.model_properties = list(self.model_properties)
+
         # Check for energy gradient properties in prediction list
         if any([
                 prop in self.model_properties
@@ -196,10 +199,15 @@ class Calculator_PhysNet(torch.nn.Module):
         if 'dipole' in self.model_properties:
             self.model_dipole = True
             if 'atomic_charges' not in self.model_properties:
-                raise ValueError(
-                    "PhysNet model cannot provide molecular dipole "
-                    + "without the prediction of atomic charges!")
+                logger.warning(
+                    "WARNING:\nModel properties do not include atomic charges"
+                    + "mode dipole prediction is requested!\n"
+                    + "Atomic charges are added to model properties."
+                    )
+                self.model_properties.append('atomic_charges')
+                self.model_dipole = True
         elif 'atomic_charges' in self.model_properties:
+            self.model_properties.append('dipole')
             self.model_dipole = True
         else:
             self.model_dipole = False
@@ -225,7 +233,7 @@ class Calculator_PhysNet(torch.nn.Module):
         # Check cutoff width
         if self.model_cutoff_width == 0.0:
             logger.warning(
-                "WARNING:\n The interaction cutoff width 'model_cutoff_width'"
+                "WARNING:\nThe interaction cutoff width 'model_cutoff_width'"
                 + "is zero which might lead to indifferentiable potential"
                 + "at the interaction cutoff at "
                 + f"{self.model_interaction_cutoff:.2f}!")

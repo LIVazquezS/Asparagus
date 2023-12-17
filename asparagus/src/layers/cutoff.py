@@ -1,18 +1,19 @@
-#TODO: Add more options of cutoff functions. Current Cutoff only does regular
-# physnet cutoff
+# TODO: Add more options of cutoff functions. Current Cutoff only does regular
+# PhysNet cutoff
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
 
 from .. import utils
 
-__all__ = ['get_cutoff_fn', 'Poly6_cutoff', 'cutoff_CHARMM']
+__all__ = ['get_cutoff_fn', 'Cutoff_poly6', 'Cutoff_poly6_width']
 
 #======================================
 # Cutoff functions
 #======================================
 
-class Poly6_cutoff(torch.nn.Module):
+
+class Cutoff_poly6(torch.nn.Module):
     """
     2nd derivative smooth polynomial cutoff function of 6th order.
 
@@ -53,51 +54,80 @@ class Poly6_cutoff(torch.nn.Module):
             1.0 + ((-6.0*x + 15.0)*x - 10.0)*x**3,
             torch.zeros_like(x))
 
-class cutoff_CHARMM(torch.nn.Module):
-    ''' Switch function for electrostatic interaction (switches between
-        shielded and unshielded electrostatic interaction) '''
+
+class Cutoff_poly6_width(torch.nn.Module):
+    """
+    2nd derivative smooth polynomial cutoff function of 6th order,
+    within the range cutoff - width < x < cutoff
+
+    f(x) = 1 - 6*x**5 + 15*x**4 - 10*x**3
+    with (x - cutoff - width) = distance/width
+    """
 
     def __init__(
         self,
-        mlmm_rcut: float,
-        mlmm_width: float,
+        cutoff: float,
+        width: float,
         dtype: Optional[object] = torch.float64,
     ):
+        """
+        Parameters
+        ----------
+        cutoff: float
+            Cutoff distance
+        width: float
+            Cutoff width defining cutoff range (cutoff - width) to cutoff
+
+        Returns
+        -------
+        float
+            Cutoff value [0,1]
+        """
 
         super().__init__()
 
-        self.mlmm_rcut = mlmm_rcut
-        self.mlmm_width = mlmm_width
+        self.cutoff = cutoff
+        self.width = width
+
         # Set cutoff value in the register for model parameters
-        self.register_buffer("mlmm_rcut", torch.tensor([mlmm_rcut], dtype=dtype))
-        self.register_buffer("mlmm_width", torch.tensor([mlmm_width], dtype=dtype))
+        self.register_buffer("cutoff", torch.tensor([cutoff], dtype=dtype))
+        self.register_buffer("width", torch.tensor([width], dtype=dtype))
 
     def forward(
         self,
-        Dmlmm: torch.Tensor
+        distance: torch.Tensor
     ) -> torch.Tensor:
 
-        x = (Dmlmm - self.mlmm_rcut + self.mlmm_width)/self.mlmm_width
+        x = (distance - self.cutoff + self.width)/self.width
 
-        cutoff = torch.where(Dmlmm<self.mlmm_rcut,torch.ones_like(Dmlmm), torch.zeros_like(Dmlmm))
+        poly6_width = torch.where(
+            distance < self.cutoff,
+            torch.ones_like(distance),
+            torch.zeros_like(distance)
+            )
 
-        cutoff = torch.where(
-            torch.logical_and((Dmlmm>self.mlmm_rcut-self.mlmm_width),(Dmlmm<self.mlmm_rcut)),
-            1.0 + ((-6.0*x + 15.0)*x - 10.0)*x**3,cutoff)
+        poly6_width = torch.where(
+            torch.logical_and(
+                (distance > self.cutoff - self.width),
+                (distance < self.cutoff)
+            ),
+            1.0 + ((-6.0*x + 15.0)*x - 10.0)*x**3,
+            poly6_width)
 
-        return cutoff
+        return poly6_width
 
 #======================================
 # Function assignment
 #======================================
 
-
 functions_avaiable = {
-    'default'.lower(): Poly6_cutoff,
-    'Poly6'.lower(): Poly6_cutoff,
-    'PhysNet_CutOff'.lower(): Poly6_cutoff,
-    'CHARMM_CutOff'.lower(): cutoff_CHARMM,
-    'CHARMM'.lower(): cutoff_CHARMM
+    'default'.lower(): Cutoff_poly6,
+    'Poly6'.lower(): Cutoff_poly6,
+    'PhysNet'.lower(): Cutoff_poly6,
+    'PhysNet_cutoff'.lower(): Cutoff_poly6,
+    'Poly6_width'.lower(): Cutoff_poly6_width,
+    'CHARMM'.lower(): Cutoff_poly6_width,
+    'CHARMM_cutoff'.lower(): Cutoff_poly6_width,
     }
 
 

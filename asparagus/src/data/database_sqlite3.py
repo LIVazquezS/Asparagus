@@ -75,7 +75,7 @@ structure_properties_shape = {
     'atomic_numbers':   (-1,),
     'positions':        (-1, 3,),
     'charge':           (-1,),
-    'cell':             (1, 3,),
+    'cell':             (-1,),
     'pbc':              (1, 3,),
     'idx_i':            (-1,),
     'idx_j':            (-1,),
@@ -99,11 +99,11 @@ def lock(method):
 
 def object_to_bytes(
     obj: Any
-    ) -> bytes:
+) -> bytes:
     """
     Serialize Python object to bytes.
     """
-    
+
     parts = [b'12345678']
     obj = o2b(obj, parts)
     offset = sum(len(part) for part in parts)
@@ -117,11 +117,11 @@ def object_to_bytes(
 
 def bytes_to_object(
     b: bytes
-    ) -> Any:
+) -> Any:
     """
     Deserialize bytes to Python object.
     """
-    
+
     x = np.frombuffer(b[:8], np.int64)
     if not np.little_endian:
         x = x.byteswap()
@@ -131,26 +131,26 @@ def bytes_to_object(
 
 
 def o2b(
-    obj: Any, 
+    obj: Any,
     parts: List[bytes]
     ):
-    
+
     if (
-        obj is None 
-        or utils.is_numeric(obj) 
-        or utils.is_bool(obj) 
+        obj is None
+        or utils.is_numeric(obj)
+        or utils.is_bool(obj)
         or utils.is_string(obj)
-        ):
+    ):
         return obj
-    
+
     if utils.is_dictionary(obj):
         return {key: o2b(value, parts) for key, value in obj.items()}
-    
+
     if isinstance(obj, (list, tuple)):
         return [o2b(value, parts) for value in obj]
-    
+
     if isinstance(obj, np.ndarray):
-        
+
         assert obj.dtype != object, \
             'Cannot convert ndarray of type "object" to bytes.'
         offset = sum(len(part) for part in parts)
@@ -158,20 +158,20 @@ def o2b(
             obj = obj.byteswap()
         parts.append(obj.tobytes())
         return {'__ndarray__': [obj.shape, obj.dtype.name, offset]}
-    
+
     if isinstance(obj, complex):
         return {'__complex__': [obj.real, obj.imag]}
-    
+
     objtype = type(obj)
     raise ValueError(
         f"Objects of type {objtype} not allowed")
 
 
 def b2o(
-    obj: Any, 
+    obj: Any,
     b: bytes
-    ) -> Any:
-    
+) -> Any:
+
     if isinstance(obj, (int, float, bool, str, type(None))):
         return obj
 
@@ -199,6 +199,7 @@ def b2o(
     objtype = dct.pop('__ase_objtype__', None)
     if objtype is None:
         return dct
+
     return create_ase_object(objtype, dct)
 
 
@@ -206,16 +207,16 @@ class DataBase_SQLite3(data.DataBase):
     """
     SQL lite 3 data base class
     """
-    
+
     # Initialize connection interface
     connection = None
     _metadata = None
-    
+
     # Used for autoincrement id
     default = 'NULL'
-    
+
     def __init__(
-        self, 
+        self,
         data_file: str,
         lock_file: bool,
     ):
@@ -231,34 +232,32 @@ class DataBase_SQLite3(data.DataBase):
         lock_file: bool
             Use a lock file when manipulating the database to prevent
             parallel manipulation by multiple processes.
-                
+
         Returns
         -------
             object
                 SQLite3 dataBase for data storing
         """
-        
+
         # Inherit from DataBase base class
         super().__init__(data_file)
-        
+
         # Prepare data locker
         if lock_file and utils.is_string(data_file):
             self.lock = Lock(data_file + '.lock', world=DummyMPI())
         else:
             self.lock = None
-        
+
         return
-    
+
     def _connect(self):
         return sqlite3.connect(self.data_file, timeout=20)
-
 
     def __enter__(self):
         assert self.connection is None
         self.change_count = 0
         self.connection = self._connect()
         return self
-
 
     def __exit__(self, exc_type, exc_value, tb):
         if exc_type is None:
@@ -267,8 +266,7 @@ class DataBase_SQLite3(data.DataBase):
             self.connection.rollback()
         self.connection.close()
         self.connection = None
-    
-    
+
     @contextmanager
     def managed_connection(self, commit_frequency=5000):
         try:
@@ -289,99 +287,98 @@ class DataBase_SQLite3(data.DataBase):
 
     @lock
     def _set_metadata(self, metadata):
-        
+
         # Convert metadata dictionary
         md = json.dumps(metadata)
-        
+
         with self.managed_connection() as con:
-            
+
             # Select any data in the database
             cur = con.execute(
                 "SELECT COUNT(*) FROM sqlite_master WHERE name='information'")
-            
+
             if cur.fetchone()[0]:
-                
+
                 # Update metadata if existing
                 cur.execute(
-                    "UPDATE information SET value=? WHERE name='metadata'", 
+                    "UPDATE information SET value=? WHERE name='metadata'",
                     [md])
-                
+
             else:
-                
-                # Initialize data columns 
+
+                # Initialize data columns
                 for statement in init_information:
                     con.execute(statement)
                 con.commit()
-                
-                # Write metadata 
+
+                # Write metadata
                 cur.execute(
                     "INSERT INTO information VALUES (?, ?)", ('metadata', md))
-    
-    
+
     def _get_metadata(self):
-        
+
         # Read metadata if not in memory
         if self._metadata is None:
-            
+
             with self.managed_connection() as con:
-                
+
                 cur = con.execute(
                     'SELECT value FROM information WHERE name="metadata"')
                 results = cur.fetchall()
                 if results:
                     self._metadata = json.loads(results[0][0])
-        
+
         return self._metadata
 
     @lock
     def _init_systems(self):
-        
+
         # Get metadata
         metadata = self._get_metadata()
-        
+
         with self.managed_connection() as con:
-            
+
             # Select any data in the database
             cur = con.execute(
                 "SELECT COUNT(*) FROM sqlite_master WHERE name='systems'")
-            
+
             # If no system in database
             if cur.fetchone()[0] == 0:
-                
+
                 # Update initial statements with properties to load
                 init_systems_execute = init_systems[:]
                 for prop_i in metadata.get('load_properties'):
                     if prop_i not in structure_properties_dtype.keys():
                         init_systems_execute[0] += f"{prop_i} BLOB,\n"
                 init_systems_execute[0] = init_systems_execute[0][:-2] + ")"
-                
-                # Initialize data columns 
+
+                # Initialize data columns
                 for statement in init_systems_execute:
                     con.execute(statement)
                 con.commit()
-                
+
                 self.version = VERSION
-            
+
             # Else get information from database
             else:
-                
+
                 cur = con.execute(
                     'SELECT value FROM information WHERE name="version"')
                 self.version = int(cur.fetchone()[0])
-            
+
         # Check version compatibility
         if self.version > VERSION:
             raise IOError(
                 f"Can not read newer version of the database format "
                 f"(version {self.version}).")
-        
+
         return
 
     def _get(self, selection, **kwargs):
-        
+
         # Get row of selection
         row = list(self.select(selection, **kwargs))
-        
+
         # Check selection results
         if row is None:
             raise KeyError('no match')
@@ -401,23 +398,24 @@ class DataBase_SQLite3(data.DataBase):
             cmps = [('id', '=', selection_i) for selection_i in selection]
         else:
             raise ValueError(
-                f"Database selection '{selection}' is not a valid input!\n" +
-                f"Provide either an index or list of indices.")
+                f"Database selection '{selection}' is not a valid input!\n"
+                + "Provide either an index or list of indices.")
 
         return cmps
 
     @parallel_generator
     def select(
-        self, 
-        selection=None, 
-        selection_filter=None, 
-        **kwargs):
+        self,
+        selection=None,
+        selection_filter=None,
+        **kwargs
+    ):
         """
         Select rows.
 
         Return AtomsRow iterator with results.  Selection is done
         using key-value pairs.
-        
+
         Parameters
         ----------
         selection: (int, list(int))
@@ -431,26 +429,23 @@ class DataBase_SQLite3(data.DataBase):
             dict
                 Returns entry of the selection.
         """
-        
+
         # Check and interpret selection
         cmps = self.parse_selection(selection)
-        
+
         # Iterate over selection
-        #row = list(self._select(cmps))
         for row in self._select(cmps):
-        
-            # Apply potential reference data filter or not 
+
+            # Apply potential reference data filter or not
             if selection_filter is None or selection_filter(row):
-                    
+
                 yield row
 
     def encode(self, obj):
         return object_to_bytes(obj)
-        
-        
+
     def decode(self, txt):
         return bytes_to_object(txt)
-        
 
     def blob(self, item):
         """
@@ -463,7 +458,7 @@ class DataBase_SQLite3(data.DataBase):
             return item
         elif utils.is_numeric(item):
             return item
-        
+
         if item.dtype == np.int64:
             item = item.astype(np.int32)
         if item.dtype == torch.int64:
@@ -471,42 +466,40 @@ class DataBase_SQLite3(data.DataBase):
         if not np.little_endian:
             item = item.byteswap()
         return memoryview(np.ascontiguousarray(item))
-        
 
     def deblob(self, buf, dtype=torch.float, shape=None):
         """
         Convert blob/buffer object to ndarray of correct dtype and shape.
         (without creating an extra view).
         """
-        
+
         if buf is None:
             return None
-        
+
         if len(buf) == 0:
             item = np.zeros(0, dtype)
         else:
             item = np.frombuffer(buf, dtype)
             if not np.little_endian:
                 item = item.byteswap()
-        
+
         if shape is not None:
             item = item.reshape(shape)
-            
+
         return item
 
     @lock
     def _write(self, properties, row_id):
-        
+
         # Reference data list
         columns = []
         values = []
-        
+
         # Current datatime and User name
         columns += ['mtime', 'username']
         values += [time.ctime(), os.getenv('USER')]
 
         # Structural properties
-        structure_values = []
         for prop_i, dtype_i in structure_properties_dtype.items():
 
             columns += [prop_i]
@@ -517,12 +510,12 @@ class DataBase_SQLite3(data.DataBase):
                     np.array(properties.get(prop_i), dtype=dtype_i))]
             else:
                 values += [dtype_i(properties.get(prop_i))]
-        
+
         # Reference properties
         for prop_i in self.metadata.get('load_properties'):
 
             if prop_i not in structure_properties_dtype.keys():
-                
+
                 columns += [prop_i]
                 if properties.get(prop_i) is None:
                     values += [None]
@@ -537,26 +530,26 @@ class DataBase_SQLite3(data.DataBase):
         # Convert values to tuple
         columns = tuple(columns)
         values = tuple(values)
-        
+
         # Add or update database values
         with self.managed_connection() as con:
-            
+
             # Add values to database
             if row_id is None:
-                
+
                 # Get SQL cursor
                 cur = con.cursor()
-                
+
                 # Add to database
                 q = self.default + ', ' + ', '.join('?' * len(values))
                 cur.execute(
                     f"INSERT INTO systems VALUES ({q})", values)
                 row_id = self.get_last_id(cur)
-                
+
             else:
 
                 row_id = self._update(row_id, values=values, columns=columns)
-                
+
         return row_id
 
     def update(self, row_id, properties):
@@ -589,7 +582,7 @@ class DataBase_SQLite3(data.DataBase):
                     prop_i in properties
                     and prop_i not in structure_properties_dtype
             ):
-                
+
                 columns += [prop_i]
                 if properties.get(prop_i) is None:
                     values += [None]
@@ -600,53 +593,49 @@ class DataBase_SQLite3(data.DataBase):
                             dtype=properties_numpy_dtype))]
                 else:
                     values += [properties_numpy_dtype(properties.get(prop_i))]
-        
+
         # Convert values to tuple
         columns = tuple(columns)
         values = tuple(values)
 
-        # Add or update database values
-        with self.managed_connection() as con:
-            
-            row_id = self._update(row_id, values=values, columns=columns)
+        row_id = self._update(row_id, values=values, columns=columns)
 
         return row_id
 
     @lock
     def _update(self, row_id, values=None, columns=None, properties=None):
-        
+
         if values is None and properties is None:
-            
+
             raise SyntaxError(
                 "At least one input 'values' or 'properties' should "
                 + "contain reference data!")
-        
+
         elif values is None:
-            
+
             row_id = self._write(properties, row_id)
-            
+
         else:
-        
+
             # Add or update database values
             with self.managed_connection() as con:
-                
+
                 # Get SQL cursor
                 cur = con.cursor()
-                
+
                 # Update values in database
                 q = ', '.join([f'{column:s} = ?' for column in columns])
                 cur.execute(
                     f"UPDATE systems SET {q} WHERE id=?",
                     values + (row_id,))
-            
+
         return row_id
 
-
     def get_last_id(self, cur):
-        
+
         # Select last seqeuence  number from database
         cur.execute('SELECT seq FROM sqlite_sequence WHERE name="systems"')
-        
+
         # Get next row id
         result = cur.fetchone()
         if result is not None:
@@ -654,24 +643,22 @@ class DataBase_SQLite3(data.DataBase):
             return row_id
         else:
             return 0
-    
-    
+
     def _select(self, cmps, verbose=False):
-        
+
         sql, args = self.create_select_statement(cmps)
         metadata = self._get_metadata()
-        
+
         with self.managed_connection() as con:
-            
+
             # Execute SQL request
             cur = con.cursor()
             cur.execute(sql, args)
-            
+
             for row in cur.fetchall():
-                
+
                 yield self.convert_row(row, metadata, verbose=verbose)
-                
-    
+
     def create_select_statement(self, cmps, what='systems.*'):
         """
         Translate selection to SQL statement.
@@ -680,63 +667,57 @@ class DataBase_SQLite3(data.DataBase):
         tables = ['systems']
         where = []
         args = []
-        
+
         # Prepare SQL statement
         for key, op, value in cmps:
             where.append('systems.{}{}?'.format(key, op))
             args.append(value)
-        
+
         # Create SQL statement
         sql = "SELECT {} FROM\n  ".format(what) + ", ".join(tables)
         if where:
             sql += "\n  WHERE\n  " + " AND\n  ".join(where)
-            
+
         return sql, args
 
-
     def convert_row(self, row, metadata, verbose=False):
-        
+
         # Convert reference properties to a dictionary
         properties = {}
-        
+
         # Add database information
         if verbose:
-            
+
             # Get row id
             properties["row_id"] = row[0]
-            
+
             # Get modification date
             properties["mtime"] = row[1]
-            
+
             # Get username
             properties["user"] = row[2]
-        
+
         # Structural properties
         Np = 3
         for prop_i, dtype_i in structure_properties_dtype.items():
-            
+
             if row[Np] is None:
                 properties[prop_i] = None
             elif isinstance(row[Np], bytes):
                 properties[prop_i] = torch.from_numpy(
                     self.deblob(
-                        row[Np], dtype=dtype_i, 
+                        row[Np], dtype=dtype_i,
                         shape=structure_properties_shape[prop_i]).copy())
             else:
                 properties[prop_i] = torch.reshape(
                     torch.tensor(row[Np], dtype=dtype_i),
                     structure_properties_shape[prop_i])
-            
-            #if prop_i == "positions":
-                #properties[prop_i] = properties[prop_i].reshape(-1, 3)
-                
             Np += 1
-            
-            
+
         for prop_i in metadata.get('load_properties'):
-            
+
             if prop_i not in structure_properties_dtype.keys():
-                
+
                 if row[Np] is None:
                     properties[prop_i] = None
                 elif isinstance(row[Np], bytes):
@@ -747,15 +728,14 @@ class DataBase_SQLite3(data.DataBase):
                 else:
                     properties[prop_i] = torch.tensor(
                         row[Np], dtype=properties_torch_dtype)
-                
+
                 if prop_i == "forces":
                     properties[prop_i] = properties[prop_i].reshape(-1, 3)
-            
-                
+
                 Np += 1
-        
+
         return properties
-    
+
     @parallel_function
     def _count(self, selection, **kwargs):
 
@@ -777,40 +757,37 @@ class DataBase_SQLite3(data.DataBase):
     def delete(self, row_ids):
         """
         Delete rows.
-        
+
         Parameters
         ----------
             row_ids: int or list of int
                 Row index or list of indices to delete
         """
-        
+
         if len(row_ids) == 0:
             return
-        
+
         self._delete(row_ids)
-            
+
         self.vacuum()
 
-
     def _delete(self, row_ids):
-        
+
         with self.managed_connection() as con:
             cur = con.cursor()
             selection = ', '.join([str(row_id) for row_id in row_ids])
             for table in all_tables[::-1]:
                 cur.execute(
                     f"DELETE FROM {table} WHERE id in ({selection});")
-    
-    
+
     def vacuum(self):
         """
         Execute SQL command 'Vacuum' (?)
         """
-        
+
         with self.managed_connection() as con:
             con.commit()
             con.cursor().execute("VACUUM")
-
 
     @property
     def metadata(self):

@@ -139,7 +139,7 @@ class NormalModeScanner(sample.Sampler):
         #####################################
         # # # Initialize Sample DataSet # # #
         #####################################
-        
+
         self.nms_dataset = data.DataSet(
             self.sample_data_file,
             self.sample_properties,
@@ -172,9 +172,26 @@ class NormalModeScanner(sample.Sampler):
         self,
         system: object,
         nms_indices: Optional[List[int]] = None,
+        nms_clean: Optional[bool] = False,
     ):
         """
         Perform Normal Mode Scanning on the sample system.
+
+        Parameters
+        ----------
+
+        system: ase.Atoms object
+            ASE atoms object to perform Normal Mode Scanning on.
+        nms_indices: list[int], optional, default None
+            List of atom indices to include in normal mode analysis.
+            If none, indices if a full list of atom indices with length ot the
+            atom number of the system.
+            Atom indices from atoms constraint by FicAtoms are reomved from
+            index list and the normal mode analysis.
+        nms_clean: bool, optional, default False
+            If True, checkpoint files for atom displacement calculations
+            in 'sample_directory'/vib will be deleted.
+            Else, results from avaible  checkpoint files will be used.
         """
 
         # Compute initial state properties
@@ -197,16 +214,16 @@ class NormalModeScanner(sample.Sampler):
 
         # Get non-fixed atoms indices
         if nms_indices is None:
-            indices = range(system.get_global_number_of_atoms())
+            indices = np.array(system.get_global_number_of_atoms(), dtype=int)
         else:
             indices = np.array(nms_indices, dtype=int)
         for constraint in system.constraints:
             if isinstance(constraint, FixAtoms):
                 indices = [
-                    idx for idx in indices 
+                    idx for idx in indices
                     if idx not in constraint.index]
         indices = np.array(indices)
-        
+
         # Prepare system parameter
         Natoms = len(indices)
         Nmodes = 3*Natoms
@@ -216,7 +233,8 @@ class NormalModeScanner(sample.Sampler):
             system,
             indices=indices,
             name=os.path.join(self.sample_directory, "vib"))
-        ase_vibrations.clean()
+        if nms_clean:
+            ase_vibrations.clean()
         ase_vibrations.run()
         ase_vibrations.summary()
 
@@ -363,7 +381,7 @@ class NormalModeScanner(sample.Sampler):
                         if threshold_reached:
 
                             # Check for next suitable step size index and avoid
-                            # combination of step sizes which were already 
+                            # combination of step sizes which were already
                             # above the energy threshold before.
                             istep += 1
                             for jstep in range(istep, Nsteps):
@@ -382,7 +400,7 @@ class NormalModeScanner(sample.Sampler):
 
                         # Check step size progress
                         if done or istep >= Nsteps:
-                            
+
                             # Update log file
                             msg = "Vib. modes: ("
                             for imode, isign in zip(imodes, signs):
@@ -439,12 +457,13 @@ class NormalModeSampler(sample.Sampler):
 
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
-        # config_update = {}
+        config_update = {}
         for arg, item in locals().items():
 
             # Skip 'config' argument and possibly more
             if arg in [
-                'self', 'config', 'config_update', 'kwargs', '__class__']:
+                'self', 'config', 'config_update', 'kwargs', '__class__'
+            ]:
                 continue
 
             # Take argument from global configuration dictionary if not defined
@@ -462,7 +481,7 @@ class NormalModeSampler(sample.Sampler):
                     arg, item, settings._dtypes_args, raise_error=True)
 
             # Append to update dictionary
-            # config_update[arg] = item
+            config_update[arg] = item
 
             # Assign as class parameter
             setattr(self, arg, item)
@@ -513,27 +532,27 @@ class NormalModeSampler(sample.Sampler):
         }
 
     def R(self, fct, nmodes, T=300):
-        
+
         random_num = np.random.uniform(size=nmodes)**2
         sign = [-1 if i < 0.5 else 1 for i in random_num]
         fix_fcts = [0.05 if i < 0.05 else i for i in fct]
         R = []
-        
+
         for i, j in enumerate(fix_fcts):
             R_i = sign[i] * np.sqrt((3*random_num[i]*units.kB*T)/j)
             R.append(R_i)
-        
+
         return np.array(R)
 
     def new_coord(self, nmodes, vib_disp, mass_sqrt, fcts, T=300):
-        
+
         Rx = self.R(nmodes, fcts, T)
         new_disp = []
-        
+
         for i, j in enumerate(vib_disp):
             disp_i = mass_sqrt[i] * Rx[i] * j
             new_disp.append(disp_i)
-        
+
         return np.sum(new_disp, axis=0)
 
     def save_properties(self, system):
@@ -548,14 +567,14 @@ class NormalModeSampler(sample.Sampler):
         self,
         system: object,
         nms_indices: Optional[List[int]] = None,
-    ):  
+    ):
         """
         Perform Normal Mode Sampling on the sample system.
         """
 
         # Compute initial state properties
         self.sample_calculator.calculate(
-            system, 
+            system,
             properties=self.sample_properties)
 
         # Add initial state properties to dataset
@@ -576,10 +595,10 @@ class NormalModeSampler(sample.Sampler):
         for constraint in system.constraints:
             if isinstance(constraint, FixAtoms):
                 indices = [
-                    idx for idx in indices 
+                    idx for idx in indices
                     if idx not in constraint.index]
         indices = np.array(indices)
-        
+
         # Prepare system parameter
         Natoms = len(indices)
         Nmodes = 3*Natoms
@@ -588,7 +607,8 @@ class NormalModeSampler(sample.Sampler):
         ase_vibrations = vibrations.Vibrations(
             system,
             indices=indices,
-            name=os.path.join(self.sample_directory, f"vib"))
+            name=os.path.join(self.sample_directory, "vib")
+            )
         ase_vibrations.clean()
         ase_vibrations.run()
         ase_vibrations.summary()
@@ -599,8 +619,12 @@ class NormalModeSampler(sample.Sampler):
         # (Trans. + Rot. + ) Vibrational modes normalized to 1
         system_modes = np.array([
             ase_vibrations.get_mode(imode)[indices].reshape(Natoms, 3)
-            / np.sqrt(np.sum(
-                ase_vibrations.get_mode(imode)[indices].reshape(Natoms, 3) ** 2))
+            / np.sqrt(
+                np.sum(
+                    ase_vibrations.get_mode(imode)[indices].reshape(
+                        Natoms, 3)**2
+                    )
+                )
             for imode in range(Nmodes)])
 
         # Reduced mass per mode (in amu)
@@ -619,10 +643,10 @@ class NormalModeSampler(sample.Sampler):
         # moments of inertia and principle axis of inertia
         system_init_positions = system.get_positions()
         for _ in range(self.nmsamp_nsamples):
-            
+
             new_position = system_init_positions.copy()
             new_position[indices] += self.new_coord(
-                Nmodes, system_modes, system_redmass, system_forceconst, 
+                Nmodes, system_modes, system_redmass, system_forceconst,
                 self.nmsamp_temperature)
             system.set_positions(new_position)
 
@@ -633,6 +657,7 @@ class NormalModeSampler(sample.Sampler):
                     properties=self.sample_properties)
                 self.save_properties(system)
 
+            # TODO Add correct exception error
             except:
 
                 print('This configuration is not stable')
@@ -642,13 +667,7 @@ class NormalModeSampler(sample.Sampler):
         """
         Write current image to trajectory file but without constraints
         """
-        
+
         system_noconstraint = system.copy()
         system_noconstraint.set_constraint()
         self.md_trajectory.write(system_noconstraint)
-
-
-
-
-
-

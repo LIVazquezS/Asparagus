@@ -2,9 +2,9 @@ import os
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 
-import numpy as np 
+import numpy as np
 
-import ase.db as ase_db
+import ase
 
 import torch
 
@@ -417,7 +417,7 @@ class DataReader():
         """
 
         # Check if data source is empty
-        with ase_db.connect(data_source) as db:
+        with ase.db.connect(data_source) as db:
             Ndata = db.count()
         if Ndata == 0:
             logger.warning(
@@ -425,7 +425,7 @@ class DataReader():
             return
 
         # Get data sample to compare property labels
-        with ase_db.connect(data_source) as db:
+        with ase.db.connect(data_source) as db:
             data_sample = db.get(1)
 
         # Check alternative property labels
@@ -528,7 +528,7 @@ class DataReader():
                 f"INFO:\nLoad {Ndata} data point from '{data_source}'!\n")
 
             # Open source dataset
-            with ase_db.connect(data_source) as db_source:
+            with ase.db.connect(data_source) as db_source:
 
                 # Iterate over source data
                 for idx in range(Ndata):
@@ -548,8 +548,7 @@ class DataReader():
                     atoms_properties['positions'] = (
                         unit_conversion['positions']*atoms.get_positions())
                     atoms_properties['cell'] = (
-                        unit_conversion['positions']
-                        * np.array(list(atoms.get_cell())))[0]
+                        unit_conversion['positions']*atoms.get_cell()[:])
                     atoms_properties['pbc'] = atoms.get_pbc()
                     if 'charge' in source:
                         atoms_properties['charge'] = source['charge']
@@ -584,7 +583,7 @@ class DataReader():
                     f"{Ndata} data point will be added.\n")
 
                 # Open source dataset
-                with ase_db.connect(data_source) as db_source:
+                with ase.db.connect(data_source) as db_source:
 
                     # Iterate over source data
                     for idx in range(Ndata):
@@ -601,8 +600,7 @@ class DataReader():
                         atoms_properties['positions'] = (
                             unit_conversion['positions']*atoms.get_positions())
                         atoms_properties['cell'] = (
-                            unit_conversion['positions']
-                            * np.array(atoms.get_cell()))[0]
+                            unit_conversion['positions']*atoms.get_cell()[:])
                         atoms_properties['pbc'] = atoms.get_pbc()
                         if 'charge' in source:
                             atoms_properties['charge'] = source['charge']
@@ -728,10 +726,15 @@ class DataReader():
                 + f"'{self.data_file}'!\nCharges are assumed to be zero.")
 
         # Cell information
+        cell = np.zeros((Ndata, 3, 3), dtype=float)
         if 'cell' in assigned_properties.keys():
-            cell = source[assigned_properties['cell']]
+            cell_source = source[assigned_properties['cell']]
+            for ic, cell_i in enumerate(cell_source):
+                if cell_i.shape == (3, 3):
+                    cell[ic, :, :] = cell_i
+                else:
+                    cell[ic, :, :] = ase.geometry.cellpar_to_cell(cell_i)
         else:
-            cell = np.zeros((Ndata, 3), dtype=float)
             logger.info(
                 "INFO:\nNo cell information in npz dataset "
                 + f"'{self.data_file}'!\n")
@@ -909,7 +912,7 @@ class DataReader():
                 for prop, item in source_properties.items():
                     # If atoms number dependent property
                     if (
-                        len(item[idx].shape) and 
+                        len(item[idx].shape) and
                         item[idx].shape[0] == Ndim
                     ):
                         atoms_properties[prop] = (
@@ -936,7 +939,7 @@ class DataReader():
                     + f"{Ndata} data point will be added.\n")
 
                 for idx in range(Ndata):
-                    
+
                     # Fundamental properties
                     atoms_properties['atoms_number'] = atoms_number[idx]
                     atoms_properties['atomic_numbers'] = (
@@ -953,7 +956,7 @@ class DataReader():
                     for prop, item in source_properties.items():
                         # If atoms number dependent property
                         if (
-                            len(item[idx].shape) and 
+                            len(item[idx].shape) and
                             item[idx].shape[0] == Ndim
                         ):
                             atoms_properties[prop] = (
@@ -1046,7 +1049,7 @@ class DataReader():
                 unit_conversion['positions']*atoms.get_positions())
             atoms_properties['cell'] = (
                 unit_conversion['positions']
-                * np.array(list(atoms.get_cell())))[0]
+                * atoms.get_cell()[:])
             atoms_properties['pbc'] = atoms.get_pbc()
             if properties.get('charge') is None:
                 atoms_properties['charge'] = 0.0
@@ -1075,7 +1078,7 @@ class DataReader():
                     unit_conversion['positions']*atoms.get_positions())
                 atoms_properties['cell'] = (
                     unit_conversion['positions']
-                    * np.array(list(atoms.get_cell())))[0]
+                    * atoms.get_cell()[:])
                 atoms_properties['pbc'] = atoms.get_pbc()
                 if properties.get('charge') is None:
                     atoms_properties['charge'] = 0.0
@@ -1092,6 +1095,3 @@ class DataReader():
                 db.write(properties=atoms_properties)
 
         return atoms_properties
-
-
-
