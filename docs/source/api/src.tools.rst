@@ -4,26 +4,26 @@ src.tools package
 Submodules
 ----------
 
+src.tools.DMC module
+--------------------
+
+.. automodule:: src.tools.DMC
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+src.tools.MDP module
+--------------------
+
+.. automodule:: src.tools.MDP
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 src.tools.MEP module
 --------------------
 
 .. automodule:: src.tools.MEP
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-src.tools.diff\_mc module
--------------------------
-
-.. automodule:: src.tools.diff_mc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-src.tools.min\_dyn\_path module
--------------------------------
-
-.. automodule:: src.tools.min_dyn_path
    :members:
    :undoc-members:
    :show-inheritance:

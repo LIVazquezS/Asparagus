@@ -28,7 +28,8 @@ class MDP:
 
     '''
 
-    This class calculates the Minimum Dynamic Path (MDP) [J. Chem. Phys. 150, 074107 (2019)] for a given molecule starting from the Transition state.
+    This class calculates the Minimum Dynamic Path (MDP) [J. Chem. Phys. 150, 074107 (2019)]
+    for a given molecule starting from the Transition state.
 
     parameters:
     -----------
@@ -207,10 +208,11 @@ class MDP:
         Parameters
         ----------
         forward: opt(bool) If True forward, if False backward. This defines the direction of the momentum of the system.
-        Default is None because it is defined in the __init__ function.
+                           Default is None because it is defined in the __init__ function.
 
         Returns
         -------
+
 
         """
         if forward is not None:
