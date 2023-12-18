@@ -2,6 +2,8 @@
 
 **Authors**: K. Toepfer, L.I. Vazquez-Salazar
 
+![alt text](https://github.com/LIVazquezS/Asparagus/blob/main/logo.png?raw=true)
+
 ## What is this?
  - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch. 
  - A Suit for the automatic construction of Potential Energy Surface (PES) from sampling to production.
