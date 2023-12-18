@@ -1,5 +1,3 @@
-# TODO: First attempt to implement loss functions, maybe this can be converted
-# to a class
 import torch
 
 from .. import utils
@@ -18,12 +16,23 @@ __all__ = [
 # Google's swish function
 @torch.jit.script
 def swish(x: torch.Tensor):
+    '''
+    Google's swish function
+
+    .. math:: f(x) = x * sigmoid(x)
+
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+
+    '''
+
     return x * torch.nn.functional.sigmoid(x)
 
 
-# First time softplus was used as activation function: "Incorporating
-# Second-Order Functional Knowledge for Better Option Pricing"
-# (https://papers.nips.cc/paper/1920-incorporating-second-order-functional-knowledge-for-better-option-pricing.pdf)
+
 @torch.jit.script
 def _softplus(x: torch.Tensor):
     return torch.log1p(torch.exp(x))
@@ -31,55 +40,182 @@ def _softplus(x: torch.Tensor):
 
 @torch.jit.script
 def softplus(x):
-    # This definition is for numerical stability for x larger than 15 (single
-    # precision) or x larger than 34 (double precision), there is no numerical
-    # difference anymore between the softplus and a linear function
+    '''
+    This definition is for numerical stability for x larger than 15 (single
+    precision) or x larger than 34 (double precision), there is no numerical
+    difference anymore between the softplus and a linear function.
+
+    *Fun fact*: First time softplus was used as activation function: "Incorporating
+    Second-Order Functional Knowledge for Better Option Pricing"
+    (https://papers.nips.cc/paper/1920-incorporating-second-order-functional-knowledge-for-better-option-pricing.pdf)
+
+    .. math:: f(x) = ln(1+exp(x))
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+    Returns
+    -------
+
+    '''
+
     return torch.where(
         x < 15.0, _softplus(torch.where(x < 15.0, x, torch.zeros_like(x))), x)
 
 
 @torch.jit.script
 def shifted_softplus(x: torch.Tensor):
-    # return softplus(x) - np.log(2.0)
+    '''
+
+    Shifted softplus function
+
+    .. math:: f(x) = ln(1+exp(x)) - ln(2)
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+    Returns
+    -------
+
+    '''
     return torch.nn.functional.softplus(x) - torch.log(torch.tensor(2.0))
 
 
-# This ensures that the function is close to linear near the origin!
+
 @torch.jit.script
 def scaled_shifted_softplus(x: torch.Tensor):
+    '''
+
+    This ensures that the function is close to linear near the origin!
+
+    .. math:: f(x) = 2 * (ln(1+exp(x)) - ln(2))
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+    Returns
+    -------
+
+    '''
     return 2 * shifted_softplus(x)
 
-
-# Is not really self-normalizing sadly...
 @torch.jit.script
 def self_normalizing_shifted_softplus(x: torch.Tensor):
+    '''
+
+    Attempt to make the shifted softplus function self-normalizing.
+    Is not really self-normalizing sadly...
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+    Returns
+    -------
+
+    '''
     return 1.875596256135042 * shifted_softplus(x)
 
 
 # General: ln((exp(alpha)-1)*exp(x)+1)-alpha
 @torch.jit.script
 def smooth_ELU(x: torch.Tensor):
+    '''
+
+    Smooth ELU function
+
+    .. math:: (e-1) = 1.718281828459045
+    .. math:: f(x) = ln((exp(1)-1)*exp(x)+1)-1
+
+    Parameters
+    ----------
+    x: torch.Tensor
+
+    Returns
+    -------
+
+    '''
     # (e-1) = 1.718281828459045
     return torch.log1p(1.718281828459045 * torch.exp(x)) - 1.0
 
 
 @torch.jit.script
 def self_normalizing_smooth_ELU(x: torch.Tensor):
+    '''
+
+    Attempt to make the smooth ELU function self-normalizing.
+
+    .. math:: f(x) = 1.574030675714671 * smoothELU(x)
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+    Returns
+    -------
+
+    '''
+
     return 1.574030675714671 * smooth_ELU(x)
 
 
 @torch.jit.script
 def self_normalizing_asinh(x: torch.Tensor):
+    '''
+
+    Self normalizing asinh function
+
+    .. math:: f(x) = 1.256734802399369 * sinh^{-1}(x)
+
+    Parameters
+    ----------
+    x : torch.Tensor
+
+    Returns
+    -------
+
+    '''
     return 1.256734802399369 * torch.asinh(x)
 
 
 @torch.jit.script
 def self_normalizing_tanh(x: torch.Tensor):
+    '''
+
+    Self normalizing tanh function
+
+    .. math:: f(x) = 1.592537419722831 * tanh(x)
+
+    Parameters
+    ----------
+    x: torch.Tensor
+
+    Returns
+    -------
+
+    '''
     return 1.592537419722831 * torch.tanh(x)
 
 
 @torch.jit.script
 def linear(x: torch.Tensor):
+    '''
+
+    Linear activation function
+
+    .. math:: f(x) = x
+
+    Parameters
+    ----------
+    x: torch.Tensor
+
+    Returns
+    -------
+
+    '''
     return x
 
 

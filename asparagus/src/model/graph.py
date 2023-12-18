@@ -21,6 +21,28 @@ __all__ = ['get_graph_model', 'Graph_PhysNetMP']
 class Graph_PhysNetMP(torch.nn.Module): 
     """
     Name: PhysNet Message Passing - Graph model
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    graph_n_blocks: int, optional, default 5
+        Number of information processing cycles
+    graph_n_residual_interaction: int, optional, default 3
+        Number of residual layers for message refinement
+    graph_n_residual_atomic: int, optional, default 2
+        Number of residual layers for atomic feature refinement
+    graph_activation_fn: (str, object), optional, default 'shifted_softplus'
+        Activation function
+    **kwargs: dict, optional
+        Additional arguments
+
+    Returns
+    -------
+    callable object
+        PhysNet Message Passing graph model object
     """
     
     def __init__(
@@ -34,28 +56,7 @@ class Graph_PhysNetMP(torch.nn.Module):
     ):
         """
         Initialize NNP graph model.
-        
-        Parameters
-        ----------
-        
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        graph_n_blocks: int, optional, default 5
-            Number of information processing cycles
-        graph_n_residual_interaction: int, optional, default 3
-            Number of residual layers for message refinement
-        graph_n_residual_atomic: int, optional, default 2
-            Number of residual layers for atomic feature refinement
-        graph_activation_fn: (str, object), optional, default 'shifted_softplus'
-            Activation function
-        **kwargs: dict, optional
-            Additional arguments
 
-        Returns
-        -------
-        callable object
-            PhysNet Message Passing graph model object
         """
         
         super().__init__()
@@ -134,6 +135,24 @@ class Graph_PhysNetMP(torch.nn.Module):
         idx_i: torch.Tensor, 
         idx_j: torch.Tensor,
     ) -> List[torch.Tensor]:
+
+        """
+        Forward pass of the graph model.
+        Parameters
+        ----------
+        features : torch.Tensor
+            Atomic feature vector
+        descriptors : torch.Tensor
+            Descriptor vector RBF
+        idx_i: torch.Tensor
+            Index of atom i
+        idx_j: torch.Tensor
+            Index of atom j
+
+        Returns
+        -------
+
+        """
         #TODO: x should change after each interaction block(?)
         
         # Assign first atomic feature vector as message vector

@@ -12,6 +12,22 @@ def check_input_dtype(
     """
     Check it the item (not None) of arg(ument) matchs the expectation 
     in dtypes_args.
+
+    Parameters
+    ----------
+    arg : str
+        Argument name.
+    item : object
+        Item to be checked.
+    dtypes_args : dict
+        Dictionary with argument name as key and a list of functions
+        as value. The functions should return a bool and the input
+        and expected dtype.
+    raise_error : bool, optional
+        Raise error if item does not match expectation. The default is True.
+    return_info : bool, optional
+        Return information about the check. The default is False.
+
     """
     
     if arg in dtypes_args.keys() and len(dtypes_args[arg]) and item is not None:
@@ -49,6 +65,21 @@ def check_property_label(
     'valid_properties' or compare with alternative labels in 'alt_properties'.
     If valid or found in 'alt_properties', the valid lower case form is
     returned with bool for match and if modified.
+
+    Parameters
+    ----------
+
+    property_label : str
+        Property label to be checked.
+    valid_properties : list
+        List of valid property labels.
+    alt_properties : dict
+        Dictionary with alternative property labels as keys and valid property
+        labels as values.
+    return_modified : bool, optional
+        Return if property label was modified. The default is True.
+
+
     """
     
     # Check if property label is valid
@@ -92,6 +123,19 @@ def combine_dictionaries(
     Combine two dictionaries and check for repetitions.
     In case of same item (element in item) at different keys, 
     the assignment of 'dictA' is kept.
+
+    Parameters
+    ----------
+    dictA : dict
+        Dictionary A.
+    dictB : dict
+        Dictionary B.
+    logger : logging.Logger, optional
+        Logger for warnings. The default is None.
+    logger_info : str, optional
+        Information for logger. The default is ''.
+    raise_error : bool, optional
+        Raise error if item is already assigned. The default is False.
     """
     
     # Combined dictionary

@@ -31,7 +31,7 @@ class MDP:
     This class calculates the Minimum Dynamic Path (MDP) [J. Chem. Phys. 150, 074107 (2019)]
     for a given molecule starting from the Transition state.
 
-    parameters:
+    Parameters:
     -----------
     atoms: ase.Atoms
         Transition state geometry
@@ -46,7 +46,7 @@ class MDP:
     implemented_properties: opt(list)
         Properties to be calculated by the model
     use_neighbor_list: opt(bool)
-    Use neighbor list to calculate the forces
+        Use neighbor list to calculate the forces
     forward: opt(bool)
         Direction of the MDP if True forward, if False backward
     label: opt(str)

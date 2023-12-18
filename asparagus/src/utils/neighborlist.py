@@ -14,6 +14,11 @@ __all__ = ["ASENeighborList", "TorchNeighborList"]
 class NeighborList(torch.nn.Module):
     """
     Base class for neighbor lists.
+
+    Parameters
+    ----------
+    cutoff: float
+        Cutoff radius for neighbor search.
     """
 
     def __init__(
@@ -31,6 +36,17 @@ class NeighborList(torch.nn.Module):
         self,
         coll_batch: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
+        """
+        Build neighbor list for a batch of systems.
+        Parameters
+        ----------
+        coll_batch: dict
+
+
+        Returns
+        -------
+
+        """
 
         atomic_numbers = coll_batch['atomic_numbers']
         positions = coll_batch['positions']

@@ -30,6 +30,39 @@ __all__ = ['MDSampler']
 class MDSampler(sample.Sampler):
     """
     Molecular Dynamics Sampler class
+
+    Parameters
+    ----------
+
+    md_temperature: float, optional, default 300
+        Target temperature in Kelvin of the MD simulation controlled by a
+        Langevin thermostat
+    md_time_step: float, optional, default 1.0 (1 fs)
+        MD Simulation time step in fs
+    md_simulation_time: float, optional, default 1E5 (100 ps)
+        Total MD Simulation time in fs
+    md_save_interval: int, optional, default 10
+        MD Simulation step interval to store system properties of
+        the current frame to dataset.
+    md_langevin_friction: float, optional, default 0.01
+        Langevin thermostat friction coefficient in Kelvin. Generally
+        within the magnitude of 1E-2 (fast heating/cooling) to 1E-4 (slow)
+    md_equilibration_time: float, optional, default 0 (no equilibration)
+        Total MD Simulation time in fs for a equilibration run prior to
+        the production run.
+    md_initial_velocities: bool, optional, default False
+        Instruction flag if initial atom velocities are assigned with
+        respect to a Maxwell-Boltzmann distribution at temperature
+        'md_initial_temperature'.
+    md_initial_temperature: float, optional, default 300
+        Temperature for initial atom velocities according to a Maxwell-
+        Boltzmann distribution.
+
+    Returns
+    -------
+    object
+        Molecular Dynamics Sampler class object
+
     """
     
     def __init__(
@@ -47,37 +80,7 @@ class MDSampler(sample.Sampler):
         """
         Initialize MD sampling class
         
-        Parameters
-        ----------
 
-        md_temperature: float, optional, default 300
-            Target temperature in Kelvin of the MD simulation controlled by a
-            Langevin thermostat
-        md_time_step: float, optional, default 1.0 (1 fs)
-            MD Simulation time step in fs
-        md_simulation_time: float, optional, default 1E5 (100 ps)
-            Total MD Simulation time in fs
-        md_save_interval: int, optional, default 10
-            MD Simulation step interval to store system properties of 
-            the current frame to dataset.
-        md_langevin_friction: float, optional, default 0.01
-            Langevin thermostat friction coefficient in Kelvin. Generally 
-            within the magnitude of 1E-2 (fast heating/cooling) to 1E-4 (slow)
-        md_equilibration_time: float, optional, default 0 (no equilibration)
-            Total MD Simulation time in fs for a equilibration run prior to
-            the production run.
-        md_initial_velocities: bool, optional, default False
-            Instruction flag if initial atom velocities are assigned with
-            respect to a Maxwell-Boltzmann distribution at temperature
-            'md_initial_temperature'.
-        md_initial_temperature: float, optional, default 300
-            Temperature for initial atom velocities according to a Maxwell-
-            Boltzmann distribution.
-        
-        Returns
-        -------
-        object
-            Molecular Dynamics Sampler class object
         """
         
         # Sampler class label
@@ -151,6 +154,16 @@ class MDSampler(sample.Sampler):
         return
     
     def get_info(self):
+
+        '''
+        Get sampler information
+
+        Returns
+        -------
+
+        dict
+            Sampler information dictionary
+        '''
         
         return {
             'sample_data_file': self.sample_data_file,
@@ -176,6 +189,13 @@ class MDSampler(sample.Sampler):
     def run_system(self, system):
         """
         Perform MD Simulation with the sample system.
+
+        Parameters
+        ----------
+
+        system: ase.Atoms
+
+
         """
 
         # Set initial atom velocities if requested

@@ -27,6 +27,19 @@ def check_config(
     3. Configuration json-file
 
     Returns combined configuration as configuration class object.
+
+    Parameters
+    ----------
+    config: Optional[Union[str, dict, object]]
+        Configuration class/dictionary object, configuration json-file path or
+        direct keyword arguments (kwargs).
+    config_file: Optional[str]
+        Configuration json-file path.
+    **kwargs
+        Keyword arguments for configuration settings.
+
+
+
     """
 
     # Check 'config_file' input type if given

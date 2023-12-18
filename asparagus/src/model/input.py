@@ -21,6 +21,43 @@ __all__ = ['get_input_model', 'Input_PhysNetRBF']
 class Input_PhysNetRBF(torch.nn.Module):
     """
     PhysNet input model class
+
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    input_n_atombasis: int
+        Number of atom property features (atomic feature vector lengths)
+    input_n_radialbasis: int
+        Number of structural fingerprint features
+    input_cutoff_descriptor: float
+        Upper cutoff atom distance for including atom environment
+    input_cutoff_fn: class object
+        Cutoff function class for weighting atom environment
+    input_rbf_center_start: float
+        Initial shortest center of radial basis functions
+    input_rbf_center_end: float
+        Initial largest center of radial basis functions
+    input_rbf_trainable: bool
+        If True, radial basis function parameter such as center and width
+        are optimized during training. If False, radial basis function
+        parameter are fixed.
+    input_n_maxatom: int
+        Highest atom order number to initialize isolated atom feature
+        vector library
+    input_atom_features_range: float
+        Range for uniform distribution of initial random atom feature
+        vector library
+    **kwargs: dict, optional
+        Additional arguments for parameter initialization
+
+    Returns
+    -------
+    callable object
+        PhysNet RBF input model object
     """
 
     def __init__(
@@ -40,41 +77,6 @@ class Input_PhysNetRBF(torch.nn.Module):
         """
         Initialize PhysNet input model.
 
-        Parameters
-        ----------
-
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        input_n_atombasis: int
-            Number of atom property features (atomic feature vector lengths)
-        input_n_radialbasis: int
-            Number of structural fingerprint features
-        input_cutoff_descriptor: float
-            Upper cutoff atom distance for including atom environment
-        input_cutoff_fn: class object
-            Cutoff function class for weighting atom environment
-        input_rbf_center_start: float
-            Initial shortest center of radial basis functions
-        input_rbf_center_end: float
-            Initial largest center of radial basis functions
-        input_rbf_trainable: bool
-            If True, radial basis function parameter such as center and width
-            are optimized during training. If False, radial basis function 
-            parameter are fixed.
-        input_n_maxatom: int
-            Highest atom order number to initialize isolated atom feature 
-            vector library
-        input_atom_features_range: float
-            Range for uniform distribution of initial random atom feature 
-            vector library
-        **kwargs: dict, optional
-            Additional arguments for parameter initialization 
-
-        Returns
-        -------
-        callable object
-            PhysNet RBF input model object
         """
 
         super(Input_PhysNetRBF, self).__init__()
@@ -159,6 +161,28 @@ class Input_PhysNetRBF(torch.nn.Module):
         idx_j: torch.Tensor,
         pbc_offset: Optional[torch.Tensor] = None,
     ) -> List[torch.Tensor]:
+
+        '''
+
+        Forward pass of the input model.
+
+        Parameters
+        ----------
+        atomic_numbers : torch.Tensor
+            Atomic numbers of the system
+        positions : torch.Tensor
+            Atomic positions of the system
+        idx_i : torch.Tensor
+            Index of atom i
+        idx_j : torch.Tensor
+            Index of atom j
+        pbc_offset : torch.Tensor, optional
+            Periodic boundary condition offset
+
+        Returns
+        -------
+
+        '''
         
         # Collect atom feature vectors
         features = self.atom_features[atomic_numbers]
@@ -197,6 +221,45 @@ class Input_PhysNetRBF(torch.nn.Module):
 class Input_PhysNetRBF_original(torch.nn.Module):
     """
     Original PhysNet input model class
+
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    input_n_atombasis: int
+        Number of atom property features (atomic feature vector lengths)
+    input_n_radialbasis: int
+        Number of structural fingerprint features
+    input_cutoff_descriptor: float
+        Upper cutoff atom distance for including atom environment
+    input_cutoff_fn: class object
+        Cutoff function class for weighting atom environment
+    input_rbf_center_start: float
+        Initial shortest center of radial basis functions
+    input_rbf_center_end: float
+        Initial largest center of radial basis functions
+    input_rbf_trainable: bool
+        If True, radial basis function parameter such as center and width
+        are optimized during training. If False, radial basis function
+        parameter are fixed.
+    input_n_maxatom: int
+        Highest atom order number to initialize isolated atom feature
+        vector library
+    input_atom_features_range: float
+        Range for uniform distribution of initial random atom feature
+        vector library
+    **kwargs: dict, optional
+        Additional arguments for parameter initialization
+
+    Returns
+    -------
+    callable object
+        PhysNet RBF input model object
+
+
     """
 
     def __init__(
@@ -216,41 +279,6 @@ class Input_PhysNetRBF_original(torch.nn.Module):
         """
         Initialize original PhysNet input model.
 
-        Parameters
-        ----------
-
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        input_n_atombasis: int
-            Number of atom property features (atomic feature vector lengths)
-        input_n_radialbasis: int
-            Number of structural fingerprint features
-        input_cutoff_descriptor: float
-            Upper cutoff atom distance for including atom environment
-        input_cutoff_fn: class object
-            Cutoff function class for weighting atom environment
-        input_rbf_center_start: float
-            Initial shortest center of radial basis functions
-        input_rbf_center_end: float
-            Initial largest center of radial basis functions
-        input_rbf_trainable: bool
-            If True, radial basis function parameter such as center and width
-            are optimized during training. If False, radial basis function 
-            parameter are fixed.
-        input_n_maxatom: int
-            Highest atom order number to initialize isolated atom feature 
-            vector library
-        input_atom_features_range: float
-            Range for uniform distribution of initial random atom feature 
-            vector library
-        **kwargs: dict, optional
-            Additional arguments for parameter initialization 
-
-        Returns
-        -------
-        callable object
-            PhysNet RBF input model object
         """
 
         super(Input_PhysNetRBF_original, self).__init__()
@@ -335,6 +363,28 @@ class Input_PhysNetRBF_original(torch.nn.Module):
         idx_j: torch.Tensor,
         pbc_offset: Optional[torch.Tensor] = None,
     ) -> List[torch.Tensor]:
+
+        '''
+
+        Forward pass of the input model for the original PhysNet model.
+
+        Parameters
+        ----------
+        atomic_numbers : torch.Tensor
+            Atomic numbers of the system
+        positions : torch.Tensor
+            Atomic positions of the system
+        idx_i : torch.Tensor
+            Index of atom i
+        idx_j : torch.Tensor
+            Index of atom j
+        pbc_offset : torch.Tensor, optional
+            Periodic boundary condition offset
+
+        Returns
+        -------
+
+        '''
         
         # Collect atom feature vectors
         features = self.atom_features[atomic_numbers]

@@ -28,6 +28,21 @@ class MCSampler(sample.Sampler):
 
     Uses the Metropolis algorithm to generate samples for a molecule.
 
+    Parameters
+    ----------
+
+    mc_temperature: float
+        Temperature of the MC simulation in Kelvin.
+    mc_time_step: float
+        Time step of the MC simulation in femtoseconds.
+    mc_simulation_time: float
+        Total simulation time of the MC simulation in picoseconds.
+    mc_equilibration_time: float
+        Equilibration time of the MC simulation in picoseconds.
+    mc_max_displacement: float
+        Maximum displacement of the MC simulation in Angstrom.
+
+
     """
 
     def __init__(
@@ -112,6 +127,15 @@ class MCSampler(sample.Sampler):
 
     def get_info(self):
 
+        '''
+        Returns a dictionary with the information of the MC sampler.
+        Returns
+        -------
+        dict
+            Dictionary with the information of the MC sampler.
+
+        '''
+
         return {
             'sample_data_file': self.sample_data_file,
             'sample_directory': self.sample_directory,
@@ -133,6 +157,15 @@ class MCSampler(sample.Sampler):
     def run_system(self, system, save_trajectory=False):
         """
         Perform a very simple MC Simulation using the Metropolis algorithm with the sample system.
+
+        Parameters
+        ----------
+
+        system: ase.Atoms
+            System to be sampled.
+        save_trajectory: bool default=False
+            Save trajectory of the MC simulation.
+
         """
 
         # Set up system
@@ -177,8 +210,11 @@ class MCSampler(sample.Sampler):
 
         Parameters
         ----------
-        system
-        steps
+        system: ase.Atoms
+            System to be sampled.
+
+        steps: int
+            Number of MC steps to perform.
 
         Returns
         -------

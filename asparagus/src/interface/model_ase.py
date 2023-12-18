@@ -19,6 +19,37 @@ __all__ = ['ASE_Calculator']
 class ASE_Calculator(ase_calc.Calculator):
     """
     ASE calculator interface for a Asparagus model potential.
+
+
+    Parameters
+    ----------
+
+    model_calculator: (callable object, list of callable objects)
+        NNP model calculator(s) to predict model properties. If an ensemble
+        is given in form of a list of model calculators, the average value
+        is returned as model prediction.
+    atoms: ASE Atoms object, optional, default None
+        ASE Atoms object to which the calculator will be attached.
+    atoms_charge: float, optional, default 0.0
+        Total charge of the respective ASE Atoms object.
+    implemented_properties: (str, list(str)), optional, default None
+        Properties predicted by the model calculator. If None, then
+        all model properties (of the first model if ensemble) are
+        available.
+    use_neighbor_list: bool, optional, default True
+        If True, use the ASE neighbor list function to compute atom pair
+        indices within the model interaction cutoff regarding periodic
+        boundary conditions.
+        If False, all possible atom pair indices are considered.
+        If ASE Atoms object is periodic, neighbor list function will be
+        used anyway.
+
+    Returns
+    -------
+    callable object
+        ASE calculator object
+
+
     """
 
     default_parameters = {
@@ -37,33 +68,6 @@ class ASE_Calculator(ase_calc.Calculator):
         """
         Initialize ASE Calculator class.
 
-        Parameters
-        ----------
-
-        model_calculator: (callable object, list of callable objects)
-            NNP model calculator(s) to predict model properties. If an ensemble
-            is given in form of a list of model calculators, the average value
-            is returned as model prediction.
-        atoms: ASE Atoms object, optional, default None
-            ASE Atoms object to which the calculator will be attached.
-        atoms_charge: float, optional, default 0.0
-            Total charge of the respective ASE Atoms object.
-        implemented_properties: (str, list(str)), optional, default None
-            Properties predicted by the model calculator. If None, then
-            all model properties (of the first model if ensemble) are
-            available.
-        use_neighbor_list: bool, optional, default True
-            If True, use the ASE neighbor list function to compute atom pair
-            indices within the model interaction cutoff regarding periodic
-            boundary conditions.
-            If False, all possible atom pair indices are considered.
-            If ASE Atoms object is periodic, neighbor list function will be
-            used anyway.
-
-        Returns
-        -------
-        callable object
-            ASE calculator object
         """
 
         # Initialize parent Calculator class

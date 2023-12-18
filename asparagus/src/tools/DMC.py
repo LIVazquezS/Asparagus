@@ -24,7 +24,7 @@ from .. import utils
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ['DMC']
+__all__ = ['DMC','Logger_DMC']
 
 class DMC:
     """
@@ -215,6 +215,7 @@ class DMC:
 
         """
         Initialize the DMC simulation. It creates the psips and psips_f arrays, which are the coordinates of the walkers
+
         Parameters
         ----------
         v0: float
@@ -258,12 +259,14 @@ class DMC:
     def walk(self,psips):
         """
         Walk routine performs the diffusion process of the replicas by adding to the
-           coordinates of the alive replicas sqrt(deltatau)rho, rho is random number
-           from Gaussian distr
+        coordinates of the alive replicas sqrt(deltatau)rho, rho is random number
+        from Gaussian distr
+
         Parameters
         ----------
         psips: array
             coordinates of the walkers
+
         """
         # print(psips.shape)
         dim = len(psips[0, :, 0])
@@ -327,8 +330,8 @@ class DMC:
     def gbranch(self,refx, mass, symb, vmin, psips, psips_f, v_ref, v_tot, nalive):
         """
         The birth-death criteria for the ground state energy. Note that psips is of shape
-           (3*nwalker, 3*natm) as only the progressed coordinates (i.e. psips[:,i,1]) are
-           given to gbranch
+        (3*nwalker, 3*natm) as only the progressed coordinates (i.e. psips[:,i,1]) are
+        given to gbranch
 
         Parameters
         ----------
@@ -351,6 +354,7 @@ class DMC:
             total energy
         nalive: int
             number of alive walkers
+
         """
 
         birth_flag = 0
@@ -471,7 +475,7 @@ class DMC:
     def get_batch_energy(self,coor, batch_size):
         """
         Function to predict energies given the coordinates of the molecule. Depending on the max_batch and nwalkers,
-           the energy prediction are done all at once or in multiple iterations.
+        the energy prediction are done all at once or in multiple iterations.
 
         Parameters
         ----------
@@ -514,8 +518,10 @@ class DMC:
         return e * 0.0367493
 
     def look_up_table(self,):
-        # create "look up table" for the needed inputs. This is needed because the
-        # batch size is not always constant (walkers die).
+        '''
+        Create "look up table" for the needed inputs. This is needed because the
+        batch size is not always constant (walkers die).
+        '''
 
         N = len(self.nucl_charge)
         i_ = []
@@ -671,6 +677,7 @@ class Logger_DMC:
             potential energy
         idx: array
             index of defective configurations
+
         """
 
         if len(idx[0]) == 1:
@@ -698,6 +705,7 @@ class Logger_DMC:
     def write_last(self,psips_f,psips,natm,symb):
         """
         Subroutine to write xyz file of last 10 steps of DMC simulation
+
         Parameters
         ----------
         psips_f: array
@@ -724,6 +732,7 @@ class Logger_DMC:
     def write_pot(self,psips_f,v_ref,step=None,initial=False):
         """
         subroutine to write potential file
+
         Parameters
         ----------
         psips_f
@@ -742,6 +751,7 @@ class Logger_DMC:
     def write_log(self,v_ave):
         """
         subroutine to write average log file
+
         Parameters
         ----------
         v_ave: float

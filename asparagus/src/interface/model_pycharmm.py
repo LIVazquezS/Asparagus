@@ -27,6 +27,41 @@ CHARMM_calculator_units = {
 
 class PyCharmm_Calculator:
 
+    """
+
+    Calculator for the interface between PyCHARMM and Asparagus.
+
+    Parameters
+    ----------
+    model_calculator: object
+        model of Asparagus
+    num_atoms: int
+        Total number of atoms
+    ml_atom_indices: list
+        PhysNet atom indices
+    ml_atom_numbers: list
+        PhysNet atom numbers
+    ml_fluctuating_charges: bool
+        Fluctuating ML charges for ML-MM electrostatic interactions
+    mlmm_atoms_charge: list
+        System atom charges (All atoms)
+    ml_total_charge: float
+        Total charge of the system
+    mlmm_rcut: float
+        Cutoff distance for ML/MM electrostatic interactions
+    mlmm_width: float
+        Cutoff width for ML/MM electrostatic interactions
+    implemented_properties: opt(list)
+        By default only energy and forces are calculated, maybe dipoles in
+        the future
+    dtype: opt(object)
+        Data type of the calculator
+    **kwargs
+        Additional keyword arguments.
+
+
+    """
+
     def __init__(
         self,
         model_calculator: Union[object, List[object]],
@@ -237,6 +272,46 @@ class PyCharmm_Calculator:
         """
         This function matches the signature of the corresponding MLPot class in
         PyCHARMM.
+
+        Parameters
+        ----------
+        Natom: int
+            Total number of atoms
+        Ntrans: bool
+
+        Natim: int
+            Total number of atoms in the system
+        x: list
+            List of x coordinates
+        y: list
+            List of y coordinates
+        z: list
+            List of z coordinates
+        dx: list
+            List of x forces
+        dy: list
+            List of y forces
+        dz: list
+            List of z forces
+        imattr: list
+            List of atom indices
+        Nmlp: int
+            Number of ML atoms in the system
+        Nmlmmp: int
+            Number of ML/MM atom pairs in the system
+        idxi: list
+            List of ML atom indices
+        idxj: list
+            List of ML atom indices
+        idxu: list
+            List of MM atom indices
+        idxv: list
+            List of MM atom indices
+        idxp: list
+            List of MM atom indices
+
+
+
         """
 
         # Assign all positions

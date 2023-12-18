@@ -28,6 +28,77 @@ __all__ = ['Trainer']
 class Trainer:
     """
     NNP model Trainer class
+
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    data_container: callable object, optional
+        Data container object of the reference data set.
+        If not provided, the data container will be initialized according
+        to config input.
+    model_calculator: callable object, optional
+        NNP model calculator to train matching training and validation
+        data in the reference data set. If not provided, the model
+        calculator will be initialized according to config input.
+    trainer_restart: bool, optional, default False
+        Restart the model training from state in config['model_directory']
+    trainer_max_epochs: int, optional, default 10000
+        Maximum number of training epochs
+    trainer_properties_train: list, optional, default []
+        Properties contributing to the prediction quality value.
+        If the list is empty or None, all properties will be considered
+        both predicted by the model calculator and provided by the
+        reference data set.
+    trainer_properties_metrics: dict, optional, default 'MSE' for all
+        Quantification of the property prediction quality only for
+        properties in the reference data set.
+        Can be given for each property individually and by keyword 'all'
+        for every property else wise.
+    trainer_properties_weights: dict, optional, default {...}
+        Weighting factors for the combination of single property loss
+        values to total loss value.
+    trainer_optimizer: (str, object), optional, default 'AMSgrad'
+        Optimizer class for the NNP model training
+    trainer_optimizer_args: dict, optional, default {}
+        Additional optimizer class arguments
+    trainer_scheduler: (str, object), optional, default 'ExponentialLR'
+        Learning rate scheduler class for the NNP model training
+    trainer_scheduler_args: dict, optional, default {}
+        Additional learning rate scheduler class arguments
+    trainer_ema: bool, optional, default True
+        Apply exponential moving average scheme for NNP model training
+    trainer_ema_decay: float, optional, default 0.999
+        Exponential moving average decay rate
+    trainer_max_gradient_norm: float, optional, default 1000.0
+        Maximum model parameter gradient norm to clip its step size.
+    trainer_save_interval: int, optional, default 5
+        Interval between epoch to save current and best set of model
+        parameters.
+    trainer_validation_interval: int, optional, default 5
+        Interval between epoch to evaluate model performance on
+        validation data.
+    trainer_evaluate_testset: bool, optional, default True
+        Each validation interval and in case of a new best loss function,
+        apply Tester class on the test set.
+    trainer_max_checkpoints: int, optional, default 50
+        Maximum number of checkpoint files stored before deleting the
+        oldest ones up to the number threshold.
+    trainer_store_neighbor_list: bool, optional, default True
+        Store neighbor list parameter in the database file instead of
+        computing in situ.
+    **kwargs: dict, optional
+        Additional arguments
+
+    Returns
+    -------
+    callable object
+        NNP model trainer object
+
+
     """
 
     def __init__(
@@ -57,73 +128,6 @@ class Trainer:
         """
         Initialize NNP Trainer.
 
-        Parameters
-        ----------
-
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        data_container: callable object, optional
-            Data container object of the reference data set.
-            If not provided, the data container will be initialized according
-            to config input.
-        model_calculator: callable object, optional
-            NNP model calculator to train matching training and validation
-            data in the reference data set. If not provided, the model
-            calculator will be initialized according to config input.
-        trainer_restart: bool, optional, default False
-            Restart the model training from state in config['model_directory']
-        trainer_max_epochs: int, optional, default 10000
-            Maximum number of training epochs
-        trainer_properties_train: list, optional, default []
-            Properties contributing to the prediction quality value.
-            If the list is empty or None, all properties will be considered
-            both predicted by the model calculator and provided by the
-            reference data set.
-        trainer_properties_metrics: dict, optional, default 'MSE' for all
-            Quantification of the property prediction quality only for
-            properties in the reference data set.
-            Can be given for each property individually and by keyword 'all'
-            for every property else wise.
-        trainer_properties_weights: dict, optional, default {...}
-            Weighting factors for the combination of single property loss
-            values to total loss value.
-        trainer_optimizer: (str, object), optional, default 'AMSgrad'
-            Optimizer class for the NNP model training
-        trainer_optimizer_args: dict, optional, default {}
-            Additional optimizer class arguments
-        trainer_scheduler: (str, object), optional, default 'ExponentialLR'
-            Learning rate scheduler class for the NNP model training
-        trainer_scheduler_args: dict, optional, default {}
-            Additional learning rate scheduler class arguments
-        trainer_ema: bool, optional, default True
-            Apply exponential moving average scheme for NNP model training
-        trainer_ema_decay: float, optional, default 0.999
-            Exponential moving average decay rate
-        trainer_max_gradient_norm: float, optional, default 1000.0
-            Maximum model parameter gradient norm to clip its step size.
-        trainer_save_interval: int, optional, default 5
-            Interval between epoch to save current and best set of model
-            parameters.
-        trainer_validation_interval: int, optional, default 5
-            Interval between epoch to evaluate model performance on
-            validation data.
-        trainer_evaluate_testset: bool, optional, default True
-            Each validation interval and in case of a new best loss function,
-            apply Tester class on the test set.
-        trainer_max_checkpoints: int, optional, default 50
-            Maximum number of checkpoint files stored before deleting the
-            oldest ones up to the number threshold.
-        trainer_store_neighbor_list: bool, optional, default True
-            Store neighbor list parameter in the database file instead of
-            computing in situ.
-        **kwargs: dict, optional
-            Additional arguments
-
-        Returns
-        -------
-        callable object
-            NNP model trainer object
         """
 
         ##########################################
@@ -403,6 +407,14 @@ class Trainer:
         """
         Check the definition of the model units or assign units from the
         reference dataset
+
+        Parameters
+        ----------
+
+        model_units: dict, optional, default None
+            Dictionary of model property units. If None, the property units
+            from the reference dataset are assigned.
+
         """
 
         if model_units is None:
@@ -696,6 +708,18 @@ class Trainer:
                 logger.info("INFO:\n" + msg)
 
     def predict_batch(self, batch):
+        """
+        Predict properties from data batch.
+
+        Parameters
+        ----------
+        batch: dict
+            Data batch dictionary
+
+        Returns
+        -------
+
+        """
 
         # Predict properties
         return self.model_calculator(
@@ -709,6 +733,13 @@ class Trainer:
             batch['pbc_offset'])
 
     def reset_metrics(self):
+
+        '''
+        Reset metrics dictionary.
+        Returns
+        -------
+
+        '''
 
         # Initialize metrics dictionary
         metrics = {}
@@ -733,6 +764,21 @@ class Trainer:
         metrics: Dict[str, float],
         metrics_update: Dict[str, float],
     ) -> Dict[str, float]:
+
+        '''
+        Update metrics dictionary.
+
+        Parameters
+        ----------
+        metrics: dict
+            Metrics dictionary
+        metrics_update: dict
+            Metrics dictionary to update
+
+        Returns
+        -------
+
+        '''
 
         # Get data sizes and metric ratio
         Ndata = metrics['Ndata']
@@ -761,6 +807,25 @@ class Trainer:
         loss_fn: Optional[object] = None,
         loss_only: Optional[bool] = True,
     ) -> Dict[str, float]:
+
+        '''
+        Compute metrics. This function evaluates the loss function.
+
+        Parameters
+        ----------
+        prediction: dict
+            Model prediction dictionary
+        reference:
+            Reference data dictionary
+        loss_fn:
+            Loss function if not defined it is set to torch.nn.L1Loss
+        loss_only
+            Compute only loss function or compute MAE and MSE as well
+
+        Returns
+        -------
+
+        '''
 
         # Check loss function input
         if loss_fn is None:

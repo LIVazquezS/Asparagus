@@ -27,6 +27,24 @@ class Asparagus(torch.nn.Module):
     """
     Neural network potential (NNP) main class to check and parse the tasks and
     model properties.
+
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    config_file: str, optional, default see settings.default['config_file']
+        Path to json file (str)
+    kwargs: dict, optional, default {}
+        Additional model keyword input parameter
+
+
+    Returns
+    -------
+    object
+        Main Asparagus object to direct tasks.
     """
 
     def __init__(
@@ -38,25 +56,6 @@ class Asparagus(torch.nn.Module):
         """
         Neural Network Potential
 
-        Parameters
-        ----------
-
-        job: str
-            Define the kind of job to be performed by the NNP, e.g.,
-            'train', 'ase', 'pycharmm', ... (Still defined?)
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        config_file: str, optional, default see settings.default['config_file']
-            Path to json file (str)
-        kwargs: dict, optional, default {}
-            Additional model keyword input parameter
-
-
-        Returns
-        -------
-            object
-                Main PhysNetSuite object to direct tasks.
         """
 
         super().__init__()
@@ -114,6 +113,16 @@ class Asparagus(torch.nn.Module):
     ):
         """
         Initialize and start model training
+
+        Parameters
+        ----------
+        config: (str, dict, object)
+            Either the path to json file (str), dictionary (dict) or
+            settings.config class object of model parameters
+        config_file: str, optional, default see settings.default['config_file']
+            Path to json file (str)
+        kwargs: dict, optional, default {}
+            Additional model keyword input parameter
         """
 
         ################################
@@ -381,6 +390,31 @@ class Asparagus(torch.nn.Module):
     ) -> Callable:
         """
         initialize ASE calculator class object of the model calculator
+
+        Parameters
+        ----------
+        config: (str, dict, object)
+            Either the path to json file (str), dictionary (dict) or
+            settings.config class object of model parameters
+        config_file: str, optional, default see settings.default['config_file']
+            Path to json file (str)
+        model_checkpoint: int, optional, default None
+            If None, load best model checkpoint. Otherwise define a checkpoint
+            index number of the respective checkpoint file.
+        atoms: ASE Atoms object, optional, default None
+            ASE Atoms object with assigned ASE calculator
+        atoms_charge: float, optional, default None
+            Total charge of the system
+        implemented_properties: list(str), optional, default None
+            List of computed properties to return
+        use_neighbor_list: bool, optional, default None
+            Use neighbor list for the calculator
+        label: str, optional, default 'asparagus'
+            Label of the ASE calculator
+        kwargs: dict, optional, default {}
+            Additional model keyword input parameter
+
+
         """
 
         ######################################
@@ -475,6 +509,37 @@ class Asparagus(torch.nn.Module):
 
         """
         Initialize PyCharmm calculator class object of the model calculator
+
+        Parameters
+        ----------
+        num_atoms: int
+            Total number of atoms
+        ml_atom_indices: list(int)
+            PhysNet atom indices
+        ml_atom_numbers: list(int)
+            PhysNet atom numbers
+        ml_fluctuating_charges: bool
+            Fluctuating ML charges for ML-MM electrostatic interaction
+        ml_mm_atoms_charge: list(float)
+            System atom charges (All atoms)
+        ml_total_charge: float, optional, default None
+            Total charge of the system
+        mlmm_rcut: float
+            Cutoff distance for ML/MM electrostatic interactions
+        mlmm_width: float
+            Cutoff width for ML/MM electrostatic interactions
+        config: (str, dict, object)
+            Either the path to json file (str), dictionary (dict) or
+            settings.config class object of model parameters
+        config_file: str, optional, default see settings.default['config_file']
+            Path to json file (str)
+        model_checkpoint: int, optional, default None
+            If None, load best model checkpoint. Otherwise define a checkpoint
+            index number of the respective checkpoint file.
+        kwargs: dict, optional, default {}
+            Additional model keyword input parameter
+
+
         """
 
 

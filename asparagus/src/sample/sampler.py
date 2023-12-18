@@ -25,6 +25,60 @@ __all__ = ['Sampler']
 class Sampler:
     """
     Conformation Sampler main class for generation of reference structures.
+
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    sample_data_file: str, optional, default None
+        Database file name to store a selected set of systems with
+        computed reference data. If None, data file name is the respective
+        sample method tag plus the '.db' ending.
+    sample_directory: str, optional, default None
+        Working directory where to store eventually temporary ASE
+        calculator files, ASE trajectory files and/or model calculator
+        files. If None, files will be stored in parent directory.
+    sample_systems: (str, list, object), optional, default ''
+        System coordinate file or a list of system coordinate files or
+        ASE atoms objects that are considered as initial conformations for
+        reference structure sampling.
+    sample_systems_format: (str, list), optional, default ''
+        System coordinate file format string (e.g. 'xyz') for the
+        definition in 'sample_systems' in case of file paths.
+    sample_calculator: (str, callable object), optional, default 'XTB'
+        Definition of the ASE calculator type for reference data
+        computation. The input can be either directly a ASE calculator
+        class object or a string with available ASE calculator classes.
+    sample_calculator_args: dict, optional, default {}
+        In case of string type input for 'sample_calculator', this
+        dictionary is passed as keyword arguments at the initialization
+        of the ASE calculator.
+    sample_properties: List[str], optional, default None
+        List of system properties which are computed by the ASE
+        calculator class. Requested properties will be checked with the
+        calculator available property list and return an error when one
+        requested property is unavailable. By default all available
+        properties will be stored.
+    sample_systems_optimize: bool, optional, default False
+        Instruction flag if the system coordinates shall be
+        optimized using the ASE calculator defined by 'sample_calculator'.
+    sample_systems_optimize_fmax: float, optional, default 0.01
+        Instruction flag, if the system coordinates shall be
+        optimized using the ASE calculator defined by 'sample_calculator'.
+    sample_data_overwrite: bool, optional, default False
+        If False, add new sampling data to an eventually existing data
+        file. If True, overwrite an existing one.
+    sample_tag: str, optional, default 'sample'
+        Sampling method tag of the specific sampling methods for
+        log and ASE trajectory files or the data file name if not defined.
+
+    Returns
+    -------
+    callable object
+        Sampler class object
     """
 
     def __init__(
@@ -46,58 +100,6 @@ class Sampler:
         """
         Initialize Sampler class.
 
-        Parameters
-        ----------
-
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        sample_data_file: str, optional, default None
-            Database file name to store a selected set of systems with
-            computed reference data. If None, data file name is the respective
-            sample method tag plus the '.db' ending.            
-        sample_directory: str, optional, default None
-            Working directory where to store eventually temporary ASE 
-            calculator files, ASE trajectory files and/or model calculator 
-            files. If None, files will be stored in parent directory.
-        sample_systems: (str, list, object), optional, default ''
-            System coordinate file or a list of system coordinate files or
-            ASE atoms objects that are considered as initial conformations for
-            reference structure sampling.
-        sample_systems_format: (str, list), optional, default ''
-            System coordinate file format string (e.g. 'xyz') for the
-            definition in 'sample_systems' in case of file paths.
-        sample_calculator: (str, callable object), optional, default 'XTB'
-            Definition of the ASE calculator type for reference data
-            computation. The input can be either directly a ASE calculator
-            class object or a string with available ASE calculator classes.
-        sample_calculator_args: dict, optional, default {}
-            In case of string type input for 'sample_calculator', this
-            dictionary is passed as keyword arguments at the initialization
-            of the ASE calculator.
-        sample_properties: List[str], optional, default None
-            List of system properties which are computed by the ASE
-            calculator class. Requested properties will be checked with the
-            calculator available property list and return an error when one
-            requested property is unavailable. By default all available
-            properties will be stored.
-        sample_systems_optimize: bool, optional, default False
-            Instruction flag if the system coordinates shall be
-            optimized using the ASE calculator defined by 'sample_calculator'.
-        sample_systems_optimize_fmax: float, optional, default 0.01
-            Instruction flag, if the system coordinates shall be
-            optimized using the ASE calculator defined by 'sample_calculator'.
-        sample_data_overwrite: bool, optional, default False
-            If False, add new sampling data to an eventually existing data
-            file. If True, overwrite an existing one.
-        sample_tag: str, optional, default 'sample'
-            Sampling method tag of the specific sampling methods for
-            log and ASE trajectory files or the data file name if not defined.
-
-        Returns
-        -------
-        callable object
-            Sampler class object
         """
 
         #####################################
@@ -249,6 +251,17 @@ class Sampler:
     ):
         """
         Assign calculator to a list of sample ASE Atoms objects
+
+        Parameters
+        ----------
+        sample_systems_atoms : (object, list(object)), optional, default None
+            List of ASE Atoms objects to assign the calculator
+        sample_calculator : (str, object), optional, default None
+            ASE calculator object or string of an ASE calculator class
+            name to assign to the sample systems
+        sample_calculator_args : dict, optional, default None
+            Dictionary of keyword arguments to initialize the ASE
+            calculator
         """
 
         # Check input
