@@ -246,6 +246,40 @@ def is_None_array(x, verbose=False):
     else:
         return result[0]
 
+def is_ase_atoms(x, verbose=False):
+    if verbose:
+        return isinstance(x, ase.atoms.Atoms), type(x), "ase.Atoms"
+    else:
+        return isinstance(x, ase.atoms.Atoms)
+
+def is_ase_atoms_array(x, verbose=False):
+    if is_array_like(x) and np.asarray(x).size > 0:
+        try:
+            result = (
+                all([is_ase_atoms(xi) for xi in x]),
+                f"({type(x)})[{type(x[0])}]",
+                f"({darr_all})[ase.Atoms]")
+        except (ValueError, TypeError):
+            result = (
+                False,
+                f"({type(x)})[{type(x[0])}]",
+                f"({darr_all})[ase.Atoms]")
+    elif is_array_like(x):
+        result = (
+            True,
+            f"({type(x)})[empty]",
+            f"({darr_all})[ase.Atoms]")
+    else:
+        result = (
+            False,
+            f"{type(x)}",
+            f"({darr_all})[ase.Atoms]")
+
+    if verbose:
+        return result
+    else:
+        return result[0]
+
 def is_grad_enabled(x, verbose=False):
     if verbose:
         return (

@@ -238,7 +238,7 @@ class DataLoader(torch.utils.data.DataLoader):
         # Case for cell format (n1, n2, n3)
         elif (
             len(batch[0]['cell'].shape) == 1
-            and batch[0]['cell'].shape == (3)
+            and batch[0]['cell'].shape == (3,)
         ):
             coll_batch['cell'] = torch.cat(
                 [torch.diag(b['cell']) for b in batch], 0
