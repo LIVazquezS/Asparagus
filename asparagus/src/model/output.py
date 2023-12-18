@@ -106,10 +106,6 @@ class Output_PhysNet(torch.nn.Module):
         self.dtype = settings._global_dtype
         self.device = settings._global_device
 
-        ## Assign arguments
-        #self.output_n_residual = output_n_residual
-        #self.output_properties = output_properties
-
         # Get output model interface parameters 
         self.input_n_atombasis = config.get('input_n_atombasis')
         self.graph_n_blocks = config.get('graph_n_blocks')

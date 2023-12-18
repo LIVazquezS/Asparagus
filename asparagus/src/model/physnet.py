@@ -131,6 +131,54 @@ class Calculator_PhysNet(torch.nn.Module):
         self.dtype = settings._global_dtype
         self.device = settings._global_device
 
+        #################################
+        # # # Prepare PhysNet Input # # #
+        #################################
+
+        # Calculator class type
+        self.model_type = 'PhysNet'
+
+        # Convert 'model_properties' to list
+        self.model_properties = list(self.model_properties)
+
+        # Check for energy gradient properties in prediction list
+        if any([
+                prop in self.model_properties
+                for prop in ['forces', 'hessian']]):
+            self.model_gradient = True
+            if 'forces' in self.model_properties:
+                self.model_forces = True
+            else:
+                self.model_forces = False
+            if 'hessian' in self.model_properties:
+                self.model_hessian = True
+            else:
+                self.model_hessian = False
+        else:
+            self.model_gradient = False
+            self.model_forces = False
+            self.model_hessian = False
+
+        # Check for atomic charge derivatives in prediction list
+        if 'dipole' in self.model_properties:
+            self.model_dipole = True
+            if 'atomic_charges' not in self.model_properties:
+                logger.warning(
+                    "WARNING:\nModel properties do not include atomic charges"
+                    + "mode dipole prediction is requested!\n"
+                    + "Atomic charges are added to model properties.\n"
+                    )
+                self.model_properties.append('atomic_charges')
+                self.model_dipole = True
+        elif 'atomic_charges' in self.model_properties:
+            self.model_properties.append('dipole')
+            self.model_dipole = True
+        else:
+            self.model_dipole = False
+
+        # Update model properties
+        self.config['model_properties'] = self.model_properties
+        
         ###################################
         # # # Prepare PhysNet Modules # # #
         ###################################
@@ -171,55 +219,14 @@ class Calculator_PhysNet(torch.nn.Module):
                 self.config,
                 **kwargs)
 
-        ######################################
-        # # # Prepare PhysNet Calculator # # #
-        ######################################
-
-        # Calculator class type
-        self.model_type = 'PhysNet'
-
-        # Convert 'model_properties' to list
-        self.model_properties = list(self.model_properties)
-
-        # Check for energy gradient properties in prediction list
-        if any([
-                prop in self.model_properties
-                for prop in ['forces', 'hessian']]):
-            self.model_gradient = True
-            if 'forces' in self.model_properties:
-                self.model_forces = True
-            else:
-                self.model_forces = False
-            if 'hessian' in self.model_properties:
-                self.model_hessian = True
-            else:
-                self.model_hessian = False
-        else:
-            self.model_gradient = False
-            self.model_forces = False
-            self.model_hessian = False
-
-        # Check for atomic charge derivatives in prediction list
-        if 'dipole' in self.model_properties:
-            self.model_dipole = True
-            if 'atomic_charges' not in self.model_properties:
-                logger.warning(
-                    "WARNING:\nModel properties do not include atomic charges"
-                    + "mode dipole prediction is requested!\n"
-                    + "Atomic charges are added to model properties."
-                    )
-                self.model_properties.append('atomic_charges')
-                self.model_dipole = True
-        elif 'atomic_charges' in self.model_properties:
-            self.model_properties.append('dipole')
-            self.model_dipole = True
-        else:
-            self.model_dipole = False
-
         # Get length of atomic feature vector
         self.input_n_atombasis = self.config.get('input_n_atombasis')
         self.input_cutoff_descriptor = self.config.get(
             'input_cutoff_descriptor')
+
+        ############################################
+        # # # Check PhysNet Interaction Cutoff # # #
+        ############################################
 
         # Check cutoffs
         if self.model_interaction_cutoff > self.input_cutoff_descriptor:
@@ -246,6 +253,10 @@ class Calculator_PhysNet(torch.nn.Module):
                 "The interaction cutoff width 'model_cutoff_width' "
                 + f"({self.model_cutoff_width:.2f}) "
                 + "must be larger or equal zero!")
+
+        ###################################
+        # # # Prepare PhysNet Modules # # #
+        ###################################
 
         # Assign atom repulsion parameters
         if self.model_repulsion:

@@ -279,6 +279,9 @@ class DataContainer():
         # # # Check DataSet # # #
         #########################
 
+        # Initialize dataset class variable
+        self.dataset = None
+
         # Check data set parameters if file does not get overwritten
         if not self.data_overwrite and os.path.isfile(self.data_file):
             with data.connect(self.data_file, mode='r') as db:
@@ -531,6 +534,35 @@ class DataContainer():
 
         # Set data flag
         self.data_avaiable = True
+
+    def __len__(
+        self,
+    ) -> int:
+        """
+        Get number of data in the dataset
+        """
+
+        return len(self.dataset)
+
+    def __getitem__(
+        self,
+        idx: int,
+    ) -> Dict[str, List]:
+        """
+        Get i-th element from the dataset
+        """
+
+        return self.dataset.get(idx)
+
+    def get(
+        self, 
+        idx: int
+    ) -> Dict[str, List]:
+        """
+        Get i-th element from the dataset
+        """
+
+        return self.dataset.get(idx)
 
     def get_property_scaling(
         self,
