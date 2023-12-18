@@ -173,6 +173,7 @@ class NormalModeScanner(sample.Sampler):
         system: object,
         nms_indices: Optional[List[int]] = None,
         nms_clean: Optional[bool] = False,
+        **kwargs
     ):
         """
         Perform Normal Mode Scanning on the sample system.
@@ -214,7 +215,7 @@ class NormalModeScanner(sample.Sampler):
 
         # Get non-fixed atoms indices
         if nms_indices is None:
-            indices = np.array(system.get_global_number_of_atoms(), dtype=int)
+            indices = np.arange(system.get_global_number_of_atoms(), dtype=int)
         else:
             indices = np.array(nms_indices, dtype=int)
         for constraint in system.constraints:

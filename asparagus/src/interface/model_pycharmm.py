@@ -361,12 +361,12 @@ class Electrostatic_shift:
 
     def __init__(
         self,
-        mlmm_rcut: torch.Tensor[float],
-        mlmm_width: torch.Tensor[float],
-        max_rcut: torch.Tensor[float],
-        ml_idxp: torch.Tensor[int],
-        mlmm_atoms_charge: torch.Tensor[float],
-        kehalf: torch.Tensor[float],
+        mlmm_rcut: torch.Tensor,
+        mlmm_width: torch.Tensor,
+        max_rcut: torch.Tensor,
+        ml_idxp: torch.Tensor,
+        mlmm_atoms_charge: torch.Tensor,
+        kehalf: torch.Tensor,
         switch_fn='CHARMM',
     ):
 
@@ -382,11 +382,11 @@ class Electrostatic_shift:
 
     def calculate_mlmm_interatomic_distances(
         self,
-        R: torch.Tensor[float],
-        idxi: torch.Tensor[int],
-        idxk: torch.Tensor[int],
-        idxp: torch.Tensor[int],
-    ) -> (torch.Tensor[float], torch.Tensor[int], torch.Tensor[int]):
+        R: torch.Tensor,
+        idxi: torch.Tensor,
+        idxk: torch.Tensor,
+        idxp: torch.Tensor,
+    ) -> (torch.Tensor, torch.Tensor, torch.Tensor):
 
         # Gather positions
         Ri = torch.gather(R, 0, idxi.view(-1, 1).repeat(1, 3))
@@ -412,10 +412,10 @@ class Electrostatic_shift:
 
     def electrostatic_energy_per_atom_to_point_charge(
         self,
-        Dik: torch.Tensor[float],
-        Qai: torch.Tensor[float],
-        Qak: torch.Tensor[float],
-    ) -> torch.Tensor[float]:
+        Dik: torch.Tensor,
+        Qai: torch.Tensor,
+        Qak: torch.Tensor,
+    ) -> torch.Tensor:
         """
         Calculate electrostatic interaction between ML atom charge and MM point
         charge based on shifted Coulomb potential scheme
@@ -432,12 +432,12 @@ class Electrostatic_shift:
 
     def run(
         self,
-        mlmm_R: torch.Tensor[float],
-        ml_Qa: torch.Tensor[float],
-        mlmm_idxi: torch.Tensor[int],
-        mlmm_idxk: torch.Tensor[int],
-        mlmm_idxk_p: torch.Tensor[int],
-    ) -> torch.Tensor[float]:
+        mlmm_R: torch.Tensor,
+        ml_Qa: torch.Tensor,
+        mlmm_idxi: torch.Tensor,
+        mlmm_idxk: torch.Tensor,
+        mlmm_idxk_p: torch.Tensor,
+    ) -> torch.Tensor:
         """
         Calculates the electrostatic interaction between ML atoms in the center
         cell with all MM atoms in the center or imaginary non-bonded lists

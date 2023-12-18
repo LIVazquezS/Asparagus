@@ -1,7 +1,7 @@
 from asparagus import Asparagus
 
 # Sampling
-if False:
+if True:
 
     # System generation
     from ase.build import add_adsorbate, fcc100
@@ -21,7 +21,7 @@ if False:
 
     # Load optimized slab
     slab = io.Trajectory("model_diffusion/sampling/1_bfgs.traj")[-1]
-
+    print(slab)
     # Set constraint
     slab.set_constraint([fixlayers])
 
@@ -48,13 +48,30 @@ if False:
         sample_calculator=calc,
         sample_systems_optimize=False,
         sample_systems_optimize_fmax=0.001,
-        nms_harmonic_energy_step=0.05,
+        nms_harmonic_energy_step=0.01,
         nms_energy_limits=1.00,
         nms_number_of_coupling=1,
         nms_limit_com_shift=1.0,
         nms_limit_of_steps=25,
         )
-    sampler.run()
+    sampler.run(nms_clean=True)
+
+    sampler = NormalModeScanner(
+        config='difftest_config.json',
+        sample_directory='model_difftest/sampling',
+        sample_data_file='model_difftest/nms_difftest.db',
+        sample_systems=[slab],
+        sample_calculator=calc,
+        sample_systems_optimize=False,
+        sample_systems_optimize_fmax=0.01,
+        nms_harmonic_energy_step=0.01,
+        nms_energy_limits=2.00,
+        nms_number_of_coupling=2,
+        nms_limit_com_shift=1.0,
+        nms_limit_of_steps=25,
+        )
+    sampler.run(nms_clean=False)
+
 
 if True:
 

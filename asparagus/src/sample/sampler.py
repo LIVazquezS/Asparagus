@@ -168,10 +168,10 @@ class Sampler:
             self.sample_data_file = f'{self.sample_tag:s}.db'
         elif not utils.is_string(self.sample_data_file):
             raise ValueError(
-                f"Sample data file 'sample_data_file' must be a string " +
-                f"of a valid file path but is of type " + 
-                f"'{type(self.sample_data_file)}'.")
-        
+                "Sample data file 'sample_data_file' must be a string "
+                + "of a valid file path but is of type "
+                + f"'{type(self.sample_data_file)}'.")
+
         ###########################
         # # # Prepare Systems # # #
         ###########################
@@ -187,13 +187,13 @@ class Sampler:
         #############################
         # # # Prepare Optimizer # # #
         #############################
-        
+
         if self.sample_systems_optimize:
 
             # Assign ASE optimizer
             optimizer_tag = "bfgs"
             self.ase_optimizer = optimize.BFGS
-            
+
             # Assign optimization log and  trajectory file name
             self.ase_optimizer_log_file = os.path.join(
                 self.sample_directory,
@@ -302,6 +302,7 @@ class Sampler:
     def run(
         self,
         sample_systems_idx: Optional[Union[int, List[int]]] = None,
+        **kwargs
     ):
         """
         Perform sampling of all sample systems or a selection of them.
@@ -362,7 +363,7 @@ class Sampler:
                         fmax=self.sample_systems_optimize_fmax)
 
             # Start normal mode sampling
-            self.run_system(system)
+            self.run_system(system, **kwargs)
 
     def run_system(self, system):
         raise NotImplementedError()
