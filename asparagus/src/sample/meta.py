@@ -30,6 +30,63 @@ __all__ = ['MetaSampler']
 class MetaSampler(sample.Sampler):
     """
     Meta(-Dynamic) Sampler class
+
+    Parameters
+    ----------
+
+    meta_cv: list(list(int)), optional, default []
+        List of sublists defining collective variables (CVs) / reaction
+        coordinates to add Gaussian potentials. The number of atom indices
+        in the sublist defines either bonds (2), angles (3) or
+        dihedrals (4). Example [[1, 2], [1, 2, 3], [4, 1, 2, 3]]
+    meta_gaussian_height: float, optional, default 0.05
+        Potential energy height in eV of the Gaussian potential.
+    meta_gaussian_widths: (float, list(floats)), optional, default 0.1
+        Gaussian width for all CVs or a list of widths per CV that define
+        the FWHM of Gaussian potential.
+    meta_gaussian_interval: int, optional, default 10
+        Step interval to add gaussian potential at current set of
+        collective variable.
+    meta_hookean: list(list(int,float)), optional, default []
+        It is always recommended for bond type collective variables to
+        define a hookean constraint that limit the distance between two
+        atoms. Otherwise gaussian potential could be only added to an ever
+        increasing atoms bond distance. Hookean are defined by a list of
+        sublists containing first two atom indices followed by one upper
+        distance limit and, optionally, a Hookean force constant k (default
+        is defined by meta_hookean_force_constant).
+        For example: [1, 2, 4.0] or [1, 2, 4.0, 5.0]
+    meta_hookean_force_constant: float, optional, default 5.0
+        Default Hookean force constant if not specifically defined in
+        Hookean constraint list meta_hookean.
+    meta_temperature: float, optional, default 300
+        Target temperature in Kelvin of the MD simulation controlled by a
+        Langevin thermostat
+    meta_time_step: float, optional, default 1.0 (1 fs)
+        MD Simulation time step in fs
+    meta_simulation_time: float, optional, default 1E5 (100 ps)
+        Total MD Simulation time in fs
+    meta_save_interval: int, optional, default 10
+        MD Simulation step interval to store system properties of
+        the current frame to dataset.
+    meta_langevin_friction: float, optional, default 0.1
+        Langevin thermostat friction coefficient in Kelvin. The coefficient
+        should be much higher than in classical MD simulations  (1E-2 to
+        1E-4) due to the fast heating of the systems due to the Gaussian
+        potentials.
+    meta_initial_velocities: bool, optional, default False
+        Instruction flag if initial atom velocities are assigned with
+        respect to a Maxwell-Boltzmann distribution at temperature
+        'md_initial_temperature'.
+    meta_initial_temperature: float, optional, default 300
+        Temperature for initial atom velocities according to a Maxwell-
+        Boltzmann distribution.
+
+    Returns
+    -------
+    object
+        Meta(-Dynamics) Sampler class object
+
     """
     
     def __init__(
@@ -52,61 +109,6 @@ class MetaSampler(sample.Sampler):
         """
         Initialize Normal Mode Scanning class
 
-        Parameters
-        ----------
-
-        meta_cv: list(list(int)), optional, default []
-            List of sublists defining collective variables (CVs) / reaction 
-            coordinates to add Gaussian potentials. The number of atom indices
-            in the sublist defines either bonds (2), angles (3) or 
-            dihedrals (4). Example [[1, 2], [1, 2, 3], [4, 1, 2, 3]]
-        meta_gaussian_height: float, optional, default 0.05
-            Potential energy height in eV of the Gaussian potential.
-        meta_gaussian_widths: (float, list(floats)), optional, default 0.1
-            Gaussian width for all CVs or a list of widths per CV that define
-            the FWHM of Gaussian potential.
-        meta_gaussian_interval: int, optional, default 10
-            Step interval to add gaussian potential at current set of 
-            collective variable.
-        meta_hookean: list(list(int,float)), optional, default []
-            It is always recommended for bond type collective variables to
-            define a hookean constraint that limit the distance between two
-            atoms. Otherwise gaussian potential could be only added to an ever
-            increasing atoms bond distance. Hookean are defined by a list of
-            sublists containing first two atom indices followed by one upper
-            distance limit and, optionally, a Hookean force constant k (default
-            is defined by meta_hookean_force_constant). 
-            For example: [1, 2, 4.0] or [1, 2, 4.0, 5.0]
-        meta_hookean_force_constant: float, optional, default 5.0
-            Default Hookean force constant if not specifically defined in 
-            Hookean constraint list meta_hookean.
-        meta_temperature: float, optional, default 300
-            Target temperature in Kelvin of the MD simulation controlled by a
-            Langevin thermostat
-        meta_time_step: float, optional, default 1.0 (1 fs)
-            MD Simulation time step in fs
-        meta_simulation_time: float, optional, default 1E5 (100 ps)
-            Total MD Simulation time in fs
-        meta_save_interval: int, optional, default 10
-            MD Simulation step interval to store system properties of 
-            the current frame to dataset.
-        meta_langevin_friction: float, optional, default 0.1
-            Langevin thermostat friction coefficient in Kelvin. The coefficient
-            should be much higher than in classical MD simulations  (1E-2 to 
-            1E-4) due to the fast heating of the systems due to the Gaussian 
-            potentials.
-        meta_initial_velocities: bool, optional, default False
-            Instruction flag if initial atom velocities are assigned with
-            respect to a Maxwell-Boltzmann distribution at temperature
-            'md_initial_temperature'.
-        meta_initial_temperature: float, optional, default 300
-            Temperature for initial atom velocities according to a Maxwell-
-            Boltzmann distribution.
-        
-        Returns
-        -------
-        object
-            Meta(-Dynamics) Sampler class object
         """
         
         # Sampler class label
@@ -241,6 +243,16 @@ class MetaSampler(sample.Sampler):
             data_overwrite=self.sample_data_overwrite)
 
     def get_info(self):
+
+        '''
+        Get information about the current sampler object
+
+        Returns
+        -------
+        dict
+            Dictionary with sampler information
+
+        '''
         
         return {
             'sample_data_file': self.sample_data_file,
@@ -271,6 +283,14 @@ class MetaSampler(sample.Sampler):
     def run_system(self, system):
         """
         Perform Meta Sampling Simulation with the sample system.
+
+        Parameters
+        ----------
+
+        system : ase.Atoms
+
+
+
         """
 
         # Current system constraints
@@ -359,6 +379,21 @@ class MetaConstraint:
     """
     Constraint class to perform Meta Dynamics simulations by adding
     artificial Gaussian potentials.
+
+    Forces atoms of cluster to stay close to the center.
+
+    Parameters
+    ----------
+    cv : list
+        List of collective variables - e.g.:
+        [[1,2], [2,4], [1,2,3], [2,3,4,1]]
+        [a,b] bond variable between atom a and b
+        [a,b,c] angle variable between angle a->b->c
+        [a,b,c,d] dihedral angle variable between angle a->b->c->d
+    widths : array
+        Width if Gaussian distribution for cv i
+    heights : array
+        Maximum height of the artificial Gaussian potential
     """
     
     def __init__(
@@ -370,18 +405,7 @@ class MetaConstraint:
         logwrite,
     ):
         """
-        Forces atoms of cluster to stay close to the center.
-        
-        cv : list
-            List of collective variables - e.g.:
-                [[1,2], [2,4], [1,2,3], [2,3,4,1]]
-            [a,b] bond variable between atom a and b
-            [a,b,c] angle variable between angle a->b->c
-            [a,b,c,d] dihedral angle variable between angle a->b->c->d
-        widths : array
-           Width if Gaussian distribution for cv i
-        heights : array
-           Maximum height of the artificial Gaussian potential
+
         """
         
         self.cv = cv
@@ -420,7 +444,17 @@ class MetaConstraint:
         pass
     
     def adjust_forces(self, atoms, forces):
-        """Returns the Forces related to artificial Gaussian potential"""
+        """Returns the Forces related to artificial Gaussian potential
+
+        Parameters
+        ----------
+
+        atoms : ase.Atoms
+            Atoms object
+        forces : array
+            Forces array of atoms object
+
+        """
         
         # Get collective variable i and partial derivative dcvdR
         cv = np.zeros(self.Ncv, dtype=float)
@@ -748,15 +782,15 @@ class MetaDynamicLogger:
     """ 
     Store defined amount of images of a trajectory and save the images 
     within a defined time window around a point when an action happened.
+
+    Parameters:
+    ----------
+
+    metadynamic: object
+        Metadynamic constraint class
     """
     
     def __init__(self, metadynamic, system):
-        """
-        Parameters:
-        
-        metadynamic: object
-            Metadynamic constraint class
-        """
         
         # Allocate parameter
         self.metadynamic = metadynamic

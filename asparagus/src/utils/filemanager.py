@@ -21,7 +21,28 @@ __all__ = ['FileManager']
 
 class FileManager():
     """
-    File manager for model files
+    File manager for model files.
+    Manage checkpoint creation and loading writer to tensorboardX
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    model_directory: str, optional, default config['model_directory']
+        Model directory that contains checkpoint and log files.
+    max_checkpoints: int, optional, default config['max_checkpoints']
+        Maximum number of checkpoint files.
+    **kwargs: dict
+        Additional keyword arguments for the tensorboard SummaryWriter
+
+    Returns
+    -------
+    callable object
+        Mode FileManager object
+
+
     """
 
     def __init__(
@@ -34,19 +55,6 @@ class FileManager():
         """
         Initialize file manager class.
 
-        Parameters
-        ----------
-
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        model_directory: str, optional, default config['model_directory']
-            Model directory that contains checkpoint and log files.
-
-        Returns
-        -------
-        callable object
-            Mode FileManager object
         """
 
         ###################################
@@ -262,6 +270,14 @@ class FileManager():
         """
         Check number of checkpoint files and in case of exceeding the
         maximum checkpoint threshold, delete the ones with lowest indices.
+
+        Parameters
+        ----------
+
+        max_checkpoints: int, optional, default None
+             Maximum number of checkpoint files. If None, the threshold is
+             taken from the class attribute 'self.max_checkpoints'.
+
         """
         
         # Skip in checkpoint threshold is None

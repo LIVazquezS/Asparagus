@@ -23,6 +23,28 @@ __all__ = ['get_output_model', 'Output_PhysNet']
 class Output_PhysNet(torch.nn.Module): 
     """
     PhysNet Output model
+
+
+    Parameters
+    ----------
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    output_n_residual: int, optional, default 1
+        Number of residual layers for message refinement
+    output_properties: list(str), optional '['energy', 'forces']'
+        List of output properties to compute by the model
+        e.g. ['energy', 'forces', 'atomic_charges']
+    output_activation_fn: (str, object), optional, default 'shifted_softplus'
+        Activation function
+    **kwargs: dict, optional
+        Additional arguments
+
+    Returns
+    -------
+    callable object
+        PhysNet Output model object
+
     """
 
     def __init__(
@@ -36,26 +58,6 @@ class Output_PhysNet(torch.nn.Module):
         """
         Initialize NNP output model.
 
-        Parameters
-        ----------
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        output_n_residual: int, optional, default 1
-            Number of residual layers for message refinement
-        output_properties: list(str), optional '['energy', 'forces']'
-            List of output properties to compute by the model
-            e.g. ['energy', 'forces', 'atomic_charges']
-        output_activation_fn: (str, object), optional,
-                default 'shifted_softplus'
-            Activation function
-        **kwargs: dict, optional
-            Additional arguments
-
-        Returns
-        -------
-        callable object
-            PhysNet Output model object
         """
 
         super().__init__()
@@ -239,6 +241,24 @@ class Output_PhysNet(torch.nn.Module):
         messages_list: List[torch.Tensor],
         properties: Optional[List[str]] = None,
     ) -> Dict[str, torch.Tensor]:
+
+        """
+        Forward pass of PhysNet output model
+
+        Parameters
+        ----------
+        messages_list : list(torch.Tensor)
+            List of messages from PhysNet graph model
+        properties : list(str), optional
+            List of properties to compute by the model
+            e.g. ['energy', 'forces', 'atomic_charges']
+
+        Returns
+        -------
+        dict(str, torch.Tensor)
+            Dictionary of predicted properties
+
+        """
 
         # Initialize predicted properties dictionary
         output_prediction = {}

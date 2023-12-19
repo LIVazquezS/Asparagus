@@ -28,6 +28,8 @@ def convert_from_tensorflow(
 ):
     """
     Convert tensorflow checkpoint files into torch checkpoint files
+
+    **Note**: This function is not yet fully implemented. Check other options in folder `convert_tf_to_torch`.
     """
     
     #tf.compat.v1.disable_eager_execution()

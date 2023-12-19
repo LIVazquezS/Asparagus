@@ -22,6 +22,33 @@ class D3_dispersion(torch.nn.Module):
     Grimme, Stefan, et al. "A consistent and accurate ab initio parametrization
     of density functional dispersion correction (DFT-D) for the 94 elements
     H-Pu." The Journal of Chemical Physics 132, 15 (2010): 154104.
+
+    Parameters
+    ----------
+
+    cutoff: float
+        Cutoff distance
+    width: float
+        Width of the switching function
+    unit_properties: opt(dict)
+        Dictionary with the units of the properties
+    d3_s6: opt(float)
+        d3_s6 dispersion parameter
+    d3_s8: opt(float)
+        d3_s8 dispersion parameter
+    d3_a1: opt(float)
+        d3_a1 dispersion parameter
+    d3_a2: opt(float)
+        d3_a2 dispersion parameter
+    trainable: opt(bool)
+        If True the dispersion parameters are trainable
+    device: opt(str)
+        Device to use for the calculations
+    dtype: opt(object)
+        Data type to use for the calculations
+
+
+
     """
 
     def __init__(
@@ -233,6 +260,20 @@ class D3_dispersion(torch.nn.Module):
         """
         Compute Grimme's D3 dispersion energy in Hartree with atom pair 
         distances in Bohr.
+
+        Parameters
+        ----------
+
+        atomic_numbers : torch.Tensor
+            Atomic numbers of all atoms in the batch.
+        distances : torch.Tensor
+            Distances between all atom pairs in the batch.
+        idx_i : torch.Tensor
+            Indices of the first atom of each pair.
+        idx_j : torch.Tensor
+            Indices of the second atom of each pair.
+
+
         """
         
         # Convert distances from model unit to Bohr

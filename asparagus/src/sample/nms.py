@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
-
+import warnings
 import numpy as np
 
 import itertools
@@ -28,6 +28,40 @@ __all__ = ['NormalModeScanner', 'NormalModeSampler']
 class NormalModeScanner(sample.Sampler):
     """
     Normal Mode Scanning class
+
+
+    Parameters
+    ----------
+
+    nms_harmonic_energy_step: float, optional, default 0.05
+        Within the harmonic approximation the initial normal mode
+        displacement from the equilibrium positions is scaled to match
+        the potential difference with the given energy value.
+    nms_energy_limits: (float, list(float)), optional, default 1.0
+        Potential energy limit in eV from the initial system conformation
+        to which additional normal mode displacements steps are added.
+        If one numeric value is give, the energy limit is used as upper
+        potential energy limit and the lower limit in case the initial
+        system conformation might not be the global minimum.
+        If a list with two numeric values are given, the first two are the
+        lower and upper potential energy limit, respectively.
+    nms_number_of_coupling: int, optional, default 2
+        Maximum number of coupled normal mode displacements to sample
+        the system conformations.
+    nms_limit_of_steps: int, optional, default 10
+        Maximum limit of coupled normal mode displacements in one direction
+        to sample the system conformations.
+    nms_limit_com_shift: float, optional, default 0.1 Angstrom
+        Center of mass shift threshold to identify translational normal
+        modes from vibrational (and rotational). Normalized Normal modes
+        with a center of mass shift larger than the threshold are not
+        considered in the normal mode scan.
+
+    Returns
+    -------
+    object
+        Normal Mode Scanning class object
+
     """
 
     def __init__(
@@ -39,41 +73,6 @@ class NormalModeScanner(sample.Sampler):
         nms_limit_com_shift: Optional[float] = None,
         **kwargs,
     ):
-        """
-        Initialize Normal Mode Scanning class
-
-        Parameters
-        ----------
-
-        nms_harmonic_energy_step: float, optional, default 0.05
-            Within the harmonic approximation the initial normal mode
-            displacement from the equilibrium positions is scaled to match
-            the potential difference with the given energy value.
-        nms_energy_limits: (float, list(float)), optional, default 1.0
-            Potential energy limit in eV from the initial system conformation
-            to which additional normal mode displacements steps are added.
-            If one numeric value is give, the energy limit is used as upper
-            potential energy limit and the lower limit in case the initial
-            system conformation might not be the global minimum.
-            If a list with two numeric values are given, the first two are the
-            lower and upper potential energy limit, respectively.
-        nms_number_of_coupling: int, optional, default 2
-            Maximum number of coupled normal mode displacements to sample
-            the system conformations.
-        nms_limit_of_steps: int, optional, default 10
-            Maximum limit of coupled normal mode displacements in one direction
-            to sample the system conformations.
-        nms_limit_com_shift: float, optional, default 0.1 Angstrom
-            Center of mass shift threshold to identify translational normal
-            modes from vibrational (and rotational). Normalized Normal modes
-            with a center of mass shift larger than the threshold are not
-            considered in the normal mode scan.
-
-        Returns
-        -------
-        object
-            Normal Mode Scanning class object
-        """
 
         # Sampler class label
         self.sample_tag = 'nmscan'
@@ -149,6 +148,17 @@ class NormalModeScanner(sample.Sampler):
         return
 
     def get_info(self):
+        '''
+
+        Obtain information about the Normal Mode Scanning class object.
+
+        Returns
+        -------
+
+        dict
+            Dictionary with information about the Normal Mode Scanning class
+
+        '''
 
         return {
             'sample_data_file': self.sample_data_file,
@@ -197,6 +207,7 @@ class NormalModeScanner(sample.Sampler):
             If True, checkpoint files for atom displacement calculations
             in 'sample_directory'/vib will be deleted.
             Else, results from avaible  checkpoint files will be used.
+
         """
 
         # Compute initial state properties
@@ -450,7 +461,16 @@ class NormalModeSampler(sample.Sampler):
     """
         Normal Mode Sampling class.
 
-        This is the vanilla version of the normal mode class.
+        This is the simple version of the normal mode class as implemented in:
+        Chem. Sci., 2017, 8, 3192-3203
+
+        Parameters
+        ----------
+
+        nms_temperature: float, optional, default 300
+            Temperature in Kelvin to sample the normal modes.
+        nms_nsamples: int, optional, default 100
+            Number of samples to generate.
 
     """
 
@@ -528,9 +548,22 @@ class NormalModeSampler(sample.Sampler):
             self.sample_unit_properties,
             data_overwrite=self.sample_data_overwrite)
 
+        warnings.WarningMessage('You are using the simple version for normal mode sampling. We '
+                                'recommend to use the normal mode scanning class instead.')
+
         return
 
     def get_info(self):
+
+        '''
+        Obtain information about the Normal Mode Sampling class object.
+
+        Returns
+        -------
+        dict
+            Dictionary with information about the Normal Mode Sampling class
+
+        '''
 
         return {
             'sample_data_file': self.sample_data_file,
@@ -549,6 +582,30 @@ class NormalModeSampler(sample.Sampler):
 
     def R(self, fct, nmodes, T=300):
 
+        '''
+
+        Made a random displayment for each of the modes in the system.
+        The displacements follow a Bernoulli distribution with $P=0.5$
+
+        The value R is given by:
+        $R_{i} = \pm \sqrt{\dfrac{3c_{i}N_{a}k_{b}T}{K_{i}}}$
+
+        Parameters
+        ----------
+        fct: array
+            Force constant per mode (in eV/Angstrom**2)
+        nmodes: int
+            Number of modes in the system
+        T: float
+            Temperature in Kelvin to sample the normal modes.
+
+        Returns
+        -------
+
+        Array of displacements for each mode in the system
+
+        '''
+
         random_num = np.random.uniform(size=nmodes)**2
         sign = [-1 if i < 0.5 else 1 for i in random_num]
         fix_fcts = [0.05 if i < 0.05 else i for i in fct]
@@ -561,6 +618,31 @@ class NormalModeSampler(sample.Sampler):
         return np.array(R)
 
     def new_coord(self, nmodes, vib_disp, mass_sqrt, fcts, T=300):
+
+        '''
+
+        Create the new coordinates for the system.
+
+        Parameters
+        ----------
+        nmodes :
+            Normal modes of the system
+
+        vib_disp:
+            Vibrational displacements
+        mass_sqrt:
+            Squared mass of the system
+        fcts:
+            Force constant per mode (in eV/Angstrom**2)
+        T:
+            Temperature in Kelvin to sample the normal modes.
+
+        Returns
+        -------
+
+        New coordinates for the system
+
+        '''
 
         Rx = self.R(nmodes, fcts, T)
         new_disp = []
@@ -583,9 +665,18 @@ class NormalModeSampler(sample.Sampler):
         self,
         system: object,
         nms_indices: Optional[List[int]] = None,
-    ):
+        **kwargs):
+
         """
         Perform Normal Mode Sampling on the sample system.
+
+        Parameters
+        ----------
+
+        system: ase.Atoms object
+            ASE atoms object to perform Normal Mode Sampling on.
+        nms_indices: list[int], optional, default None
+            Indices of the normal modes to sample.
         """
 
         # Compute initial state properties

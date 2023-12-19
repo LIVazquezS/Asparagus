@@ -8,6 +8,30 @@ from .. import utils
 
 class InteractionBlock(torch.nn.Module):
 
+    '''
+    Interaction block for PhysNet.
+
+    Parameters
+    ----------
+    input_n_atombasis: int
+        Number of input atomic basis functions.
+    input_n_radialbasis: int
+        Number of input radial basis functions.
+    graph_n_residual_atomic: int
+        Number of residual layers for atomic feature vectors.
+    graph_n_residual_interaction: int
+        Number of residual layers for interaction layer.
+    activation_fn: object
+        Activation function.
+    rate: float
+        Dropout rate.
+    device: str
+        Device to run the model on.
+    dtype: object
+        Data type to use for the model.
+
+    '''
+
     def __init__(
         self,
         input_n_atombasis: int,
@@ -65,6 +89,29 @@ class InteractionBlock(torch.nn.Module):
 
 
 class InteractionLayer(torch.nn.Module):
+
+    '''
+    Interaction layer for PhysNet.
+
+    Parameters
+    ----------
+    input_n_atombasis: int
+        Number of input atomic basis functions.
+    input_n_radialbasis: int
+        Number of input radial basis functions.
+    graph_n_residual_interaction: int
+        Number of residual layers for interaction layer.
+    activation_fn: object
+        Activation function.
+    rate: float
+        Dropout rate.
+    device: str
+        Device to run the model on.
+    dtype: object
+        Data type to use for the model.
+
+
+    '''
 
     def __init__(
         self,
@@ -193,6 +240,27 @@ class InteractionLayer(torch.nn.Module):
 
 class ResidualLayer(torch.nn.Module):
 
+    '''
+    Residual layer for PhysNet.
+
+    Parameters
+    ----------
+    Nin: int
+        Number of input features.
+    Nout: int
+        Number of output features.
+    activation_fn: object
+        Activation function.
+    rate: float
+        Dropout rate.
+    device: str
+        Device to run the model on.
+    dtype: object
+        Data type to use for the model.
+
+
+    '''
+
     def __init__(
         self,
         Nin: int,
@@ -252,6 +320,31 @@ class ResidualLayer(torch.nn.Module):
 
 
 class OutputBlock(torch.nn.Module):
+
+    '''
+
+    Output block for PhysNet.
+
+    Parameters
+    ----------
+    input_n_atombasis: int
+        Number of input atomic basis functions.
+    output_n_residual: int
+        Number of residual layers for output block.
+    activation_fn: object
+        Activation function.
+    output_n_results: int
+        Number of output results.
+    rate: float
+        Dropout rate.
+    device: str
+        Device to run the model on.
+    dtype: object
+        Data type to use for the model.
+
+
+
+    '''
 
     def __init__(
         self,
@@ -317,6 +410,32 @@ class OutputBlock(torch.nn.Module):
 
 
 class DenseLayer(torch.nn.Module):
+
+    '''
+    Dense layer for PhysNet.
+
+    This is a wrapper for torch.nn.Linear.
+
+    Parameters
+    ----------
+    Nin: int
+        Number of input features.
+    Nout: int
+        Number of output features.
+    activation_fn: object
+        Activation function.
+    W_init: bool
+        If True, initialize weights using Xavier normal distribution.
+        If False, initialize weights to zero.
+    bias: bool
+        If True, initialize bias to zero.
+    device: str
+        Device to run the model on.
+    dtype: object
+        Data type to use for the model.
+
+
+    '''
 
     def __init__(
         self,

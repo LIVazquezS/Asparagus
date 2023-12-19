@@ -41,6 +41,31 @@ __all__ = ['Tester']
 class Tester:
     """
     Model Prediction Tester Class
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    data_container: callable object, optional
+        Data container object of the reference test data set.
+        If not provided, the data container will be initialized according
+        to config input.
+    test_datasets: (str, list(str)) optional, default ['test']
+        A string or list of strings to define the data sets ('train',
+        'valid', 'test') of which the evaluation will be performed.
+        By default it is just the test set of the data container object.
+        Inputs 'full' or 'all' requests the evaluation of all sets.
+    test_properties: (str, list(str)), optional, default None
+        Model properties to evaluate which must be available in the
+        model prediction and the reference test data set. If None, all
+        model properties will be evaluated if available in the test set.
+    test_store_neighbor_list: bool, optional, default True
+        Store neighbor list parameter in the database file instead of
+        computing in situ.
+
+
     """
 
     def __init__(
@@ -55,28 +80,6 @@ class Tester:
         """
         Initialize model tester.
 
-        Parameters
-        ----------
-
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        data_container: callable object, optional
-            Data container object of the reference test data set.
-            If not provided, the data container will be initialized according
-            to config input.
-        test_datasets: (str, list(str)) optional, default ['test']
-            A string or list of strings to define the data sets ('train',
-            'valid', 'test') of which the evaluation will be performed.
-            By default it is just the test set of the data container object.
-            Inputs 'full' or 'all' requests the evaluation of all sets.
-        test_properties: (str, list(str)), optional, default None
-            Model properties to evaluate which must be available in the
-            model prediction and the reference test data set. If None, all
-            model properties will be evaluated if available in the test set.
-        test_store_neighbor_list: bool, optional, default True
-            Store neighbor list parameter in the database file instead of
-            computing in situ.
         """
 
         ####################################
@@ -158,6 +161,23 @@ class Tester:
         """
         Check availability of 'test_properties' in 'data_properties' and
         return eventually corrected test_properties as list.
+
+        Parameters
+        ----------
+
+        test_properties: (str, list(str)), optional, default None
+            Model properties to evaluate which must be available in the
+            model prediction and the reference test data set. If None, model
+            properties will be evaluated as initialized.
+        data_properties: list(str), optional, default None
+            List of properties available in the reference data set.
+
+        Returns
+        -------
+        list
+
+
+
         """
 
         # Check input
@@ -205,7 +225,8 @@ class Tester:
         verbose: Optional[bool] = True,
     ):
         """
-        Initialize model tester.
+
+        Main function to evaluate the model prediction on the test data set.
 
         Parameters
         ----------
@@ -444,6 +465,23 @@ class Tester:
         test_directory: str,
         npz_name: str,
     ):
+        '''
+
+        Save results of the test set to a binary npz file.
+
+        Parameters
+        ----------
+        vals: dict
+            Dictionary of the test properties to save.
+        test_directory:
+            Directory to save the npz file.
+        npz_name:
+            Name of the npz file.
+
+        Returns
+        -------
+
+        '''
 
         path_to_save = os.path.join(test_directory, npz_name)
         logger.info(
@@ -457,6 +495,29 @@ class Tester:
         test_directory: str,
         csv_name: str
     ):
+
+        '''
+
+        Save results of the test set to a csv file.
+
+        **Note**: This function requires the module 'pandas' to be installed.
+
+        TODO: Save data without pandas.
+
+        Parameters
+        ----------
+        vals : dict
+            Dictionary of the test properties to save.
+        test_directory: str
+            Directory to save the csv file.
+        csv_name:
+            Name of the csv file.
+
+        Returns
+        -------
+
+        '''
+
 
         # Check for .csv file extension
         if '.csv' == csv_name[-4:]:
@@ -498,6 +559,20 @@ class Tester:
         test_properties: List[str] = None
     ) -> Dict[str, float]:
 
+        '''
+
+        Reset the metrics dictionary.
+
+        Parameters
+        ----------
+        test_properties
+            List of properties to restart.
+
+        Returns
+        -------
+
+        '''
+
         # Check input
         if test_properties is None:
             test_properties = self.test_properties
@@ -522,6 +597,26 @@ class Tester:
         reference: Dict[str, Any],
         test_properties: List[str] = None
     ) -> Dict[str, float]:
+
+        '''
+
+        Compute the metrics for the test set (Mean Absolute Error (MAE) and Mean Squared Error (MSE)).
+
+        Parameters
+        ----------
+        prediction: dict
+            Dictionary of the model predictions
+        reference: dict
+            Dictionary of the reference data
+        test_properties:
+            List of properties to evaluate.
+
+        Returns
+        -------
+        dict
+            Dictionary of the values for the metrics
+
+        '''
 
         # Check input
         if test_properties is None:
@@ -559,6 +654,23 @@ class Tester:
         test_properties: Optional[List[str]] = None,
     ) -> Dict[str, float]:
 
+        '''
+            Update the metrics dictionary.
+        Parameters
+        ----------
+        metrics: dict
+            Dictionary of the metrics to update.
+
+        metrics_update:
+            Dictionary of the metrics to update with.
+        test_properties:
+            List of properties to update.
+
+        Returns
+        -------
+
+        '''
+
         # Check property input
         if test_properties is None:
             test_properties = self.test_properties
@@ -587,6 +699,21 @@ class Tester:
         test_properties: Optional[List[str]] = None,
         test_label: Optional[str] = '',
     ):
+
+        '''
+
+        Print the values of MAE and RMSE for the test set.
+
+        Parameters
+        ----------
+        metrics
+        test_properties
+        test_label
+
+        Returns
+        -------
+
+        '''
 
         # Check property and label input
         if test_properties is None:
@@ -630,6 +757,38 @@ class Tester:
         """
         Plot property data correlation data.
         (x-axis: reference data; y-axis: predicted data)
+
+        Some pre-defined plot properties are:
+        figsize = (6, 6)
+        fontsize = 12
+
+        **Note**: This function requires the module 'matplotlib' to be installed. Additionally, 'scipy' is required
+        to compute the Pearson correlation coefficient.
+
+        Parameters
+        ----------
+        label_dataset: str
+            Label of the data set.
+        label_property: str
+            Label of the property.
+        data_prediction: list(float)
+            List of the predicted data.
+        data_reference: list(float)
+            List of the reference data.
+        unit_property: str
+            Unit of the property.
+        data_metrics: dict
+            Dictionary of the metrics.
+        test_scaling: list(float)
+            List of the scaling factors.
+        test_directory: str
+            Directory to save the plot.
+        test_plot_format: str
+            Format of the plot.
+        test_plot_dpi: int
+            DPI of the plot.
+
+
         """
 
         # Plot property: Fontsize
@@ -740,6 +899,28 @@ class Tester:
     ):
         """
         Plot prediction error spread as histogram.
+
+        Parameters
+        ----------
+        label_dataset: str
+            Label of the data set.
+        label_property: str
+            Label of the property.
+        data_prediction: list(float)
+            List of the predicted data.
+        data_reference: list(float)
+            List of the reference data.
+        unit_property: str
+            Unit of the property.
+        data_metrics: dict
+            Dictionary of the metrics.
+        test_directory: str
+            Directory to save the plot.
+        test_plot_format: str
+            Format of the plot.
+        test_plot_dpi: int
+            DPI of the plot.
+
         """
 
         # Plot property: Fontsize
@@ -843,6 +1024,33 @@ class Tester:
         """
         Plot property data residual data.
         (x-axis: reference data; y-axis: prediction error)
+
+
+        Parameters
+        ----------
+
+        label_dataset: str
+            Label of the data set.
+        label_property: str
+            Label of the property.
+        data_prediction: list(float)
+            List of the predicted data.
+        data_reference: list(float)
+            List of the reference data.
+        unit_property: str
+            Unit of the property.
+        data_metrics: dict
+            Dictionary of the metrics.
+        test_scaling: list(float)
+            List of the scaling factors.
+        test_directory: str
+            Directory to save the plot.
+        test_plot_format: str
+            Format of the plot.
+        test_plot_dpi: int
+            DPI of the plot.
+
+
         """
 
         # Plot property: Fontsize

@@ -15,6 +15,29 @@ class PC_shielded_electrostatics(torch.nn.Module):
     """
     Torch implementation of a shielded point charge electrostatic model that
     avoids singularities at very close atom pair distances.
+
+    Parameters
+    ----------
+    split_distance: bool
+        If True, the electrostatic potential is split into ordinary and
+        shielded contributions. If False, only ordinary contributions are
+        used.
+    short_range_cutoff: float
+        Short range cutoff distance in Angstrom.
+    long_range_cutoff: float
+        Long range cutoff distance in Angstrom.
+    unit_properties: dict
+        Dictionary of unit properties.
+    switch_fn: str or object
+        Switch function for the short range cutoff.
+    device: str
+        Device to run the model on.
+    dtype: object
+        Data type to use for the model.
+    **kwargs
+        Additional keyword arguments.
+
+
     """
 
     def __init__(

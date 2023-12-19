@@ -77,6 +77,29 @@ class Configuration():
     """
     Global configuration object that contains all parameter about the
     model and training procedure.
+
+
+    Parameters
+    ----------
+
+    config: (str, dict), optional, default None
+        Either the path to json file (str) or dictionary (dict) containing
+        global model parameters
+    config_file: str, optional, default see settings.default['config_file']
+        Store global parameter configuration in json file of given path.
+    config_global: bool, optional, default True
+        If True, 'config_file' as json file path is set as default
+        location for global model parameters.
+    kwargs: dict, optional, default {}
+        Keyword arguments for configuration parameter which are added to
+        'config' or overwrite 'config' content.
+
+    Returns
+    -------
+    object
+        Configuration parameter object
+
+
     """
 
     def __init__(
@@ -89,25 +112,6 @@ class Configuration():
         """
         Initialize config object.
 
-        Parameters
-        ----------
-
-        config: (str, dict), optional, default None
-            Either the path to json file (str) or dictionary (dict) containing
-            global model parameters
-        config_file: str, optional, default see settings.default['config_file']
-            Store global parameter configuration in json file of given path.
-        config_global: bool, optional, default True
-            If True, 'config_file' as json file path is set as default
-            location for global model parameters.
-        kwargs: dict, optional, default {}
-            Keyword arguments for configuration parameter which are added to
-            'config' or overwrite 'config' content.
-
-        Returns
-        -------
-            object
-                Configuration parameter object
         """
 
         # Initialize class parameter

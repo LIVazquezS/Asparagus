@@ -17,7 +17,20 @@ class Cutoff_poly6(torch.nn.Module):
     """
     2nd derivative smooth polynomial cutoff function of 6th order.
 
-    f(x) = 1 - 6*x**5 + 15*x**4 - 10*x**3 with x = distance/cutoff
+    $$f(x) = 1 - 6x^{5} + 15x^{4} - 10x^{3}$$
+    with $$x = distance/cutoff$$
+
+    Parameters
+    ----------
+    cutoff: float
+        Cutoff distance
+
+    Returns
+    -------
+    float
+        Cutoff value [0,1]
+
+
     """
 
     def __init__(
@@ -26,15 +39,7 @@ class Cutoff_poly6(torch.nn.Module):
         dtype: Optional[object] = torch.float64,
     ):
         """
-        Parameters
-        ----------
-        cutoff: float
-            Cutoff distance
-
-        Returns
-        -------
-        float
-            Cutoff value [0,1]
+        Initialize cutoff function.
         """
 
         super().__init__()
@@ -46,6 +51,21 @@ class Cutoff_poly6(torch.nn.Module):
         self,
         distance: torch.Tensor
     ) -> torch.Tensor:
+
+        '''
+
+        Forward pass of the cutoff function.
+
+        Parameters
+        ----------
+        distance : torch.Tensor
+            Distance tensor of shape (N, M) where N is the number of atoms and
+            M is the number of neighbors.
+
+        Returns
+        -------
+
+        '''
 
         x = distance/self.cutoff
 
@@ -60,8 +80,24 @@ class Cutoff_poly6_width(torch.nn.Module):
     2nd derivative smooth polynomial cutoff function of 6th order,
     within the range cutoff - width < x < cutoff
 
-    f(x) = 1 - 6*x**5 + 15*x**4 - 10*x**3
-    with (x - cutoff - width) = distance/width
+    $$f(x) = 1 - 6x^{5} + 15x^{4} - 10x^{3}$$
+    with $$(x - cutoff - width) = distance/width$$
+
+    **Note**: This function is for CHARMM potential.
+
+    Parameters
+    ----------
+    cutoff: float
+        Cutoff distance
+    width: float
+        Cutoff width defining cutoff range (cutoff - width) to cutoff
+
+    Returns
+    -------
+    float
+        Cutoff value [0,1]
+
+
     """
 
     def __init__(
@@ -70,19 +106,7 @@ class Cutoff_poly6_width(torch.nn.Module):
         width: float,
         dtype: Optional[object] = torch.float64,
     ):
-        """
-        Parameters
-        ----------
-        cutoff: float
-            Cutoff distance
-        width: float
-            Cutoff width defining cutoff range (cutoff - width) to cutoff
 
-        Returns
-        -------
-        float
-            Cutoff value [0,1]
-        """
 
         super().__init__()
 
@@ -97,6 +121,19 @@ class Cutoff_poly6_width(torch.nn.Module):
         self,
         distance: torch.Tensor
     ) -> torch.Tensor:
+
+        '''
+
+        Forward pass of the cutoff function.
+        Parameters
+        ----------
+        distance : torch.Tensor
+
+
+        Returns
+        -------
+
+        '''
 
         x = (distance - self.cutoff + self.width)/self.width
 

@@ -17,6 +17,26 @@ __all__ = [
 class RBF_PhysNet(torch.nn.Module):
     """
     PhysNet type radial basis functions (RBFs).
+
+
+    Parameters
+    ----------
+    rbf_n_basis: int
+        Number of RBFs
+    rbf_cutoff_fn: object
+        Cutoff function
+    rbf_center_start: float
+        Initial lower RBF center range
+    rbf_center_end: float
+        Initial upper RBF center range
+    rbf_trainable: bool
+        Trainable RBF center positions
+
+    Returns
+    -------
+    object
+        Input model object to encode atomistic structural information
+
     """
 
     def __init__(
@@ -32,23 +52,6 @@ class RBF_PhysNet(torch.nn.Module):
         """
         NNP Input Module
 
-        Parameters
-        ----------
-        rbf_n_basis: int
-            Number of RBFs
-        rbf_cutoff_fn: object
-            Cutoff function
-        rbf_center_start: float
-            Initial lower RBF center range
-        rbf_center_end: float
-            Initial upper RBF center range
-        rbf_trainable: bool
-            Trainable RBF center positions
-
-        Returns
-        -------
-            object
-                Input model object to encode atomistic structural information
         """
 
         super(RBF_PhysNet, self).__init__()
@@ -80,6 +83,19 @@ class RBF_PhysNet(torch.nn.Module):
 
     @staticmethod
     def softplus_inverse(x):
+        '''
+        Inverse softplus function
+
+        .. math:: f(x) = ln(exp(x) - 1)
+
+        Parameters
+        ----------
+        x : torch.Tensor
+
+        Returns
+        -------
+
+        '''
         if not isinstance(x, torch.Tensor):
             x = torch.tensor(x)
         return torch.log(torch.exp(x) - 1)
@@ -100,6 +116,26 @@ class RBF_PhysNet_original(torch.nn.Module):
     """
     Original PhysNet type radial basis functions (RBFs) with double exponential
     expression.
+
+
+    Parameters
+    ----------
+    rbf_n_basis: int
+        Number of RBFs
+    rbf_cutoff_fn: object
+        Cutoff function
+    rbf_center_start: float
+        Initial lower RBF center range
+    rbf_center_end: float
+        Initial upper RBF center range
+    rbf_trainable: bool
+        Trainable RBF center positions
+
+    Returns
+    -------
+    object
+        Input model object to encode atomistic structural information
+
     """
 
     def __init__(
@@ -115,23 +151,6 @@ class RBF_PhysNet_original(torch.nn.Module):
         """
         NNP Input Module
 
-        Parameters
-        ----------
-        rbf_n_basis: int
-            Number of RBFs
-        rbf_cutoff_fn: object
-            Cutoff function
-        rbf_center_start: float
-            Initial lower RBF center range
-        rbf_center_end: float
-            Initial upper RBF center range
-        rbf_trainable: bool
-            Trainable RBF center positions
-
-        Returns
-        -------
-        object
-            Input model object to encode atomistic structural information
         """
 
         super(RBF_PhysNet_original, self).__init__()

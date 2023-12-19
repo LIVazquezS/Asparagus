@@ -24,6 +24,45 @@ __all__ = ['Calculator_PhysNet']
 class Calculator_PhysNet(torch.nn.Module):
     """
     PhysNet Calculator model
+
+
+    Parameters
+    ----------
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    model_properties: list(str), optional, default '['energy', 'forces']'
+        Properties to predict by calculator model
+    model_unit_properties: dict, optional, default None
+        Property units of the model prediction. If None, units from the
+        reference dataset are taken.
+    model_interaction_cutoff: float, optional, default 12.0
+        Max. atom interaction cutoff
+    model_cutoff_width: float, optional, default 2
+        Cutoff switch width to converge zero in the range from
+        cutoff to cutoff - width.
+    model_repulsion: bool, optional, default False
+        Use close-range atom repulsion model.
+    model_electrostatic: bool, optional, default True
+        Use electrostatic potential between atomic charges for energy
+        prediction.
+    model_dispersion: bool, optional, default True
+        Use Grimme's D3 dispersion model for energy prediction.
+    model_dispersion_trainable: bool, optional, default True
+        If True, empirical parameter in the D3 dispersion model are
+        trainable. If False, empirical parameter are fixed to default
+    model_properties_scaling: dict(str, list), optional, default None
+        Property scaling factor and shift term initially predicted
+        by reference data distribution to improve convergence in NN fit.
+    **kwargs: dict, optional
+        Additional arguments
+
+    Returns
+    -------
+    callable object
+        PhysNet Calculator object for training
+
+
     """
 
     def __init__(
@@ -44,41 +83,6 @@ class Calculator_PhysNet(torch.nn.Module):
         """
         Initialize NNP Calculator model.
 
-        Parameters
-        ----------
-        config: (str, dict, object)
-            Either the path to json file (str), dictionary (dict) or
-            settings.config class object of model parameters
-        model_properties: list(str), optional, default '['energy', 'forces']'
-            Properties to predict by calculator model
-        model_unit_properties: dict, optional, default None
-            Property units of the model prediction. If None, units from the
-            reference dataset are taken.
-        model_interaction_cutoff: float, optional, default 12.0
-            Max. atom interaction cutoff
-        model_cutoff_width: float, optional, default 2
-            Cutoff switch width to converge zero in the range from
-            cutoff to cutoff - width.
-        model_repulsion: bool, optional, default False
-            Use close-range atom repulsion model.
-        model_electrostatic: bool, optional, default True
-            Use electrostatic potential between atomic charges for energy
-            prediction.
-        model_dispersion: bool, optional, default True
-            Use Grimme's D3 dispersion model for energy prediction.
-        model_dispersion_trainable: bool, optional, default True
-            If True, empirical parameter in the D3 dispersion model are
-            trainable. If False, empirical parameter are fixed to default
-        model_properties_scaling: dict(str, list), optional, default None
-            Property scaling factor and shift term initially predicted
-            by reference data distribution to improve convergence in NN fit.
-        **kwargs: dict, optional
-            Additional arguments
-
-        Returns
-        -------
-        callable object
-            PhysNet Calculator object for training
         """
 
         super(Calculator_PhysNet, self).__init__()
@@ -510,6 +514,35 @@ class Calculator_PhysNet(torch.nn.Module):
         self,
         batch: Dict[str, torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
+
+        """
+        Forward pass of PhysNet Calculator model.
+
+        Parameters
+        ----------
+        batch : dict(str, torch.Tensor)
+            Dictionary of input data tensors for forward pass.
+            Required keys are:
+                'atomic_numbers': torch.Tensor, shape(N)
+                    Atomic numbers of the batch of molecules
+                'positions': torch.Tensor, shape(N, 3)
+                    Atomic positions of the batch of molecules
+                'idx_i': torch.Tensor, shape(M)
+                    Indices of atoms in pair interactions
+                'idx_j': torch.Tensor, shape(M)
+                    Indices of atoms in pair interactions
+                'atoms_number': torch.Tensor, shape(B)
+                    Number of atoms per molecule in batch
+                'atoms_seg': torch.Tensor, shape(N)
+                    Segment indices of atoms in batch
+                'charge': torch.Tensor, shape(B)
+                    Total charge of molecules in batch
+
+
+        Returns
+        -------
+
+        """
 
         # Assign input
         atoms_number = batch['atoms_number']
