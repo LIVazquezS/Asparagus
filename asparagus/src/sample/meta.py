@@ -272,7 +272,10 @@ class MetaSampler(sample.Sampler):
         """
         Perform Meta Sampling Simulation with the sample system.
         """
-        
+
+        # Current system constraints
+        system_constraints = system.constraints
+
         # Initialize meta dynamic constraint
         meta_constraint = MetaConstraint(
             self.meta_cv,
@@ -290,7 +293,7 @@ class MetaSampler(sample.Sampler):
         
         # Set constraints to system
         system.set_constraint(
-            [meta_constraint] + meta_hookean_constraint)
+            system_constraints + [meta_constraint] + meta_hookean_constraint)
 
         # Set initial atom velocities if requested
         if self.meta_initial_velocities:

@@ -172,6 +172,7 @@ class NormalModeScanner(sample.Sampler):
         self,
         system: object,
         nms_indices: Optional[List[int]] = None,
+        nms_exclude_modes: Optional[List[int]] = None,
         nms_clean: Optional[bool] = False,
         **kwargs
     ):
@@ -187,8 +188,11 @@ class NormalModeScanner(sample.Sampler):
             List of atom indices to include in normal mode analysis.
             If none, indices if a full list of atom indices with length ot the
             atom number of the system.
-            Atom indices from atoms constraint by FicAtoms are reomved from
+            Atom indices from atoms constraint by FixAtoms are removed from
             index list and the normal mode analysis.
+        nms_exclude_modes: list[int], optional, default None
+            List of vibrational modes, sorted by wave number, to exclude
+            from the sampling procedure.
         nms_clean: bool, optional, default False
             If True, checkpoint files for atom displacement calculations
             in 'sample_directory'/vib will be deleted.
@@ -282,6 +286,17 @@ class NormalModeScanner(sample.Sampler):
         # Vibrational modes are assumed with center of mass shifts smaller
         # than 1.e-1 Angstrom displacement
         system_vib_modes = system_com_shift < self.nms_limit_com_shift
+        
+        # Apply exclusion list if defined
+        if system_vib_modes is not None:
+            for imode in nms_exclude_modes:
+                if imode < len(system_vib_modes):
+                    system_vib_modes[imode] = False
+                else:
+                    logger.warning(
+                        f"WARNING:\nVibrational mode {imode:d} in the "
+                        + "exclusion list is larger than the number of "
+                        + "vibrational modes!")
 
         # Displacement factor for energy step (in eV)
         system_displfact = np.sqrt(

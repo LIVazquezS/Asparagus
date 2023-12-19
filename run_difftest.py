@@ -8,6 +8,7 @@ if True:
     from ase.constraints import FixAtoms, FixedPlane
     from ase.optimize import QuasiNewton
     from ase import io
+    from ase.visualize import view
 
     # 2x2-Al(001) surface with 3 layers and an
     # Au atom adsorbed in a hollow site:
@@ -21,7 +22,7 @@ if True:
 
     # Load optimized slab
     slab = io.Trajectory("model_diffusion/sampling/1_bfgs.traj")[-1]
-    print(slab)
+    
     # Set constraint
     slab.set_constraint([fixlayers])
 
@@ -38,42 +39,61 @@ if True:
         xc='PBE',
         symmetry='off')
 
-    # First: Normal Mode Scan
-    from asparagus import NormalModeScanner
-    sampler = NormalModeScanner(
+    ## First: Normal Mode Scan
+    #from asparagus import NormalModeScanner
+    #sampler = NormalModeScanner(
+        #config='difftest_config.json',
+        #sample_directory='model_difftest/sampling',
+        #sample_data_file='model_difftest/nms_difftest.db',
+        #sample_systems=[slab],
+        #sample_calculator=calc,
+        #sample_systems_optimize=False,
+        #sample_systems_optimize_fmax=0.001,
+        #nms_harmonic_energy_step=0.01,
+        #nms_energy_limits=1.00,
+        #nms_number_of_coupling=1,
+        #nms_limit_com_shift=1.0,
+        #nms_limit_of_steps=25,
+        #)
+    #sampler.run(nms_clean=True)
+
+    #sampler = NormalModeScanner(
+        #config='difftest_config.json',
+        #sample_directory='model_difftest/sampling',
+        #sample_data_file='model_difftest/nms_difftest.db',
+        #sample_systems=[slab],
+        #sample_calculator=calc,
+        #sample_systems_optimize=False,
+        #sample_systems_optimize_fmax=0.01,
+        #nms_harmonic_energy_step=0.01,
+        #nms_energy_limits=2.00,
+        #nms_number_of_coupling=2,
+        #nms_limit_com_shift=1.0,
+        #nms_limit_of_steps=25,
+        #)
+    #sampler.run(nms_clean=False)
+    
+    # Meta Sampling
+    from asparagus import MetaSampler
+    sampler = MetaSampler(
         config='difftest_config.json',
-        sample_directory='model_difftest/sampling',
-        sample_data_file='model_difftest/nms_difftest.db',
+        sample_directory='model_difftest',
+        sample_data_file='model_difftest/meta_difftest.db',
         sample_systems=[slab],
         sample_calculator=calc,
-        sample_systems_optimize=False,
-        sample_systems_optimize_fmax=0.001,
-        nms_harmonic_energy_step=0.01,
-        nms_energy_limits=1.00,
-        nms_number_of_coupling=1,
-        nms_limit_com_shift=1.0,
-        nms_limit_of_steps=25,
+        meta_cv=[[8, 12], [9, 12], [10, 12]],
+        meta_gaussian_height=0.10,
+        meta_gaussian_widths=0.2,
+        meta_gaussian_interval=10,
+        meta_temperature=500,
+        meta_time_step=5.0,
+        meta_simulation_time=50_000.0,
+        meta_save_interval=10,
         )
-    sampler.run(nms_clean=True)
-
-    sampler = NormalModeScanner(
-        config='difftest_config.json',
-        sample_directory='model_difftest/sampling',
-        sample_data_file='model_difftest/nms_difftest.db',
-        sample_systems=[slab],
-        sample_calculator=calc,
-        sample_systems_optimize=False,
-        sample_systems_optimize_fmax=0.01,
-        nms_harmonic_energy_step=0.01,
-        nms_energy_limits=2.00,
-        nms_number_of_coupling=2,
-        nms_limit_com_shift=1.0,
-        nms_limit_of_steps=25,
-        )
-    sampler.run(nms_clean=False)
-
-
-if True:
+    sampler.run()
+    
+    
+if False:
 
     model = Asparagus(
         config='difftest_config.json',
