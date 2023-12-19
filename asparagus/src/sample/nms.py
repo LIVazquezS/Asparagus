@@ -299,7 +299,7 @@ class NormalModeScanner(sample.Sampler):
         system_vib_modes = system_com_shift < self.nms_limit_com_shift
         
         # Apply exclusion list if defined
-        if system_vib_modes is not None:
+        if nms_exclude_modes is not None:
             for imode in nms_exclude_modes:
                 if imode < len(system_vib_modes):
                     system_vib_modes[imode] = False
