@@ -2,7 +2,8 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join('.','..', '..','asparagus')))
+sys.path.insert(0, os.path.abspath(os.path.join('.','..', '..')))
+# sys.path.insert(1,os.path.abspath(os.path.join('.','..', '..')))
 # -- Project information
 
 project = 'Asparagus bundle'
@@ -22,6 +23,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.todo',
     'myst_parser',]
 
 intersphinx_mapping = {
@@ -29,7 +31,7 @@ intersphinx_mapping = {
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
 }
 
-autodoc_mock_imports = ['ase', 'torch', 'torch-ema', 'numpy', 'tensorboard', 'xtb','h5py','pandas','matplotlib','seaborn','scipy','pytest']
+autodoc_mock_imports = ['ase', 'torch', 'torch-ema', 'numpy', 'tensorboard', 'xtb','h5py','pandas','matplotlib','seaborn','scipy','pytest','.src']
 
 intersphinx_disabled_domains = ['std']
 

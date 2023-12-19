@@ -4,5 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "Asparagus"
-authors = [{name = "K. Toepfer", email = "kai.toepfer@unibas.ch"},{name="L.I.Vazquez-Salazar",email:"luisitza.vazquezsalazar@unibas.ch"}, {name="M.Meuwly",email:"m.meuwly@unibas.ch"}]
+authors = [{name = "K. Toepfer", email = "kai.toepfer@unibas.ch"},
+           {name = "L.I.Vazquez-Salazar",email = "luisitza.vazquezsalazar@unibas.ch"},
+           {name =" M.Meuwly",email = "m.meuwly@unibas.ch"}]
 dynamic = ["version", "description"]

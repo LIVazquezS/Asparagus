@@ -1,3 +1,12 @@
+'''
+
+This module contains the clases that define the model of the neural network.
+
+The model is composed of three parts: input, graph and output. All are mixed in the calculator.
+In the future, a calculator should be defined for each model.
+
+'''
+
 from .input import (
     get_input_model, Input_PhysNetRBF, Input_PhysNetRBF_original
 )

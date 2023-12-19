@@ -1,3 +1,14 @@
+'''
+
+Utils module for Asparagus.
+
+Contains functions for checking the input, the units, and the data types.
+Additionally, it manage the creation of checkpoints and writting to tensorboard.
+
+Legacy function should make transformation of modules in tensorflow 1 to asparagus.
+
+'''
+
 from .check_dtypes import(
     is_None, is_string, is_bool, is_numeric, is_integer, is_dictionary,
     is_array_like, is_numeric_array, is_integer_array, is_string_array,

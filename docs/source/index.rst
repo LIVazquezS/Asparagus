@@ -11,6 +11,8 @@ potential energy surface from sampling to production.
 Contents
 ========
 
+:doc:`main`
+
 ------------
 Installation
 ------------

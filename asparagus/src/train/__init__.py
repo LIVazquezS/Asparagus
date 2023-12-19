@@ -1,3 +1,12 @@
+'''
+
+Train module
+
+It contains a module for setting up the optimizer, scheduler, trainer, and tester.
+
+
+'''
+
 from .trainer import (
     Trainer
 )

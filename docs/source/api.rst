@@ -3,21 +3,22 @@ API
 
 Contents
 --------
+.. toctree::
+   :maxdepth: 4
+
+   api/asparagus.src
+   api/modules
 
 Main
 ----
 
-.. automodule:: main
+.. automodule:: asparagus.main
    :members:
    :undoc-members:
    :show-inheritance:
 
 
 
-.. toctree::
-   :maxdepth: 4
 
-   api/src
-   api/modules
 
 

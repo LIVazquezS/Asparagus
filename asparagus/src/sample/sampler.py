@@ -376,6 +376,7 @@ class Sampler:
                         fmax=self.sample_systems_optimize_fmax)
 
             # Start normal mode sampling
+            # utils.functions.header()
             self.run_system(system, **kwargs)
 
     def run_system(self, system):

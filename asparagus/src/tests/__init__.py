@@ -1,2 +1,7 @@
-# Here we should add basic tests for Asparagus
+'''
 
+Test module for the asparagus package.
+
+TODO:Complete this module
+
+'''

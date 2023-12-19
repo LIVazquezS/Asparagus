@@ -1,3 +1,12 @@
+'''
+
+Basic settings for the Asparagus package.
+
+Definition of global variables and functions to set them, additionally it handles the configuration file.
+
+
+'''
+
 from .dtypes import (
     _dtypes_args
 )

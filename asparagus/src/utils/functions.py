@@ -1,9 +1,10 @@
-# Adapted from : https://gist.github.com/bbrighttaer/207dc03b178bbd0fef8d1c0c1390d4be
+#
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
 import numpy as np
-
+import time
+import socket
 
 def segment_sum(
     data: torch.Tensor,
@@ -12,6 +13,8 @@ def segment_sum(
     debug: Optional[bool] = False,
 ) -> torch.Tensor:
     """
+
+    Adapted from : https://gist.github.com/bbrighttaer/207dc03b178bbd0fef8d1c0c1390d4be
     Analogous to tf.segment_sum
     (https://www.tensorflow.org/api_docs/python/tf/math/segment_sum).
 
@@ -105,6 +108,14 @@ def unsorted_segment_sum(
 def softplus_inverse(x):
     """
     Numerically stable inverse of softplus transform
+    .. math:: f(x) = x + \log(1 - \exp(x))
+
+    Parameters
+    ----------
+    x: torch.Tensor
+        A tensor of any shape.
+
+
     """
     return x + np.log(-np.expm1(-x))
 
@@ -189,7 +200,7 @@ def printProgressBar(
     if iteration == total:
         print()
 
-def header():
+def header(task: str,device: str,config: str) -> None:
     '''
 
     This function print the header of the program. I am not sure where it is supposed to be called.
@@ -199,6 +210,11 @@ def header():
     -------
 
     '''
+
+    current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    host = socket.gethostname()
+
+
     print("""
        '   _______                                                  ______                  _ _        
        '  (_______)                                                (____  \                | | |       
@@ -206,7 +222,14 @@ def header():
        '  |  ___  |/___)  _ \(____ |/ ___|____ |/ _  | | | |/___)  |  __  (| | | |  _ \ / _  | || ___ |
        '  | |   | |___ | |_| / ___ | |   / ___ ( (_| | |_| |___ |  | |__)  ) |_| | | | ( (_| | || ____|
        '  |_|   |_(___/|  __/\_____|_|   \_____|\___ |____/(___/   |______/|____/|_| |_|\____|\_)_____)
-       '               |_|                     (_____|                                                 
-       """)
+       '               |_|                     (_____|                            
+       '
+       '                        Authors: K. Toepfer and L.I. Vazquez-Salazar
+       '                        Date: {}
+       '                        Task: {}               
+       '                        Running on: {} with: {}
+       '                        Details of this run are stored in: {} 
+       ' ---------------------------------------------------------------------------------------------     
+       """.format(task,current_time,host,device,config))
 
 

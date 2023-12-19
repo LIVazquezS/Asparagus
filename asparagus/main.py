@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['Asparagus']
 
-
 class Asparagus(torch.nn.Module):
     """
     Neural network potential (NNP) main class to check and parse the tasks and
@@ -211,6 +210,8 @@ class Asparagus(torch.nn.Module):
                 )
 
         # Start training
+        utils.functions.header(task='Training a Neural Network Potential',
+                               device=self.config.get('model_device'),config=self.config.get('config_file'))
         self.trainer.train()
 
         return

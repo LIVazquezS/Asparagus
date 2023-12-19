@@ -1,7 +1,7 @@
-src
-===
+asparagus
+=========
 
 .. toctree::
    :maxdepth: 4
 
-   src
+   asparagus

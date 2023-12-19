@@ -1,3 +1,11 @@
+'''
+
+This file contains the definitions of the various layers used in the model.
+
+For the moment only contains the definitions of layers for PhysNet but in the future will contain the definitions of layers for other models.
+
+'''
+
 from .activation import (
     get_activation_fn
 )

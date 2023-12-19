@@ -1,3 +1,12 @@
+'''
+
+Database module
+
+It handles the data storage and retrieval.
+
+
+'''
+
 from .datacontainer import (
     DataContainer
 )
