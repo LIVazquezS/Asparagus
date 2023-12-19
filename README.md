@@ -2,7 +2,7 @@
 
 **Authors**: K. Toepfer, L.I. Vazquez-Salazar
 
-![alt text](https://github.com/LIVazquezS/Asparagus/blob/main/logo.png?raw=true)
+![alt text](https://github.com/LIVazquezS/Asparagus/blob/main/logo_low.png?raw=true)
 
 ## What is this?
  - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch. 
@@ -192,13 +192,14 @@ Please check our documentation [here](http://asparagus-bundle.readthedocs.io/en/
      - [ ] Deep Evidential Regression (Low priority)
 - Tools class:
   - [x] Normal mode calculation (Luis)
-  - [ ] Minimum energy path and Minimum dynamic path
+  - [x] Minimum energy path and Minimum dynamic path
+  - [ ] Diffusion MonteCarlo
   - [ ] Others(?)
 - Production: 
   - [x] PyCharmm 
   - [x] ASE calculator for dynamics
 - Documentation:
-  - [ ] Improve documentation
+  - [X] Improve documentation
   - [ ] Add examples
   - [ ] Add tutorials
   
