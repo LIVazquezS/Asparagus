@@ -23,6 +23,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'sphinxemoji.sphinxemoji',
+    'sphinx-jsonschema',
     'sphinx.ext.todo',
     'myst_parser',]
 

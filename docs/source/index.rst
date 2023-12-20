@@ -13,6 +13,7 @@ Contents
 
 :doc:`main`
 
+
 ------------
 Installation
 ------------
@@ -23,6 +24,11 @@ Getting Started
 ---------------
 
 Add here examples
+
+--------------------
+Configuration File
+--------------------
+Check out the :doc:`config_file` section for further information.
 
 -----------------
 Api Documentation
