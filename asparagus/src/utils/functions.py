@@ -230,6 +230,6 @@ def header(task: str,device: str,config: str) -> None:
        '                        Running on: {} with: {}
        '                        Details of this run are stored in: {} 
        ' ---------------------------------------------------------------------------------------------     
-       """.format(task,current_time,host,device,config))
+       """.format(current_time,task,host,device,config))
 
 

@@ -6,7 +6,7 @@ Asparagus depends on few dependencies. We recommend that you create a virtual en
 
 
 Setting up the environment
-==========================
+--------------------------
 
 We recommend to use `mamba`_ for the creation of a virtual environment.
 Or in case `miniconda`_.
@@ -29,7 +29,7 @@ To activate the virtual environment use the command:
 **Note**: If you are using Miniconda, just replace ``mamba`` by ``conda``.
 
 Dependencies
-============
+--------------
 
 Asparagus depends on the following packages:
 
@@ -41,7 +41,7 @@ Asparagus depends on the following packages:
    - xtb
 
 Installation
-============
+-------------
 
 To install Asparagus first clone the repository:
 

@@ -1,4 +1,4 @@
-Configuration file Structure
+Configuration File Structure
 =============================
 
 The heart of asparagus is the configuration file. It saves the details of what asparagus did and what is going to do.

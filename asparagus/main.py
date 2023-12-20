@@ -211,7 +211,7 @@ class Asparagus(torch.nn.Module):
 
         # Start training
         utils.functions.header(task='Training a Neural Network Potential',
-                               device=self.config.get('model_device'),config=self.config.get('config_file'))
+                               device=settings._global_device,config=self.config.get('config_file'))
         self.trainer.train()
 
         return

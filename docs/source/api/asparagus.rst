@@ -16,6 +16,7 @@ asparagus.main module
 ---------------------
 
 .. automodule:: asparagus.main
+   :noindex:
    :members:
    :undoc-members:
    :show-inheritance:
