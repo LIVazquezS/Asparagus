@@ -484,6 +484,9 @@ class NormalModeSampler(sample.Sampler):
         # Sampler class label
         self.sample_tag = 'nmsamp'
 
+        self.nms_temperature = nms_temperature
+        self.nms_nsamples = nms_nsamples
+
         # Initialize parent class
         super().__init__(sample_tag=self.sample_tag, **kwargs)
 
@@ -549,7 +552,8 @@ class NormalModeSampler(sample.Sampler):
             data_overwrite=self.sample_data_overwrite)
 
         warnings.WarningMessage('You are using the simple version for normal mode sampling. We '
-                                'recommend to use the normal mode scanning class instead.')
+                                'recommend to use the normal mode scanning class instead.',category=UserWarning,
+                                filename='', lineno=551)
 
         return
 
@@ -580,7 +584,7 @@ class NormalModeSampler(sample.Sampler):
             'nms_nsamples': self.nms_nsamples,
         }
 
-    def R(self, fct, nmodes, T=300):
+    def R(self, fct, nmodes, T=300.0):
 
         '''
 
@@ -588,7 +592,9 @@ class NormalModeSampler(sample.Sampler):
         The displacements follow a Bernoulli distribution with $P=0.5$
 
         The value R is given by:
-        $R_{i} = \pm \sqrt{\dfrac{3c_{i}N_{a}k_{b}T}{K_{i}}}$
+        .. :math:
+
+            R_{i} = \pm \sqrt{\dfrac{3c_{i}N_{a}k_{b}T}{K_{i}}}
 
         Parameters
         ----------
@@ -617,7 +623,7 @@ class NormalModeSampler(sample.Sampler):
 
         return np.array(R)
 
-    def new_coord(self, nmodes, vib_disp, mass_sqrt, fcts, T=300):
+    def new_coord(self, nmodes, vib_disp, mass_sqrt, fcts, T=300.0):
 
         '''
 
@@ -644,7 +650,7 @@ class NormalModeSampler(sample.Sampler):
 
         '''
 
-        Rx = self.R(nmodes, fcts, T)
+        Rx = self.R(fcts,nmodes,T)
         new_disp = []
 
         for i, j in enumerate(vib_disp):
@@ -661,7 +667,7 @@ class NormalModeSampler(sample.Sampler):
         system_properties = self.get_properties(system)
         self.nms_dataset.add_atoms(system, system_properties)
 
-    def run(
+    def run_system(
         self,
         system: object,
         nms_indices: Optional[List[int]] = None,
@@ -683,6 +689,7 @@ class NormalModeSampler(sample.Sampler):
         self.sample_calculator.calculate(
             system,
             properties=self.sample_properties)
+
 
         # Add initial state properties to dataset
         system_properties = self.get_properties(system)
@@ -708,7 +715,7 @@ class NormalModeSampler(sample.Sampler):
 
         # Prepare system parameter
         Natoms = len(indices)
-        Nmodes = 3*Natoms
+        Nmodes = int(3*Natoms)
 
         # Perform numerical normal mode analysis
         ase_vibrations = vibrations.Vibrations(
@@ -749,12 +756,12 @@ class NormalModeSampler(sample.Sampler):
         # Compute and store equilibrium positions and center of mass,
         # moments of inertia and principle axis of inertia
         system_init_positions = system.get_positions()
-        for _ in range(self.nmsamp_nsamples):
+        for _ in range(self.nms_nsamples):
 
             new_position = system_init_positions.copy()
             new_position[indices] += self.new_coord(
                 Nmodes, system_modes, system_redmass, system_forceconst,
-                self.nmsamp_temperature)
+                self.nms_temperature)
             system.set_positions(new_position)
 
             try:
@@ -763,6 +770,7 @@ class NormalModeSampler(sample.Sampler):
                     system,
                     properties=self.sample_properties)
                 self.save_properties(system)
+                self.write_trajectory(system)
 
             # TODO Add correct exception error
             except:
@@ -777,4 +785,4 @@ class NormalModeSampler(sample.Sampler):
 
         system_noconstraint = system.copy()
         system_noconstraint.set_constraint()
-        self.md_trajectory.write(system_noconstraint)
+        self.nms_trajectory.write(system_noconstraint)
