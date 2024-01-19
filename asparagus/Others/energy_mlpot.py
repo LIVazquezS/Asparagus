@@ -22,8 +22,6 @@ import pandas
 import pycharmm
 
 import numpy as np
-from asparagus import Asparagus
-
 
 class MLpot():
     """
@@ -32,17 +30,22 @@ class MLpot():
     
     def __init__(
         self,
-        # ML atom number
-        Z,
-        #Config file
-        config,
-        # ML atom selection
+        # Potential energy model
+        ml_model,
+        # ML atomic numbers as trained
+        ml_Z,
+        # ML atom PyCHARMM selection object
         ml_selection,
+        # ML atoms total charge
+        ml_charge=None,
         # Fluctuating ML atom charges for ML/MM electrostatic interaction
         ml_fq=True,
+        # ML-MM cutoff radii ctonnb and ctofnb. If None, CHARMM parameter taken
+        mlmm_ctonnb=None,
+        mlmm_ctofnb=None,
         # Additional model keyword arguments
         **kwargs):
-        
+
         # ML&MM - atom number
         self.Natoms = pycharmm.coor.get_natom()
         
@@ -67,7 +70,7 @@ class MLpot():
         if ml_fq:
             self.mlmm_charges[self.ml_indices] = 0.0
             _ = pycharmm.psf.set_charge(self.mlmm_charges)
-        
+
         # ML - set non-bond exclusion list for ML atom pairs
         self.ml_iblo = np.zeros(self.Natoms, dtype=int)
         self.ml_inb = []
@@ -76,172 +79,121 @@ class MLpot():
             for jdx in self.ml_indices[(ii + 1):]:
                 self.ml_inb.append(jdx + 1) # + 1 as CHARMM start at index 1
         self.ml_nnb = len(self.ml_inb)
-        
+
         pycharmm.psf.set_iblo_inb(self.ml_iblo, self.ml_inb)
         pycharmm.nbonds.update_bnbnd() # Already executed in set_iblo_inb()
         pycharmm.image.update_bimag()
-        
+
         ###################################################
         # START - Potential model dependent part
         #||||||||||||||||||||||||||||||||||||||||||||||||||
         #VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 
+        # Assign Potential model
+        if ml_model is None:
+            raise SyntaxError("Potential model is not defined (None)!")
+        elif not getattr(ml_model, "get_pycharmm_calculator"):
+            raise SyntaxError(
+                "Potential model does not has callable function "
+                + "'get_pycharmm_calculator'!")
+        else:
+            self.ml_model = ml_model
+
         # ML atoms - atomic numbers
-        if Z is not None:
-            ml_Z = np.array(kwargs["Z"], dtype=int)[ml_argsort]
+        if ml_Z is None:
+            raise SyntaxError("ML atom number are not defined (None)!")
         else:
-            raise IOError("ML atom number 'Z' for the selected atoms is mandatory!")
-        # Respective config file for PhysNet architecture
-        if config is not None:
-            config = config
-        else:
-            raise IOError("Asparagus config file is mandatory!")
-        # Checkpoint file to restore the model 
-        if "checkpoint" in kwargs.keys():
-            checkpoint = kwargs["checkpoint"]
-        else:
-            print('WARNING: No checkpoint file is provided! By Default, Asparagus will use the best model.')
-            checkpoint = None
+            self.ml_Z = np.array(ml_Z, dtype=int)[ml_argsort]
+        
         # System charge
-        if "charge" in kwargs.keys():
-            ml_charge = kwargs["charge"]
+        if ml_charge is None:
+            self.ml_charge = 0
         else:
-            ml_charge = 0
-        # ML/MM electrostatic interaction max cutoff
-        if "ctofnb" in kwargs.keys():
-            ctofnb = kwargs["ctofnb"]
+            self.ml_charge = ml_charge
+
+        # ML/MM electrostatic interaction cutoffs
+        if mlmm_ctonnb is None:
+            self.mlmm_ctonnb = pycharmm.nbonds.get_ctonnb()
         else:
-            ctofnb = None
-        # ML/MM electrostatic interaction min cutoff
-        if "ctonnb" in kwargs.keys():
-            ctonnb = kwargs["ctonnb"]
+            self.mlmm_ctonnb = mlmm_ctonnb
+        if mlmm_ctofnb is None:
+            self.mlmm_ctofnb = pycharmm.nbonds.get_ctofnb()
         else:
-            ctonnb = None
+            self.mlmm_ctofnb = mlmm_ctofnb
 
-
-        self.model = Asparagus(
-            config=config,
-        )
-
-        # # Read config file or dictionary
-        # if isinstance(config, str):
-        #
-        #     with open(config, 'r') as f:
-        #         config_lines = f.readlines()
-        #
-        #     # Get PhysNet parameter
-        #     custom_params = {}
-        #     for cline in config_lines:
-        #
-        #         # Read line
-        #         cpar = cline.split("=")
-        #         if len(cpar)!=2:
-        #             print("Incorrect config line '{:s}' - skipped!". format(cline))
-        #             print("Expect '--key item' format.")
-        #             continue
-        #         else:
-        #             (key, item) = cpar
-        #
-        #         # Check key format
-        #         if "--" == key[:2]:
-        #             key = key[2:]
-        #         else:
-        #             print("Incorrect key format '{:s}' - skipped!". format(key))
-        #             print("Expect '--key item' format.")
-        #             continue
-        #
-        #         # Check key duplicity:
-        #         if key in custom_params.keys():
-        #             print("Multiple definitions of '{:s}' - skipped!". format(key))
-        #             continue
-        #
-        #         # Append custom parameter
-        #         custom_params[key] = item
-        #
-        # else:
-        #
-        #     custom_params = config
-        #
-        # # Update PhysNet parameters
-        # self.params.update(custom_params)
-
-            
-        # ML/MM interaction range
-        if ctofnb is None:
-            ctofnb = pycharmm.nbonds.get_ctofnb()
-        else:
-            ctofnb = float(ctofnb)
-        if ctonnb is None:
-            ctonnb = pycharmm.nbonds.get_ctonnb()
-        else:
-            ctonnb = float(ctonnb)
-        
-
-        
-        # Initialize PhysNet model
-        self.calculator = self.model.get_pycharmm_calculator(
-            self.Natoms,
+        # Assign model potential calculator
+        self.calculator = self.ml_model.get_pycharmm_calculator(
             self.ml_indices,
-            ml_Z,
+            self.ml_Z,
+            self.ml_charge,
             self.ml_fq,
             self.mlmm_charges,
-            ml_charge,
-            ctofnb,
-            ctofnb - ctonnb,
-            implemented_properties=['energy', 'forces','atomic_charges'],
-            checkpoint=checkpoint,
+            self.mlmm_ctofnb,
+            self.mlmm_ctofnb - self.mlmm_ctonnb,
+            **kwargs,
         )
-
         
         # Initialize custom energy function
         self.func_type = ctypes.CFUNCTYPE(
-            ctypes.c_double,                    # user energy - E(user)
-            ctypes.c_int,                       # Atom number central cell - Natom
-            ctypes.c_int,                       # Number of central and image cells - Ntrans
-            ctypes.c_int,                       # Atom number central + image cells - Natim
-            ctypes.POINTER(ctypes.c_double),    # x: Atom position x
-            ctypes.POINTER(ctypes.c_double),    # y: Atom position y
-            ctypes.POINTER(ctypes.c_double),    # z: Atom position y
-            ctypes.POINTER(ctypes.c_double),    # dx: Atom potential derivative dE/dx
-            ctypes.POINTER(ctypes.c_double),    # dy: Atom potential derivative dE/dy
-            ctypes.POINTER(ctypes.c_double),    # dz: Atom potential derivative dE/dz
-            ctypes.POINTER(ctypes.c_int),       # IMATTR: Corresponding central atom index of image atom
-            ctypes.c_int,                       # Nmlp: Number of ML-ML atom pairs
-            ctypes.c_int,                       # Nmlmmp: Number of ML-MM atom pairs
-            ctypes.POINTER(ctypes.c_int),       # idxi: ML-ML atom pair (atom i)
-            ctypes.POINTER(ctypes.c_int),       # idxj: ML-ML atom pair (atom j)
-            ctypes.POINTER(ctypes.c_int),       # idxu: ML-MM atom pair (ML atom u)
-            ctypes.POINTER(ctypes.c_int),       # idxv: ML-MM atom pair (MM atom v)
-            ctypes.POINTER(ctypes.c_int)        # idxp: Image to central MM atom pointer)
+            ctypes.c_double,                    # User energy - E(user)
+            ctypes.c_int,                       # Atom number central cell
+                                                # (Natom)
+            ctypes.c_int,                       # Number of central and image
+                                                # cells (Ntrans)
+            ctypes.c_int,                       # Atom number central + image 
+                                                # cells (Natim)
+            ctypes.POINTER(ctypes.c_int),       # Central and image to central 
+                                                # atom index list 
+                                                # (range(Natom) + IMATTR)
+            ctypes.POINTER(ctypes.c_double),    # Atom position x
+            ctypes.POINTER(ctypes.c_double),    # Atom position y
+            ctypes.POINTER(ctypes.c_double),    # Atom position y
+            ctypes.POINTER(ctypes.c_double),    # Atom potential der. (dE/dx)
+            ctypes.POINTER(ctypes.c_double),    # Atom potential der. (dE/dy)
+            ctypes.POINTER(ctypes.c_double),    # Atom potential der. (dE/dz)
+            ctypes.c_int,                       # Number of ML-ML atom pairs
+                                                # (Nmlp)
+            ctypes.c_int,                       # Number of ML-MM atom pairs
+                                                # (Nmlmmp)
+            ctypes.POINTER(ctypes.c_int),       # ML-ML pair atom i (idxi)
+            ctypes.POINTER(ctypes.c_int),       # ML-ML pair atom j (idxj)
+            ctypes.POINTER(ctypes.c_int),       # Image to central ML atom
+                                                # pointer (idxjp)
+            ctypes.POINTER(ctypes.c_int),       # ML-MM pair ML atom u (idxu)
+            ctypes.POINTER(ctypes.c_int),       # ML-MM pair MM atom v (idxv)
+            ctypes.POINTER(ctypes.c_int),       # Image to central MM atom
+                                                # pointer (idxup)
+            ctypes.POINTER(ctypes.c_int),       # Image to central MM atom
+                                                # pointer (idxvp)
             )
         
         self.energy_func = self.func_type(self.calculator.calculate_charmm)
-        
-        #AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
         #||||||||||||||||||||||||||||||||||||||||||||||||||
         # END - Potential model dependent part
         ###################################################
-        
+
         pycharmm.lib.charmm.mlpot_set_func(self.energy_func)
-        
-        Nml = self.ml_Natoms
-        mlidx = (ctypes.c_int * Nml)(*(self.ml_indices + 1))
-        mlidz = (ctypes.c_int * Nml)(*ml_Z)
-        Nml = (ctypes.c_int * 1)(Nml)
+
+        mlidx = (ctypes.c_int * self.ml_Natoms)(*(self.ml_indices + 1))
+        mlidz = (ctypes.c_int * self.ml_Natoms)(*ml_Z)
+        Nml = (ctypes.c_int * 1)(self.ml_Natoms)
         pycharmm.lib.charmm.mlpot_set_properties(
             Nml, mlidx, mlidz)
         
         self.is_set = True
         
+        return
+
     def __del__(self):
-        """class destructor
+        """
+        Class destructor
         """
         self.unset_mlpot()
 
     def unset_mlpot(self):
-        """just store the function and do not run it during energy calcs
+        """
+        Just store the function and do not run it during energy calculations
         """
         pycharmm.lib.charmm.mlpot_unset()
         self.is_set = False
-
-    
