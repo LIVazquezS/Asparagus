@@ -26,108 +26,100 @@ CHARMM_calculator_units = {
 
 
 class PyCharmm_Calculator:
-
     """
-
     Calculator for the interface between PyCHARMM and Asparagus.
 
     Parameters
     ----------
     model_calculator: object
-        model of Asparagus
-    num_atoms: int
-        Total number of atoms
-    ml_atom_indices: list
-        PhysNet atom indices
-    ml_atom_numbers: list
-        PhysNet atom numbers
+        Asparagus model calculator object with already loaded parameter set
+    ml_atom_indices: list(int)
+        List of atom indices referring to the ML treated atoms in the total 
+        system loaded in CHARMM
+    ml_atomic_numbers: list(int)
+        Respective atomic numbers of the ML atom selection
+    ml_charge: float
+        Total charge of the partial ML atom selection
     ml_fluctuating_charges: bool
-        Fluctuating ML charges for ML-MM electrostatic interactions
-    mlmm_atoms_charge: list
-        System atom charges (All atoms)
-    ml_total_charge: float
-        Total charge of the system
+        If True, electrostatic interaction contribution between the MM atom
+        charges and the model predicted ML atom charges. Else, the ML atom
+        charges are considered fixed as defined by the CHARMM psf file.
+    mlmm_atomic_charges: list(float)
+        List of all atomic charges of the system loaded to CHARMM.
+        If 'ml_fluctuating_charges' is True, the atomic charges of the ML
+        atoms are ignored (usually set to zero anyways) and their atomic
+        charge prediction is used.
     mlmm_rcut: float
-        Cutoff distance for ML/MM electrostatic interactions
+        Max. cutoff distance for ML/MM electrostatic interactions
     mlmm_width: float
         Cutoff width for ML/MM electrostatic interactions
-    implemented_properties: opt(list)
-        By default only energy and forces are calculated, maybe dipoles in
-        the future
-    dtype: opt(object)
+    dtype: dtype object, optional, default torch.float64
         Data type of the calculator
     **kwargs
         Additional keyword arguments.
-
 
     """
 
     def __init__(
         self,
         model_calculator: Union[object, List[object]],
-        # Total number of atoms
-        num_atoms: int,
-        # PhysNet atom indices
         ml_atom_indices: List[int],
-        # PhysNet atom numbers
-        ml_atom_numbers: List[int],
-        # Fluctuating ML charges for ML-MM electrostatic interaction
+        ml_atomic_numbers: List[int],
+        ml_charge: float,
         ml_fluctuating_charges: bool,
-        # System atom charges (All atoms)
-        mlmm_atoms_charge: List[float],
-        # Total charge of the system
-        ml_total_charge: float,
-        # Cutoff distance for ML/MM electrostatic interactions
+        mlmm_atomic_charges: List[float],
         mlmm_rcut: float,
-        # Cutoff width for ML/MM electrostatic interactions
         mlmm_width: float,
-        # By default only energy and forces are calculated, maybe dipoles in
-        # the future
-        implemented_properties: Optional[List[str]] = None,
         dtype=torch.float64,
         **kwargs
     ):
 
-        # Set the dtype
+        # Assign dtype
         self.dtype = dtype
 
         ################################
         # # # Set PyCHARMM Options # # #
         ################################
-
-        # Initialize basic parameters
-        self.num_atoms = num_atoms
-
-        # Number of machine learning atoms
-        self.ml_num_atoms = len(ml_atom_indices)
-
-        # Number of MM atoms
-        self.mm_num_atoms = self.num_atoms - self.ml_num_atoms
+        
+        # Number of machine learning (ML) atoms
+        self.ml_num_atoms = torch.tensor(
+            [len(ml_atom_indices)], dtype=torch.int64)
 
         # ML atom indices
-        self.ml_indices = torch.tensor(ml_atom_indices, dtype=self.dtype)
-
-        # ML atom numbers
-        self.ml_numbers = torch.tensor(ml_atom_numbers, dtype=self.dtype)
+        self.ml_atom_indices = torch.tensor(ml_atom_indices, dtype=torch.int64)
+        self.tt = np.array(ml_atom_indices, dtype=int)
+        # ML atomic numbers
+        self.ml_atomic_numbers = torch.tensor(
+            ml_atomic_numbers, dtype=torch.int64)
+        
+        # ML atom total charge
+        self.ml_charge = torch.tensor(ml_charge, dtype=self.dtype)
 
         # ML fluctuating charges
         self.ml_fluctuating_charges = ml_fluctuating_charges
 
-        # MM and ML atom charges
-        self.mlmm_atoms_charge = torch.tensor(
-            mlmm_atoms_charge, dtype=self.dtype)
+        # ML and MM atom charges
+        self.mlmm_atomic_charges = torch.tensor(
+            mlmm_atomic_charges, dtype=self.dtype)
 
-        # ML atom total charge
-        self.ml_total_charge = torch.tensor(
-            ml_total_charge, dtype=self.dtype)
-
+        # ML and MM number of atoms
+        self.mlmm_num_atoms = len(mlmm_atomic_charges)
+        
+        # ML and MM atom indices
+        self.mlmm_atom_indices = torch.zeros(
+            self.mlmm_num_atoms, dtype=torch.int64)
+        self.mlmm_atom_indices[self.ml_atom_indices] = self.ml_atomic_numbers
+        
         # ML atoms - atom indices pointing from MLMM position to ML position
         # 0, 1, 2 ..., ml_num_atoms: ML atom 1, 2, 3 ... ml_num_atoms + 1
         # ml_num_atoms + 1: MM atoms
-        ml_idxp = np.full(self.num_atoms, -1)
-        for ia, ai in enumerate(self.ml_indices):
+        ml_idxp = np.full(self.mlmm_num_atoms, -1)
+        for ia, ai in enumerate(ml_atom_indices):
             ml_idxp[ai] = ia
         self.ml_idxp = torch.tensor(ml_idxp, dtype=torch.int64)
+        
+        # Running number list
+        self.mlmm_idxa = torch.arange(self.mlmm_num_atoms, dtype=torch.int64)
 
         # Non-bonding interaction range
         self.mlmm_rcut = torch.tensor(mlmm_rcut, dtype=self.dtype)
@@ -150,22 +142,11 @@ class PyCharmm_Calculator:
             self.model_calculator_num = 1
             self.model_ensemble = False
 
-        # Set implemented properties
-        if implemented_properties is None:
-            if self.model_ensemble:
-                self.implemented_properties = (
-                    self.model_calculator_list.model_properties)
-            else:
-                self.implemented_properties = (
-                    self.model_calculator.model_properties)
-        else:
-            if utils.is_string(implemented_properties):
-                self.implemented_properties = [implemented_properties]
-            else:
-                self.implemented_properties = implemented_properties
-
-        # Check model properties and set evaluation mode
+        # Get implemented model properties
         if self.model_ensemble:
+            self.implemented_properties = (
+                self.model_calculator_list[0].model_properties)
+            # Check model properties and set evaluation mode
             for ic, calc in enumerate(self.model_calculator_list):
                 for prop in self.implemented_properties:
                     if prop not in calc.model_properties:
@@ -174,6 +155,9 @@ class PyCharmm_Calculator:
                             + f"property {prop:s}!\n"
                             + "Specify 'implemented_properties' with "
                             + "properties all model calculator support.")
+        else:
+            self.implemented_properties = (
+                self.model_calculator.model_properties)
 
         #############################
         # # # Set ML/MM Options # # #
@@ -198,15 +182,14 @@ class PyCharmm_Calculator:
         # Get property unit conversions from model units to CHARMM units
         self.model_unit_properties = (
             self.model_calculator.model_unit_properties)
-
-        self.charmm_unit_properties = {}
+        #self.charmm_unit_properties = {}
         self.model2charmm_unit_conversion = {}
 
         # Positions unit conversion
         conversion, _ = utils.check_units(
             CHARMM_calculator_units['positions'],
             self.model_unit_properties['positions'])
-        self.charmm_unit_properties['positions'] = conversion
+        #self.charmm_unit_properties['positions'] = conversion
         self.model2charmm_unit_conversion['positions'] = conversion
 
         # Implemented property units conversion
@@ -214,7 +197,7 @@ class PyCharmm_Calculator:
             conversion, _ = utils.check_units(
                 CHARMM_calculator_units[prop],
                 self.model_unit_properties[prop])
-            self.charmm_unit_properties[prop] = conversion
+            #self.charmm_unit_properties[prop] = conversion
             self.model2charmm_unit_conversion[prop] = conversion
 
         # Initialize the non-bonded interaction calculator
@@ -233,8 +216,9 @@ class PyCharmm_Calculator:
                 self.mlmm_width,
                 self.max_rcut,
                 self.ml_idxp,
-                self.mlmm_atoms_charge,
-                kehalf=self.kehalf)
+                self.mlmm_atomic_charges,
+                kehalf=self.kehalf,
+                )
 
         else:
 
@@ -254,20 +238,22 @@ class PyCharmm_Calculator:
         Natom: int,
         Ntrans: int,
         Natim: int,
+        idxp: List[float],
         x: List[float],
         y: List[float],
         z: List[float],
         dx: List[float],
         dy: List[float],
         dz: List[float],
-        imattr: List[int],
         Nmlp: int,
         Nmlmmp: int,
         idxi: List[int],
         idxj: List[int],
+        idxjp: List[int],
         idxu: List[int],
         idxv: List[int],
-        idxp: List[int],
+        idxup: List[int],
+        idxvp: List[int],
     ) -> float:
         """
         This function matches the signature of the corresponding MLPot class in
@@ -276,42 +262,48 @@ class PyCharmm_Calculator:
         Parameters
         ----------
         Natom: int
-            Total number of atoms
-        Ntrans: bool
-
+            Number of atoms in primary cell
+        Ntrans: int
+            Number of unit cells (primary + images)
         Natim: int
-            Total number of atoms in the system
-        x: list
-            List of x coordinates
-        y: list
+            Number of atoms in primary and image unit cells
+        idxp: list(int)
+            List of primary and primary to image atom index pointer
+        x: list(float)
+            List of x coordinates 
+        y: list(float)
             List of y coordinates
-        z: list
+        z: list(float)
             List of z coordinates
-        dx: list
-            List of x forces
-        dy: list
-            List of y forces
-        dz: list
-            List of z forces
-        imattr: list
-            List of atom indices
+        dx: list(float)
+            List of x derivatives
+        dy: list(float)
+            List of y derivatives
+        dz: list(float)
+            List of z derivatives
         Nmlp: int
-            Number of ML atoms in the system
+            Number of ML atom pairs in the system
         Nmlmmp: int
             Number of ML/MM atom pairs in the system
-        idxi: list
-            List of ML atom indices
-        idxj: list
-            List of ML atom indices
-        idxu: list
-            List of MM atom indices
-        idxv: list
-            List of MM atom indices
-        idxp: list
-            List of MM atom indices
+        idxi: list(int)
+            List of ML atom indices for ML potential
+        idxj: list(int)
+            List of ML atom indices for ML potential
+        idxjp: list(int)
+            List of image to primary ML atom index pointer
+        idxu: list(int)
+            List of ML atom indices for ML-MM embedding potential
+        idxv: list(int)
+            List of MM atom indices for ML-MM embedding potential
+        idxup: list(int)
+            List of image to primary ML atom index pointer
+        idxvp: list(int)
+            List of image to primary MM atom index pointer
 
-
-
+        Return
+        ------
+        float
+            ML potential plus ML-MM embedding potential
         """
 
         # Assign all positions
@@ -319,41 +311,55 @@ class PyCharmm_Calculator:
             mlmm_R = torch.transpose(
                 torch.tensor(
                     [x[:Natim], y[:Natim], z[:Natim]], dtype=self.dtype
-                ).shape(3, Natom),
+                ),
                 0, 1)
+            mlmm_idxp = idxp[:Natim]
         else:
             mlmm_R = torch.transpose(
                 torch.tensor(
                     [x[:Natom], y[:Natom], z[:Natom]], dtype=self.dtype
-                ).shape(3, Natom),
+                ),
                 0, 1)
+            mlmm_idxp = idxp[:Natom]
+        mlmm_R.requires_grad_(True)
 
         # Assign indices
-        ml_idxi = torch.tensor(idxi[:Nmlp], dtype=torch.int64).shape(Nmlp)
-        ml_idxj = torch.tensor(idxj[:Nmlp], dtype=torch.int64).shape(Nmlp)
-        mlmm_idxi = torch.tensor(
-            idxu[:Nmlmmp], dtype=torch.int64).shape(Nmlmmp)
-        mlmm_idxk = torch.tensor(
-            idxv[:Nmlmmp], dtype=torch.int64).shape(Nmlmmp)
-        mlmm_idxk_p = torch.tensor(
-            idxp[:Nmlmmp], dtype=torch.int64).shape(Nmlmmp)
-        atom_seg = torch.zeros(Natom, dtype=torch.int64)
+        # ML-ML pair indices
+        ml_idxi = torch.tensor(idxi[:Nmlp], dtype=torch.int64)
+        ml_idxj = torch.tensor(idxj[:Nmlp], dtype=torch.int64)
+        ml_idxjp = torch.tensor(idxjp[:Nmlp], dtype=torch.int64)
+        atoms_seg = torch.zeros(self.ml_num_atoms, dtype=torch.int64)
+        # ML-MM pair indices and pointer
+        mlmm_idxu = torch.tensor(
+            idxu[:Nmlmmp], dtype=torch.int64)
+        mlmm_idxv = torch.tensor(
+            idxv[:Nmlmmp], dtype=torch.int64)
+        mlmm_idxup = torch.tensor(
+            idxup[:Nmlmmp], dtype=torch.int64)
+        mlmm_idxvp = torch.tensor(
+            idxvp[:Nmlmmp], dtype=torch.int64)
 
         # Create batch for evaluating the model
         atoms_batch = {}
-        atoms_batch['atoms_number'] = Natom
-        atoms_batch['atomic_numbers'] = self.ml_numbers
+        atoms_batch['atoms_number'] = self.ml_num_atoms
+        atoms_batch['atomic_numbers'] = self.ml_atomic_numbers
         atoms_batch['positions'] = mlmm_R
+        atoms_batch['charge'] = self.ml_charge
         atoms_batch['idx_i'] = ml_idxi
         atoms_batch['idx_j'] = ml_idxj
+        atoms_batch['atoms_seg'] = atoms_seg
+        
+        # PBC options
         atoms_batch['pbc_offset'] = None
-        atoms_batch['atom_seg'] = atom_seg
+        atoms_batch['atom_indices'] = self.ml_atom_indices
+        atoms_batch['idx_jp'] = ml_idxjp
+        atoms_batch['idx_p'] = self.ml_idxp
 
         # Compute model properties
         results = {}
         if self.model_ensemble:
 
-            # TODO Test!!!
+            # TODO Test
             for ic, calc in enumerate(self.model_calculator_list):
                 results[ic] = calc(atoms_batch)
             for prop in self.implemented_properties:
@@ -375,59 +381,48 @@ class PyCharmm_Calculator:
         self.results = {}
         for prop in self.implemented_properties:
             self.results[prop] = (
-                results[prop]*self.charmm_unit_properties[prop])
-
-        # Calculate electrostatic energy and force contribution
-        if self.electrostatics_calc is not None:
-            mlmm_Eele = self.electrostatics_calc.run(
-                mlmm_R,
-                self.results['atomic_charges'],
-                mlmm_idxi,
-                mlmm_idxk,
-                mlmm_idxk_p)
-            mlmm_gradient = torch.autograd.grad(
-                torch.sum(mlmm_Eele),
-                mlmm_R,
-                create_graph=True)[0]
-
-            # Add electrostatic interaction potential to ML energy
-            self.results['energy'] = self.results['energy'] + mlmm_Eele
-
-            # Add electrostatic interaction forces to ML and MM forces
-            if mlmm_gradient is not None:
-                self.results['forces'] -= mlmm_gradient
-
-        ## Re-Calculate forces with the electrostatic energy
-        #gradient = torch.autograd.grad(
-            #torch.sum(self.results['energy']),
-            #mlmm_R,
-            #create_graph=True)[0]
-        #if gradient is not None:
-            #self.results['forces'] = -gradient
-
-        # Apply unit conversion
-        self.results['energy'] *= self.charmm_unit_properties['energy']
-        self.results['forces'] *= self.charmm_unit_properties['forces']
+                results[prop]*self.model2charmm_unit_conversion[prop])
 
         # Apply dtype conversion
         E = self.results['energy'].detach().numpy()
-        F = self.results['forces'].detach().numpy().ctypes.data_as(
-            ctypes.POINTER(ctypes.c_float))
+        ml_F = self.results['forces'].detach().numpy().ctypes.data_as(
+            ctypes.POINTER(ctypes.c_double))
 
         # Add forces to CHARMM derivative arrays
-        # (Check addition or substration)
-        for idxa in range(Natom):
-            ii = 3*idxa
-            dx[idxa] += F[ii]
-            dy[idxa] += F[ii+1]
-            dz[idxa] += F[ii+2]
-        if Ntrans:
-            for ii in range(Natom, Natim):
-                idxa = imattr[ii]
-                jj = 3*ii
-                dx[idxa] += F[jj]
-                dy[idxa] += F[jj+1]
-                dz[idxa] += F[jj+2]
+        for ai in self.ml_atom_indices:
+            ii = 3*ai
+            dx[ai] -= ml_F[ii]
+            dy[ai] -= ml_F[ii+1]
+            dz[ai] -= ml_F[ii+2]
+        # Calculate electrostatic energy and force contribution
+        if self.electrostatics_calc is not None:
+            
+            mlmm_Eele, mlmm_gradient = self.electrostatics_calc.run(
+                mlmm_R,
+                self.results['atomic_charges'],
+                mlmm_idxu,
+                mlmm_idxv,
+                mlmm_idxup,
+                mlmm_idxvp)
+            
+            # Add electrostatic interaction potential to ML energy
+            E += (
+                mlmm_Eele*self.model2charmm_unit_conversion['energy']
+                ).detach().numpy()
+
+            # Apply dtype conversion
+            mlmm_F = (
+                -mlmm_gradient*self.model2charmm_unit_conversion['forces']
+                ).detach().numpy().ctypes.data_as(
+                    ctypes.POINTER(ctypes.c_double)
+                    )
+
+            # Add electrostatic forces to CHARMM derivative arrays
+            for ia, ai in enumerate(mlmm_idxp):
+                ii = 3*ia
+                dx[ai] -= mlmm_F[ii]
+                dy[ai] -= mlmm_F[ii+1]
+                dz[ai] -= mlmm_F[ii+2]
 
         return E
 
@@ -440,14 +435,14 @@ class Electrostatic_shift:
         mlmm_width: torch.Tensor,
         max_rcut: torch.Tensor,
         ml_idxp: torch.Tensor,
-        mlmm_atoms_charge: torch.Tensor,
+        mlmm_atomic_charges: torch.Tensor,
         kehalf: torch.Tensor,
         switch_fn='CHARMM',
     ):
 
         self.mlmm_rcut = mlmm_rcut
         self.ml_idxp = ml_idxp
-        self.mlmm_atoms_charge = mlmm_atoms_charge
+        self.mlmm_atomic_charges = mlmm_atomic_charges
         self.max_rcut2 = max_rcut**2
 
         # Initialize the class for cutoff
@@ -458,38 +453,33 @@ class Electrostatic_shift:
     def calculate_mlmm_interatomic_distances(
         self,
         R: torch.Tensor,
-        idxi: torch.Tensor,
-        idxk: torch.Tensor,
-        idxp: torch.Tensor,
+        idxu: torch.Tensor,
+        idxv: torch.Tensor,
+        idxup: torch.Tensor,
+        idxvp: torch.Tensor,
     ) -> (torch.Tensor, torch.Tensor, torch.Tensor):
 
         # Gather positions
-        Ri = torch.gather(R, 0, idxi.view(-1, 1).repeat(1, 3))
-        Rk = torch.gather(R, 0, idxk.view(-1, 1).repeat(1, 3))
-
-        sum_distance = torch.sum((Ri - Rk)**2, dim=1)
-        idxr = torch.squeeze(
-            torch.where(
-                sum_distance < self.max_rcut2,
-                sum_distance,
-                torch.zeros_like(sum_distance)
-                )
-            )
-
+        Ru = R[idxu]
+        Rv = R[idxv]
+        
         # Interacting atom pair distances within cutoff
-        Dik = torch.sqrt(torch.gather(sum_distance, 0, idxr))
-
-        # Reduce the indexes to consider only interacting pairs
-        idxi_r = torch.gather(idxi, 0, idxr)
-        idxp_r = torch.gather(idxp, 0, idxr)
-
-        return Dik, idxi_r, idxp_r
+        sum_distances = torch.sum((Ru - Rv)**2, dim=1)
+        selection = sum_distances < self.max_rcut2
+        Duv = torch.sqrt(sum_distances[selection])
+        
+        # Reduce the indexes to consider only interacting pairs (selection)
+        # and point image atom indices to primary atom indices (idx?p)
+        idxur = idxup[selection]
+        idxvr = idxvp[selection]
+        
+        return Duv, idxur, idxvr
 
     def electrostatic_energy_per_atom_to_point_charge(
         self,
-        Dik: torch.Tensor,
-        Qai: torch.Tensor,
-        Qak: torch.Tensor,
+        Duv: torch.Tensor,
+        Qau: torch.Tensor,
+        Qav: torch.Tensor,
     ) -> torch.Tensor:
         """
         Calculate electrostatic interaction between ML atom charge and MM point
@@ -497,11 +487,11 @@ class Electrostatic_shift:
         """
 
         # Cutoff weighted reciprocal distance
-        switchoff = self.switch_fn(Dik)
+        switchoff = self.switch_fn(Duv)
 
         # Shifted Coulomb energy
-        qq = 2.0*self.kehalf*Qai*Qak
-        Eele = qq/Dik - qq/self.mlmm_rcut*(2.0-Dik/self.mlmm_rcut)
+        qq = 2.0*self.kehalf*Qau*Qav
+        Eele = qq/Duv - qq/self.mlmm_rcut*(2.0 - Duv/self.mlmm_rcut)
 
         return torch.sum(switchoff*Eele)
 
@@ -509,28 +499,36 @@ class Electrostatic_shift:
         self,
         mlmm_R: torch.Tensor,
         ml_Qa: torch.Tensor,
-        mlmm_idxi: torch.Tensor,
-        mlmm_idxk: torch.Tensor,
-        mlmm_idxk_p: torch.Tensor,
+        mlmm_idxu: torch.Tensor,
+        mlmm_idxv: torch.Tensor,
+        mlmm_idxup: torch.Tensor,
+        mlmm_idxvp: torch.Tensor,
     ) -> torch.Tensor:
         """
-        Calculates the electrostatic interaction between ML atoms in the center
-        cell with all MM atoms in the center or imaginary non-bonded lists
+        Calculates the electrostatic interaction between ML atoms in the 
+        primary cell with all MM atoms in the primary or imaginary non-bonded
+        lists.
         """
-
+        
         # Calculate ML-MM atom distances
-        mlmm_Dik, mlmm_idxi_r, mlmm_idxp_r = (
+        mlmm_Duv, mlmm_idxur, mlmm_idxvr = (
             self.calculate_mlmm_interatomic_distances(
-                mlmm_R, mlmm_idxi, mlmm_idxk, mlmm_idxk_p)
+                mlmm_R, mlmm_idxu, mlmm_idxv, mlmm_idxup, mlmm_idxvp)
             )
-        mlmm_idxi_z = torch.gather(self.ml_idxp, 0, mlmm_idxi_r)
 
+        # Point from PyCHARMM ML atom indices to model calculator atom indices
+        ml_idxur = self.ml_idxp[mlmm_idxur]
+        
         # Get ML and MM charges
-        ml_Qai_r = torch.gather(ml_Qa, 0, mlmm_idxi_z)
-        ml_Qak_r = torch.gather(self.mlmm_atoms_charge, 0, mlmm_idxp_r)
+        ml_Qau = ml_Qa[ml_idxur]
+        ml_Qav = self.mlmm_atomic_charges[mlmm_idxvr]
 
-        # Calculate electrostatic energy
+        # Calculate electrostatic energy and gradients
         Eele = self.electrostatic_energy_per_atom_to_point_charge(
-            mlmm_Dik, ml_Qai_r, ml_Qak_r)
+            mlmm_Duv, ml_Qau, ml_Qav)
+        Eele_gradient = torch.autograd.grad(
+                torch.sum(Eele),
+                mlmm_R,
+                retain_graph=True)[0]
 
-        return Eele
+        return Eele, Eele_gradient

@@ -43,10 +43,12 @@ class Cutoff_poly6(torch.nn.Module):
         """
 
         super().__init__()
-
+        
+        #self.cutoff = cutoff
+        
         # Set cutoff value in the register for model parameters
         self.register_buffer("cutoff", torch.tensor([cutoff], dtype=dtype))
-
+        
     def forward(
         self,
         distance: torch.Tensor
@@ -110,8 +112,8 @@ class Cutoff_poly6_width(torch.nn.Module):
 
         super().__init__()
 
-        self.cutoff = cutoff
-        self.width = width
+        #self.cutoff = cutoff
+        #self.width = width
 
         # Set cutoff value in the register for model parameters
         self.register_buffer("cutoff", torch.tensor([cutoff], dtype=dtype))

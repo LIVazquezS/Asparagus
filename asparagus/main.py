@@ -376,6 +376,78 @@ class Asparagus(torch.nn.Module):
                 config=config,
                 **kwargs)
 
+    def get_model_calculator(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        config_file: Optional[str] = None,
+        model_checkpoint: Optional[int] = None,
+        **kwargs,
+    ) -> Callable:
+        """
+        Return ASE calculator class object of the model calculator
+
+        Parameters
+        ----------
+        config: (str, dict, object)
+            Either the path to json file (str), dictionary (dict) or
+            settings.config class object of model parameters
+        config_file: str, optional, default see settings.default['config_file']
+            Path to json file (str)
+        model_checkpoint: int, optional, default None
+            If None, load best model checkpoint. Otherwise define a checkpoint
+            index number of the respective checkpoint file.
+        
+        Returns
+        -------
+        callable object
+            Asparagus calculator object
+        """
+
+        ########################################
+        # # # Check Model Calculator Input # # #
+        ########################################
+
+        # Assign model parameter configuration library
+        if config is None:
+            config_model = settings.get_config(
+                self.config, config_file, **kwargs)
+        else:
+            config_model = settings.get_config(
+                config, config_file, **kwargs)
+
+        # Check model parameter configuration and set default
+        config_model.check()
+
+        ##################################
+        # # # Prepare NNP Calculator # # #
+        ##################################
+
+        # Assign model calculator
+        model_calculator = self._get_Calculator(
+            config_model,
+            **kwargs)
+        
+        # Add calculator info to configuration dictionary
+        if hasattr(model_calculator, "get_info"):
+            config_model.update(
+                model_calculator.get_info(),
+                verbose=False)
+
+        # Initialize checkpoint file manager and load best model
+        filemanager = utils.FileManager(config_model, **kwargs)
+        if model_checkpoint is None:
+            checkpoint = filemanager.load_checkpoint(best=True)
+        elif utils.is_integer(model_checkpoint):
+            checkpoint = filemanager.load_checkpoint(
+                num_checkpoint=model_checkpoint)
+        else:
+            raise ValueError(
+                "Input 'model_checkpoint' must be either None to load best "
+                + "model checkpoint or an integer of a respective checkpoint "
+                + "file.")
+        self.model_calculator.load_state_dict(checkpoint['model_state_dict'])
+        
+        return self.model_calculator
 
     def get_ase_calculator(
         self,
@@ -390,7 +462,7 @@ class Asparagus(torch.nn.Module):
         **kwargs,
     ) -> Callable:
         """
-        initialize ASE calculator class object of the model calculator
+        Return ASE calculator class object of the model calculator
 
         Parameters
         ----------
@@ -412,10 +484,11 @@ class Asparagus(torch.nn.Module):
             Use neighbor list for the calculator
         label: str, optional, default 'asparagus'
             Label of the ASE calculator
-        kwargs: dict, optional, default {}
-            Additional model keyword input parameter
 
-
+        Returns
+        -------
+        callable object
+            ASE calculator object
         """
 
         ######################################
@@ -487,46 +560,44 @@ class Asparagus(torch.nn.Module):
 
         return self.ase_calculator
 
-    def get_pycharmm_calculator(self,
-        # Total number of atoms
-        num_atoms: int,
-        # PhysNet atom indices
+    def get_pycharmm_calculator(
+        self,
         ml_atom_indices: List[int],
-        # PhysNet atom numbers
-        ml_atom_numbers: List[int],
-        # Fluctuating ML charges for ML-MM electrostatic interaction
+        ml_atomic_numbers: List[int],
+        ml_charge: float,
         ml_fluctuating_charges: bool,
-        # System atom charges (All atoms)
-        ml_mm_atoms_charge: List[float],
-        # Total charge of the system
-        ml_total_charge: Optional[float],
-        # Cutoff distance for ML/MM electrostatic interactions
+        mlmm_atomic_charges: List[float],
         mlmm_rcut: float,
-        # Cutoff width for ML/MM electrostatic interactions
         mlmm_width: float,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
-        model_checkpoint: Optional[int] = None,**kwargs):
-
+        model_checkpoint: Optional[int] = None,
+        **kwargs
+    ) -> Callable:
         """
-        Initialize PyCharmm calculator class object of the model calculator
+        Return PyCHARMM calculator class object of the initialized model 
+        calculator.
 
         Parameters
         ----------
-        num_atoms: int
-            Total number of atoms
         ml_atom_indices: list(int)
-            PhysNet atom indices
-        ml_atom_numbers: list(int)
-            PhysNet atom numbers
+            List of atom indices referring to the ML treated atoms in the 
+            total system loaded in CHARMM
+        ml_atomic_numbers: list(int)
+            Respective atomic numbers of the ML atom selection
+        ml_charge: float
+            Total charge of the partial ML atom selection
         ml_fluctuating_charges: bool
-            Fluctuating ML charges for ML-MM electrostatic interaction
-        ml_mm_atoms_charge: list(float)
-            System atom charges (All atoms)
-        ml_total_charge: float, optional, default None
-            Total charge of the system
+            If True, electrostatic interaction contribution between the MM atom
+            charges and the model predicted ML atom charges. Else, the ML atom
+            charges are considered fixed as defined by the CHARMM psf file.
+        mlmm_atomic_charges: list(float)
+            List of all atomic charges of the system loaded to CHARMM.
+            If 'ml_fluctuating_charges' is True, the atomic charges of the ML
+            atoms are ignored (usually set to zero anyways) and their atomic
+            charge prediction is used.
         mlmm_rcut: float
-            Cutoff distance for ML/MM electrostatic interactions
+            Max. cutoff distance for ML/MM electrostatic interactions
         mlmm_width: float
             Cutoff width for ML/MM electrostatic interactions
         config: (str, dict, object)
@@ -537,12 +608,12 @@ class Asparagus(torch.nn.Module):
         model_checkpoint: int, optional, default None
             If None, load best model checkpoint. Otherwise define a checkpoint
             index number of the respective checkpoint file.
-        kwargs: dict, optional, default {}
-            Additional model keyword input parameter
-
-
+        
+        Returns
+        -------
+        callable object
+            PyCHARMM calculator object
         """
-
 
         ###########################################
         # # # Check PyCharmm Calculator Input # # #
@@ -571,7 +642,6 @@ class Asparagus(torch.nn.Module):
 
         # Assign NNP calculator
         if self.model_calculator is None:
-            # Assign NNP calculator model
             self.model_calculator = self._get_Calculator(
                 config_pycharmm,
                 **kwargs)
@@ -582,36 +652,31 @@ class Asparagus(torch.nn.Module):
                 self.model_calculator.get_info(),
                 verbose=False)
 
-        # Initialize checkpoint file manager and load best model
+        # Initialize checkpoint file manager and load requested model
         filemanager = utils.FileManager(config_pycharmm, **kwargs)
         if model_checkpoint is None:
-            latest_checkpoint = filemanager.load_checkpoint(best=True)
+            checkpoint = filemanager.load_checkpoint(best=True)
         elif utils.is_integer(model_checkpoint):
-            latest_checkpoint = filemanager.load_checkpoint(
+            checkpoint = filemanager.load_checkpoint(
                 num_checkpoint=model_checkpoint)
         else:
             raise ValueError(
                 "Input 'model_checkpoint' must be either None to load best "
                 + "model checkpoint or an integer of a respective checkpoint "
                 + "file.")
-        self.model_calculator.load_state_dict(
-            latest_checkpoint['model_state_dict'])
+        self.model_calculator.load_state_dict(checkpoint['model_state_dict'])
 
-        if ml_total_charge is None:
-            ml_total_charge = 0
-
-        ##################################
-        # # # Prepare Calculator # # #
-        ##################################
+        #######################################
+        # # # Prepare PyCHARMM Calculator # # #
+        #######################################
 
         self.pycharmm_calculator = interface.PyCharmm_Calculator(
             self.model_calculator,
-            num_atoms=num_atoms,
             ml_atom_indices=ml_atom_indices,
-            ml_atom_numbers=ml_atom_numbers,
+            ml_atomic_numbers=ml_atomic_numbers,
+            ml_charge=ml_charge,
             ml_fluctuating_charges=ml_fluctuating_charges,
-            ml_mm_atoms_charge=ml_mm_atoms_charge,
-            ml_total_charge=ml_total_charge,
+            mlmm_atomic_charges=mlmm_atomic_charges,
             mlmm_rcut=mlmm_rcut,
             mlmm_width=mlmm_width,
             )

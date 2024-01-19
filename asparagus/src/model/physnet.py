@@ -552,8 +552,15 @@ class Calculator_PhysNet(torch.nn.Module):
         idx_j = batch['idx_j']
         charge = batch['charge']
         idx_seg = batch['atoms_seg']
+        
+        # PBC options
         pbc_offset = batch.get('pbc_offset')
-
+        
+        # PyCHARMM Options
+        atom_indices = batch.get('atom_indices')
+        idx_jp = batch.get('idx_jp')
+        idx_p = batch.get('idx_p')
+        
         # Activate back propagation if derivatives with regard to
         # atom positions is requested.
         if self.model_gradient:
@@ -563,9 +570,16 @@ class Calculator_PhysNet(torch.nn.Module):
         features, descriptors, distances = self.input_model(
             atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
 
+        # For application with PyCHARMM:
+        if idx_p is not None:
+            # Pointer from primary atom index to ML atom index
+            # For ML atom j, use primary atom index pointer list idx_jp
+            idx_i = idx_p[idx_i]
+            idx_j = idx_p[idx_jp]
+
         # Run graph model
         messages = self.graph_model(features, descriptors, idx_i, idx_j)
-
+        
         # Run output model
         output = self.output_model(messages)
 
@@ -592,11 +606,13 @@ class Calculator_PhysNet(torch.nn.Module):
             output['atomic_charges'] = output['atomic_charges']*scale + shift
 
             # Scale atomic charges to ensure correct total charge
-            charge_deviation = charge - utils.segment_sum(
-                output['atomic_charges'], idx_seg, device=self.device)
+            charge_deviation = (
+                charge - utils.segment_sum(
+                    output['atomic_charges'], idx_seg, device=self.device)
+                / atoms_number
+                )
             output['atomic_charges'] = (
-                output['atomic_charges']
-                + (charge_deviation/atoms_number)[idx_seg])
+                output['atomic_charges'] + charge_deviation[idx_seg])
 
             # Apply electrostatic model
             output['atomic_energies'] = (
@@ -611,7 +627,7 @@ class Calculator_PhysNet(torch.nn.Module):
                 output['atomic_energies'], idx_seg, device=self.device)
             )
 
-        # Charges are missing??
+        # Compute total charge from atomic charges
         if 'atomic_charges' in output:
             output['charge'] = utils.segment_sum(
                 output['atomic_charges'], idx_seg, device=self.device)
@@ -622,10 +638,11 @@ class Calculator_PhysNet(torch.nn.Module):
             gradient = torch.autograd.grad(
                 torch.sum(output['energy']),
                 positions,
-                create_graph=True)[0]
+                create_graph=self.model_hessian,
+                retain_graph=True)[0]
 
             if self.model_forces:
-                # Avoid crashing if forces are none
+                # Avoid crashing if forces are None
                 if gradient is not None:
                     output['forces'] = -gradient
                 else:
@@ -645,9 +662,15 @@ class Calculator_PhysNet(torch.nn.Module):
 
         # Compute molecular dipole of demanded
         if self.model_dipole:
-            output['dipole'] = utils.segment_sum(
-                output['atomic_charges'][..., None]*positions,
-                idx_seg, device=self.device).reshape(-1, 3)
+            if atom_indices is None:
+                output['dipole'] = utils.segment_sum(
+                    output['atomic_charges'][..., None]*positions,
+                    idx_seg, device=self.device).reshape(-1, 3)
+            else:
+                output['dipole'] = utils.segment_sum(
+                    output['atomic_charges'][..., None]
+                    *positions[atom_indices],
+                    idx_seg, device=self.device).reshape(-1, 3)
 
         # Apply output scaling and shift
         for prop, item in self.model_scaling.items():

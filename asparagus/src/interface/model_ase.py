@@ -20,10 +20,8 @@ class ASE_Calculator(ase_calc.Calculator):
     """
     ASE calculator interface for a Asparagus model potential.
 
-
     Parameters
     ----------
-
     model_calculator: (callable object, list of callable objects)
         NNP model calculator(s) to predict model properties. If an ensemble
         is given in form of a list of model calculators, the average value
@@ -48,10 +46,9 @@ class ASE_Calculator(ase_calc.Calculator):
     -------
     callable object
         ASE calculator object
-
-
     """
 
+    # ASE specific calculator information
     default_parameters = {
         "method": "Asparagus",
     }
@@ -67,7 +64,6 @@ class ASE_Calculator(ase_calc.Calculator):
     ):
         """
         Initialize ASE Calculator class.
-
         """
 
         # Initialize parent Calculator class

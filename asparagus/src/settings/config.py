@@ -407,8 +407,7 @@ class Configuration():
             Check data type of model parameter and raise Error for mismatch
         check_default: bool, optional, default True
             If model parameter is None replace with parameter from default list
-            if avaiable.
-
+            if available.
         """
 
         for key, item in self.config_dict.items():
