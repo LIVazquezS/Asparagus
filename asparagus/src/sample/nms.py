@@ -311,7 +311,7 @@ class NormalModeScanner(sample.Sampler):
 
         # Displacement factor for energy step (in eV)
         system_displfact = np.sqrt(
-            3*self.nms_harmonic_energy_step/system_forceconst)
+            2.*self.nms_harmonic_energy_step/system_forceconst)
 
         # Add normal mode analysis results to log file
         msg = "\nStart Normal Mode Scanning at system: "

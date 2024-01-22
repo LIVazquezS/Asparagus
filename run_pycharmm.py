@@ -240,7 +240,6 @@ else:
     
     # Read optimized coordinates
     read.pdb("charmm_data/mini_ammonia.pdb")
-    
 
 # Step 5: Heating - CHARMM, PhysNet
 #-----------------------------------------------------------
@@ -268,7 +267,7 @@ if True:
         'nstep': 10.*1./timestep,
         'nsavc': 0.01*1./timestep,
         'nsavv': 0,
-        'inbfrq':-1,
+        'inbfrq': 10,
         'ihbfrq': 50,
         'ilbfrq': 50,
         'imgfrq': 50,
@@ -332,7 +331,7 @@ if True:
         'nstep': 50.*1./timestep,
         'nsavc': 0.001*1./timestep,
         'nsavv': 0,
-        'inbfrq':-1,
+        'inbfrq': 10,
         'ihbfrq': 50,
         'ilbfrq': 50,
         'imgfrq': 50,

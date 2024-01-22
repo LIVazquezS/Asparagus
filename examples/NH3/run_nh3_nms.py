@@ -279,7 +279,7 @@ if True:
     distance_1vibs = system_dmin + 1.0*vibs
     energy_1vibs = 0.5*vibk*(1.0*vibs)**2
     
-    # Refernce energy per step
+    # Reference energy per step
     energy_step = np.zeros(5, dtype=float)
     distance_step = np.zeros(5, dtype=float)
     for istep in range(1, 5):
