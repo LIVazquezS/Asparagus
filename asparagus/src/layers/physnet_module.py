@@ -6,6 +6,7 @@ import torch
 from .. import settings
 from .. import utils
 
+
 class InteractionBlock(torch.nn.Module):
 
     '''
@@ -428,7 +429,7 @@ class DenseLayer(torch.nn.Module):
         If True, initialize weights using Xavier normal distribution.
         If False, initialize weights to zero.
     bias: bool
-        If True, initialize bias to zero.
+        If True, add bias and initialize to zero.
     device: str
         Device to run the model on.
     dtype: object

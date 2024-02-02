@@ -558,7 +558,6 @@ class NormalModeSampler(sample.Sampler):
         return
 
     def get_info(self):
-
         '''
         Obtain information about the Normal Mode Sampling class object.
 
@@ -624,7 +623,6 @@ class NormalModeSampler(sample.Sampler):
         return np.array(R)
 
     def new_coord(self, nmodes, vib_disp, mass_sqrt, fcts, T=300.0):
-
         '''
 
         Create the new coordinates for the system.
@@ -650,7 +648,7 @@ class NormalModeSampler(sample.Sampler):
 
         '''
 
-        Rx = self.R(fcts,nmodes,T)
+        Rx = self.R(fcts, nmodes, T)
         new_disp = []
 
         for i, j in enumerate(vib_disp):

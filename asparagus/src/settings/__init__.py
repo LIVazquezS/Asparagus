@@ -17,7 +17,8 @@ from .default import (
 )
 
 from .properties import (
-    _valid_cutoff_fn, _valid_properties, _alt_property_labels, _default_units
+    _valid_cutoff_fn, _valid_properties, _alt_property_labels, _default_units,
+    _default_output_block_options
 )
 
 from .globl import (

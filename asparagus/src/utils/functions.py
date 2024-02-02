@@ -13,10 +13,10 @@ def segment_sum(
     debug: Optional[bool] = False,
 ) -> torch.Tensor:
     """
-
-    Adapted from : https://gist.github.com/bbrighttaer/207dc03b178bbd0fef8d1c0c1390d4be
-    Analogous to tf.segment_sum
-    (https://www.tensorflow.org/api_docs/python/tf/math/segment_sum).
+    Adapted from : 
+        https://gist.github.com/bbrighttaer/207dc03b178bbd0fef8d1c0c1390d4be
+    Analogous to tf.segment_sum :
+        https://www.tensorflow.org/api_docs/python/tf/math/segment_sum
 
     Parameters
     ----------

@@ -34,6 +34,7 @@ _dtypes_args = {
     'graph_n_atombasis':            [utils.is_integer],
     'graph_n_interaction':          [utils.is_integer],
     'graph_activation_fn':          [utils.is_string, utils.is_callable],
+    'graph_stability_constant':     [utils.is_numeric],
     # Output module
     'output_model':                 [utils.is_callable],
     'output_type':                  [utils.is_string, utils.is_None],

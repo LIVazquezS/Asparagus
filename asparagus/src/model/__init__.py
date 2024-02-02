@@ -26,3 +26,7 @@ from .calculator import (
 from .physnet import (
     Calculator_PhysNet
 )
+
+from .painn import (
+    Calculator_PaiNN
+)

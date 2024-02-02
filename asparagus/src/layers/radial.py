@@ -194,12 +194,89 @@ class RBF_PhysNet_original(torch.nn.Module):
         return rbf
 
 
+class RBF_PaiNN(torch.nn.Module):
+    """
+    PaiNN type radial basis functions (RBFs).
+
+
+    Parameters
+    ----------
+    rbf_n_basis: int
+        Number of RBFs
+    rbf_cutoff_fn: object
+        Cutoff function
+    rbf_center_start: float
+        Initial lower RBF center range
+    rbf_center_end: float
+        Initial upper RBF center range
+    rbf_trainable: bool
+        Trainable RBF center positions
+
+    Returns
+    -------
+    object
+        Input model object to encode atomistic structural information
+
+    """
+
+    def __init__(
+        self,
+        rbf_n_basis: int,
+        rbf_cutoff_fn: object,
+        rbf_center_start: float,
+        rbf_center_end: float,
+        rbf_trainable: bool,
+        device: Optional[str] = 'cpu',
+        dtype: Optional[object] = torch.float64,
+    ):
+        """
+        NNP Input Module
+
+        """
+
+        super(RBF_PaiNN, self).__init__()
+
+        self.rbf_n_basis = rbf_n_basis
+        self.rbf_cutoff_fn = rbf_cutoff_fn
+        self.rbf_trainable = rbf_trainable
+
+        # Initialize RBF centers and widths
+        centers = torch.linspace(
+            rbf_center_start,
+            rbf_center_end,
+            rbf_n_basis,
+            device=device,
+            dtype=dtype)
+        widths = (
+            torch.abs(centers[1] - centers[0])
+            * torch.ones_like(centers, device=device, dtype=dtype))
+
+        if rbf_trainable:
+            self.centers = torch.nn.Parameter(centers)
+            self.widths = torch.nn.Parameter(widths)
+        else:
+            self.register_buffer("centers", centers)
+            self.register_buffer("widths", widths)
+
+    def forward(
+        self,
+        d: torch.Tensor
+    ) -> torch.Tensor:
+
+        cutoff = self.rbf_cutoff_fn(d)
+        rbfs = torch.exp(
+            -0.5*((torch.unsqueeze(d, -1) - self.centers)/self.widths)**2)
+
+        return rbfs, cutoff
+
+
 #======================================
 # Function assignment
 #======================================
 
 functions_avaiable = {
     'RBF_PhysNet'.lower(): RBF_PhysNet,
+    'RBF_PaiNN'.lower(): RBF_PaiNN,
     'RBF_PhysNet_original'.lower(): RBF_PhysNet_original,
     }
 

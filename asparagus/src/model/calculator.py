@@ -9,6 +9,7 @@ from .. import settings
 from .. import utils
 
 from .physnet import Calculator_PhysNet
+from .painn import Calculator_PaiNN
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ __all__ = ['get_calculator']
 calculator_avaiable = {
     'PhysNet'.lower(): Calculator_PhysNet,
     'PhysNet_original'.lower(): Calculator_PhysNet,
+    'PaiNN'.lower(): Calculator_PaiNN,
     }
 
 def get_calculator(

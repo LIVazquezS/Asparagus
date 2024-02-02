@@ -12,18 +12,21 @@ _default_calculator_model = 'PhysNet'
 _available_input_model = {
     'PhysNet':                      'PhysNetRBF',
     'PhysNet_original':             'PhysNetRBF_original',
+    'PaiNN':                        'PaiNNRBF',
     }
 
 # Available graph model of respective 'model_type'
 _available_graph_model = {
     'PhysNet':                      'PhysNetMP',
     'PhysNet_original':             'PhysNetMP',
+    'PaiNN':                        'PaiNNMP',
     }
 
 # Available output model of respective 'model_type'
 _available_output_model = {
     'PhysNet':                      'PhysNetOut',
     'PhysNet_original':             'PhysNetOut',
+    'PaiNN':                        'PaiNNOut',
     }
 
 # ======================================
@@ -35,11 +38,11 @@ _default_args = {
     'config':                       {},
     'config_file':                  'config.json',
     # Model
+    'model_type':                   None,
     'model_directory':              None,
     'model_restart':                False,
     'model_calculator':             None,
     'model_num_threads':            None,
-    'model_type':                   None,
     'model_path':                   'best_model',
     'model_properties':             ['energy', 'forces'],
     'model_unit_properties':        None,
@@ -73,6 +76,7 @@ _default_args = {
     'graph_n_residual_interaction': 3,
     'graph_n_residual_atomic':      2,
     'graph_activation_fn':          None,
+    'graph_stability_constant':     1.e-8,
     # Output module
     'output_calculator':            None,
     'output_type':                  None,

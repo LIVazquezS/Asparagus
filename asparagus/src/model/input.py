@@ -420,6 +420,200 @@ class Input_PhysNetRBF_original(torch.nn.Module):
             }
 
 
+class Input_PaiNNRBF(torch.nn.Module):
+    """
+    PaiNN Gaussian RBF input model class
+
+
+    Parameters
+    ----------
+
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    input_n_atombasis: int
+        Number of atom property features (atomic feature vector lengths)
+    input_n_radialbasis: int
+        Number of structural fingerprint features
+    input_cutoff_descriptor: float
+        Upper cutoff atom distance for including atom environment
+    input_cutoff_fn: class object
+        Cutoff function class for weighting atom environment
+    input_rbf_center_start: float
+        Initial shortest center of radial basis functions
+    input_rbf_center_end: float
+        Initial largest center of radial basis functions
+    input_rbf_trainable: bool
+        If True, radial basis function parameter such as center and width
+        are optimized during training. If False, radial basis function
+        parameter are fixed.
+    input_n_maxatom: int
+        Highest atom order number to initialize isolated atom feature
+        vector library
+    input_atom_features_range: float
+        Range for uniform distribution of initial random atom feature
+        vector library
+    **kwargs: dict, optional
+        Additional arguments for parameter initialization
+
+    Returns
+    -------
+    callable object
+        PaiNN RBF input model object
+    """
+
+    def __init__(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        input_n_atombasis: Optional[int] = None,
+        input_n_radialbasis: Optional[int] = None,
+        input_cutoff_descriptor: Optional[float] = None,
+        input_cutoff_fn: Optional[Union[str, object]] = None,
+        input_rbf_center_start: Optional[float] = None,
+        input_rbf_center_end: Optional[float] = None,
+        input_rbf_trainable: Optional[bool] = None,
+        input_n_maxatom: Optional[int] = None,
+        input_atom_features_range: Optional[float] = None,
+        **kwargs
+    ):
+        """
+        Initialize PaiNN input model.
+
+        """
+
+        super(Input_PaiNNRBF, self).__init__()
+        
+        # Get configuration object
+        config = settings.get_config(config)
+
+        # Check input parameter, set default values if necessary and
+        # update the configuration dictionary
+        config_update = {}
+        for arg, item in locals().items():
+
+            # Skip 'config' argument and possibly more
+            if arg in [
+                    'self', 'config', 'config_update', 'kwargs', '__class__']:
+                continue
+
+            # Take argument from global configuration dictionary if not defined
+            # directly
+            if item is None:
+                item = config.get(arg)
+
+            # Set default value if the argument is not defined (None)
+            if arg in settings._default_args.keys() and item is None:
+                item = settings._default_args[arg]
+
+            # Check datatype of defined arguments
+            if arg in settings._dtypes_args.keys():
+                match = utils.check_input_dtype(
+                    arg, item, settings._dtypes_args, raise_error=True)
+
+            # Append to update dictionary
+            config_update[arg] = item
+
+            # Assign as class parameter
+            setattr(self, arg, item)
+            
+        # Update global configuration dictionary
+        config.update(config_update)
+
+        # Input class type
+        self.input_type = 'RBF_PaiNN'
+        
+        # Assign global arguments
+        self.dtype = settings._global_dtype
+        self.device = settings._global_device
+        
+        # Initialize cutoff function
+        self.input_cutoff_fn = layers.get_cutoff_fn(self.input_cutoff_fn)(
+            self.input_cutoff_descriptor)
+        
+        # Initialize Atomic feature vectors
+        self.atom_features = torch.nn.Parameter(
+            torch.empty(
+                self.input_n_maxatom + 1, self.input_n_atombasis, 
+                dtype=self.dtype,
+                device=self.device
+                ).uniform_(
+                    -self.input_atom_features_range, 
+                    self.input_atom_features_range)
+            )
+
+        # Get upper RBF center range
+        if self.input_rbf_center_end is None:
+            self.input_rbf_center_end = self.input_cutoff_descriptor
+        
+        # Radial basis function
+        radial_fn = layers.get_radial_fn(self.input_type)
+        self.input_radial_fn = radial_fn(
+            self.input_n_radialbasis, self.input_cutoff_fn, 
+            self.input_rbf_center_start, self.input_rbf_center_end,
+            self.input_rbf_trainable, device=self.device, dtype=self.dtype)
+
+    def forward(
+        self, 
+        atomic_numbers: torch.Tensor,
+        positions: torch.Tensor,
+        idx_i: torch.Tensor,
+        idx_j: torch.Tensor,
+        pbc_offset: Optional[torch.Tensor] = None,
+    ) -> List[torch.Tensor]:
+
+        '''
+
+        Forward pass of the input model.
+
+        Parameters
+        ----------
+        atomic_numbers : torch.Tensor
+            Atomic numbers of the system
+        positions : torch.Tensor
+            Atomic positions of the system
+        idx_i : torch.Tensor
+            Index of atom i
+        idx_j : torch.Tensor
+            Index of atom j
+        pbc_offset : torch.Tensor, optional
+            Periodic boundary condition offset
+
+        Returns
+        -------
+
+        '''
+        
+        # Collect atom feature vectors
+        features = self.atom_features[atomic_numbers]
+        
+        # Compute pair connection vector
+        if pbc_offset is None:
+            vectors = positions[idx_j] - positions[idx_i]
+        else:
+            vectors = positions[idx_j] - positions[idx_i] + pbc_offset
+
+        # Compute pair distances
+        distances = torch.norm(vectors, dim=-1)
+        
+        # Compute radial basis functions
+        rbfs, cutoff = self.input_radial_fn(distances)
+        
+        return features, rbfs, distances, vectors, cutoff
+        
+        
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Return class information
+        """
+        
+        return {
+            'input_type': self.input_type,
+            'input_n_atombasis': self.input_n_atombasis,
+            'input_n_radialbasis': self.input_n_radialbasis,
+            'input_cutoff_descriptor': self.input_cutoff_descriptor,
+            }
+
+
 # ======================================
 #  Input Model Assignment
 # ======================================
@@ -427,6 +621,7 @@ class Input_PhysNetRBF_original(torch.nn.Module):
 input_model_available = {
     'PhysNetRBF'.lower(): Input_PhysNetRBF,
     'PhysNetRBF_original'.lower(): Input_PhysNetRBF_original,
+    'PaiNNRBF'.lower(): Input_PaiNNRBF,
     }
 
 def get_input_model(
@@ -507,7 +702,7 @@ def get_input_model(
             **kwargs)
     else:
         raise ValueError(
-            f"Input model type input '{input_type:s}' is not valid!" +
+            f"Input model type input '{input_type:s}' is not valid!\n" +
             "Choose from:\n" + str(input_model_available.keys()))
     
     return

@@ -19,7 +19,11 @@ from .radial import (
 )
 
 from .physnet_module import (
-    InteractionBlock, OutputBlock, ResidualLayer
+    InteractionBlock, OutputBlock, ResidualLayer, DenseLayer
+)
+
+from .painn_module import (
+    PaiNNInteraction, PaiNNMixing
 )
 
 from .electrostatics import (

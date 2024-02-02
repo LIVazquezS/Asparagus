@@ -246,7 +246,7 @@ else:
 
 if True:
     
-    timestep = 0.0005   # 0.5 fs
+    timestep = 0.00025   # 0.25 fs
 
     res_file = pycharmm.CharmmFile(
         file_name='charmm_data/heat.res', file_unit=2, 
@@ -267,7 +267,7 @@ if True:
         'nstep': 10.*1./timestep,
         'nsavc': 0.01*1./timestep,
         'nsavv': 0,
-        'inbfrq': 10,
+        'inbfrq': -1,
         'ihbfrq': 50,
         'ilbfrq': 50,
         'imgfrq': 50,
@@ -301,7 +301,7 @@ if True:
     res_file.close()
     dcd_file.close()
 
-# Step 5: NVE - CHARMM, PhysNet
+# Step 6: NVE - CHARMM, PhysNet
 #-----------------------------------------------------------
 
 if True:
@@ -329,9 +329,9 @@ if True:
         'start': False,
         'restart': True,
         'nstep': 50.*1./timestep,
-        'nsavc': 0.001*1./timestep,
+        'nsavc': 0.01*1./timestep,
         'nsavv': 0,
-        'inbfrq': 10,
+        'inbfrq': -1,
         'ihbfrq': 50,
         'ilbfrq': 50,
         'imgfrq': 50,
@@ -343,7 +343,7 @@ if True:
         'iunldm':-1,
         'ilap': -1,
         'ilaf': -1,
-        'nprint': 1, # Frequency to write to output
+        'nprint': 100, # Frequency to write to output
         'iprfrq': 500, # Frequency to calculate averages
         'isvfrq': 1000, # Frequency to save restart file
         'ntrfrq': 0,
@@ -365,3 +365,165 @@ if True:
     str_file.close()
     res_file.close()
     dcd_file.close()
+
+# Step 7: Equilibration - CHARMM, PhysNet
+#-----------------------------------------------------------
+
+if True:
+        
+    timestep = 0.00025   # 0.25 fs
+    
+    pmass = int(np.sum(select.get_property('mass'))/50.0)
+    tmass = int(pmass*10)
+
+    str_file = pycharmm.CharmmFile(
+        file_name='charmm_data/heat.res', file_unit=3, 
+        formatted=True, read_only=False)
+    res_file = pycharmm.CharmmFile(
+        file_name='charmm_data/equi.res', file_unit=2, 
+        formatted=True, read_only=False)
+    dcd_file = pycharmm.CharmmFile(
+        file_name='charmm_data/equi.dcd', file_unit=1, 
+        formatted=False, read_only=False)
+
+    # Run some dynamics
+    dynamics_dict = {
+        'leap': True,
+        'verlet': False,
+        'cpt': True,
+        'new': False,
+        'langevin': False,
+        'timestep': timestep,
+        'start': False,
+        'restart': True,
+        'nstep': 50.*1./timestep,
+        'nsavc': 0.01*1./timestep,
+        'nsavv': 0,
+        'inbfrq': -1,
+        'ihbfrq': 50,
+        'ilbfrq': 50,
+        'imgfrq': 50,
+        'ixtfrq': 1000,
+        'iunrea': str_file.file_unit,
+        'iunwri': res_file.file_unit,
+        'iuncrd': dcd_file.file_unit,
+        'nsavl':  0,  # frequency for saving lambda values in lamda-dynamics
+        'iunldm':-1,
+        'ilap': -1,
+        'ilaf': -1,
+        'nprint': 100, # Frequency to write to output
+        'iprfrq': 500, # Frequency to calculate averages
+        'isvfrq': 1000, # Frequency to save restart file
+        'ntrfrq': 1000,
+        'ihtfrq': 200,
+        'ieqfrq': 0,
+        'firstt': 300,
+        'finalt': 300,
+        'tbath': 300,
+        'pint pconst pref': 1,
+        'pgamma': 5,
+        'pmass': pmass,
+        'hoover reft': 300,
+        'tmass': tmass,
+        'iasors': 0,
+        'iasvel': 1,
+        'ichecw': 0,
+        'iscale': 0,  # scale velocities on a restart
+        'scale': 1,  # scaling factor for velocity scaling
+        'echeck':-1}
+
+    dyn_equi = pycharmm.DynamicsScript(**dynamics_dict)
+    dyn_equi.run()
+    
+    str_file.close()
+    res_file.close()
+    dcd_file.close()
+
+# Step 6: Production - CHARMM, PhysNet
+#-----------------------------------------------------------
+
+if True:
+    
+    timestep = 0.00025   # 0.25 fs
+
+    pmass = int(np.sum(select.get_property('mass'))/50.0)
+    tmass = int(pmass*10)
+
+    for ii in range(0, 10):
+        
+        if ii==0:
+
+            str_file = pycharmm.CharmmFile(
+                file_name='charmm_data/equi.res', 
+                file_unit=3, formatted=True, read_only=False)
+            res_file = pycharmm.CharmmFile(
+                file_name='charmm_data/dyna.{:d}.res'.format(ii), 
+                file_unit=2, formatted=True, read_only=False)
+            dcd_file = pycharmm.CharmmFile(
+                file_name='charmm_data/dyna.{:d}.dcd'.format(ii), 
+                file_unit=1, formatted=False, read_only=False)
+            
+        else:
+            
+            str_file = pycharmm.CharmmFile(
+                file_name='charmm_data/dyna.{:d}.res'.format(ii - 1), 
+                file_unit=3, formatted=True, read_only=False)
+            res_file = pycharmm.CharmmFile(
+                file_name='charmm_data/dyna.{:d}.res'.format(ii), 
+                file_unit=2, formatted=True, read_only=False)
+            dcd_file = pycharmm.CharmmFile(
+                file_name='charmm_data/dyna.{:d}.dcd'.format(ii), 
+                file_unit=1, formatted=False, read_only=False)
+
+        # Run some dynamics
+        dynamics_dict = {
+            'leap': True,
+            'verlet': False,
+            'cpt': True,
+            'new': False,
+            'langevin': False,
+            'timestep': timestep,
+            'start': False,
+            'restart': True,
+            'nstep': 100.0*1./timestep,
+            'nsavc': 0.01*1./timestep,
+            'nsavv': 0,
+            'inbfrq': -1,
+            'ihbfrq': 50,
+            'ilbfrq': 50,
+            'imgfrq': 50,
+            'ixtfrq': 1000,
+            'iunrea': str_file.file_unit,
+            'iunwri': res_file.file_unit,
+            'iuncrd': dcd_file.file_unit,
+            'nsavl':  0,  # frequency for saving lambda values in lamda-dynamics
+            'iunldm':-1,
+            'ilap': -1,
+            'ilaf': -1,
+            'nprint': 100, # Frequency to write to output
+            'iprfrq': 500, # Frequency to calculate averages
+            'isvfrq': 1000, # Frequency to save restart file
+            'ntrfrq': 1000,
+            'ihtfrq': 0,
+            'ieqfrq': 0,
+            'firstt': 300,
+            'finalt': 300,
+            'tbath': 300,
+            'pint pconst pref': 1,
+            'pgamma': 5,
+            'pmass': pmass,
+            'hoover reft': 300,
+            'tmass': tmass,
+            'iasors': 0,
+            'iasvel': 1,
+            'ichecw': 0,
+            'iscale': 0,  # scale velocities on a restart
+            'scale': 1,  # scaling factor for velocity scaling
+            'echeck':-1}
+
+        dyn_prod = pycharmm.DynamicsScript(**dynamics_dict)
+        dyn_prod.run()
+        
+        str_file.close()
+        res_file.close()
+        dcd_file.close()

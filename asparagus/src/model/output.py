@@ -56,7 +56,7 @@ class Output_PhysNet(torch.nn.Module):
         **kwargs
     ):
         """
-        Initialize NNP output model.
+        Initialize PhysNet output model.
 
         """
 
@@ -282,14 +282,19 @@ class Output_PhysNet(torch.nn.Module):
                 else:
                     output_prediction[prop] = prediction
                 
-                prediction2 = prediction**2
-                if iblock:
-                    nhloss = nhloss + torch.mean(
-                        prediction2/(prediction2 + last_prediction2 + 1.0e-7))
-                last_prediction2 = prediction2
+                # If training mode is active, compute nhloss contribution
+                if self.training:
+                    prediction2 = prediction**2
+                    if iblock:
+                        nhloss = nhloss + torch.mean(
+                            prediction2
+                            / (prediction2 + last_prediction2 + 1.0e-7)
+                            )
+                    last_prediction2 = prediction2
             
-            # Save nhloss
-            output_prediction['nhloss'] = nhloss
+            # Save nhloss if training mode is active
+            if self.training:
+                output_prediction['nhloss'] = nhloss
             
             # Flatten prediction for scalar properties
             if self.output_property_num[prop] == 1:
@@ -318,12 +323,208 @@ class Output_PhysNet(torch.nn.Module):
             }
 
 
+class Output_PaiNN(torch.nn.Module): 
+    """
+    PaiNN Output model
+
+
+    Parameters
+    ----------
+    config: (str, dict, object)
+        Either the path to json file (str), dictionary (dict) or
+        settings.config class object of model parameters
+    output_n_residual: int, optional, default 1
+        Number of residual layers for message refinement
+    output_properties: list(str), optional '['energy', 'forces']'
+        List of output properties to compute by the model
+        e.g. ['energy', 'forces', 'atomic_charges']
+    output_activation_fn: (str, object), optional, default 'shifted_softplus'
+        Activation function
+    **kwargs: dict, optional
+        Additional arguments
+
+    Returns
+    -------
+    callable object
+        PaiNN Output model object
+
+    """
+
+    def __init__(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        output_n_residual: Optional[int] = None,
+        output_properties: Optional[List[str]] = None,
+        output_block_options: Optional[Dict[str, Any]] = None,
+        output_activation_fn: Optional[Union[str, object]] = None,
+        **kwargs
+    ):
+        """
+        Initialize PaiNN output model.
+
+        """
+        
+        super().__init__()
+
+        # Check input parameter, set default values if necessary and
+        # update the configuration dictionary
+        config_update = {}
+        for arg, item in locals().items():
+
+            # Skip 'config' argument and possibly more
+            if arg in [
+                    'self', 'config', 'config_update', 'kwargs', '__class__']:
+                continue
+
+            # Take argument from global configuration dictionary if not defined
+            # directly
+            if item is None:
+                item = config.get(arg)
+
+            # Set default value if the argument is not defined (None)
+            if arg in settings._default_args.keys() and item is None:
+                item = settings._default_args[arg]
+
+            # Check datatype of defined arguments
+            if arg in settings._dtypes_args.keys():
+                match = utils.check_input_dtype(
+                    arg, item, settings._dtypes_args, raise_error=True)
+
+            # Append to update dictionary
+            config_update[arg] = item
+
+            # Assign as class parameter
+            setattr(self, arg, item)
+
+        # Update global configuration dictionary
+        config.update(config_update)
+
+        # Graph class type
+        self.output_type = 'PaiNNOut'
+
+        # Initialize activation function
+        self.output_activation_fn = layers.get_activation_fn(
+            self.output_activation_fn)
+
+        # Assign global arguments
+        self.dtype = settings._global_dtype
+        self.device = settings._global_device
+
+        # Get output model interface parameters 
+        self.input_n_atombasis = config.get('input_n_atombasis')
+        self.model_properties = config.get('model_properties')
+        
+        # Assign graph model training parameters
+        self.rate = settings._global_rate
+
+        # Update 'output_properties' with 'model_properties'
+        for prop in self.model_properties:
+            if prop not in self.output_properties:
+                self.output_properties.append(prop)
+
+        # Collect output block properties
+        self.output_block_options = settings._default_output_block_properties
+        self.output_block_options.update(output_block_options)
+
+        # Initialize output block dictionary for properties
+        self.output_block_dict = torch.nn.ModuleDict({})
+        
+        # Create output layer for properties with certain exceptions
+        for prop in self.output_properties:
+            
+            # No output_block for derivatives of properties such as atom 
+            # forces, Hessian or molecular dipole
+            if prop in ['forces', 'hessian', 'dipole']:
+                continue
+            
+            # Initialize output block
+            self.output_block_dict[prop] = self.create_output_block(
+                self.input_n_atombasis,
+                self.output_block_options['n_outputneurons'],
+                self.output_block_options['n_hiddenlayers'],
+                n_hiddenneurons=self.output_block_options['n_hiddenneurons'],
+                activation_fn=self.activation_fn,
+                output_bias=self.output_block_options['output_bias'],
+                output_init_zero=self.output_block_options['output_init_zero'],
+                device=self.device,
+                dtype=self.dtype,
+                )
+            
+            
+    def create_output_block(
+        self,
+        n_inputneurons: int,
+        n_outputneurons: int,
+        n_hiddenlayers: int,
+        n_hiddenneurons: Optional[Union[int, List[int]]] = None,
+        activation_fn: Optional[object] = None,
+        output_bias: Optional[bool] = True,
+        output_init_zero: Optional[bool] = False,
+        device: Optional[str] = 'cpu',
+        dtype: Optional[object] = torch.float64,
+    ):
+        
+        # Check hidden layer neuron option
+        if n_hiddenlayers:
+            if n_hiddenneurons is None:
+                # Half number of hidden layer neurons with each layer
+                n_neurons = n_inputneurons
+                n_hiddenneurons = [n_inputneurons]
+                for ii in range(n_hiddenlayers):
+                    n_neurons = max(n_outputneurons, n_neurons//2)
+                    n_hiddenneurons.append(n_neurons)
+            elif utils.is_integer(n_hiddenneurons):
+                n_hiddenneurons = (
+                    [n_inputneurons] + [n_hiddenneurons]*(n_hiddenlayers))
+        else:
+            # If no hidden layer, set hidden neurons to property neuron number
+            n_hiddenneurons = [n_inputneurons]
+
+        # Initialize output module
+        output_block = torch.nn.Sequential(
+            layers.DenseLayer(
+                Nin=n_inputneurons, 
+                Nout=n_hiddenneurons[0],
+                activation_fn=activation_fn,
+                device=device,
+                dtype=dtype
+                ),
+            )
+        
+        # Append hidden layers
+        for ii in range(n_hiddenlayers):
+            output_block.append(
+                layers.DenseLayer(
+                    Nin=n_hiddenneurons[ii], 
+                    Nout=n_hiddenneurons[ii + 1],
+                    activation_fn=activation_fn,
+                    device=device,
+                    dtype=dtype
+                    ),
+                )
+        
+        # Append output layer
+        output_block.append(
+            layers.DenseLayer(
+                Nin=n_hiddenneurons[-1], 
+                Nout=n_outputneurons,
+                activation_fn=None,
+                bias=output_bias,
+                W_init=output_init_zero,
+                device=device,
+                dtype=dtype
+                ),
+            )
+
+        return output_block
+
 #======================================
 # Output Model Assignment  
 #======================================
 
 output_model_available = {
     'PhysNetOut'.lower(): Output_PhysNet,
+    'PaiNNOut'.lower(): Output_PaiNN,
     }
 
 def get_output_model(
@@ -403,7 +604,7 @@ def get_output_model(
             **kwargs)
     else:
         raise ValueError(
-            f"Output model type output '{output_type:s}' is not valid!" +
+            f"Output model type output '{output_type:s}' is not valid!\n" +
             "Choose from:\n" + str(output_model_available.keys()))
     
     return

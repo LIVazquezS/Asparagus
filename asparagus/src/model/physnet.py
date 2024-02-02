@@ -219,8 +219,9 @@ class Calculator_PhysNet(torch.nn.Module):
                 self.config,
                 **kwargs)
 
-        # Get length of atomic feature vector
-        self.input_n_atombasis = self.config.get('input_n_atombasis')
+        # Get number of atomic feature vectors for scaling properties 
+        # and descriptor cutoff for electrostatic model
+        self.input_n_maxatom = self.config.get('input_n_maxatom')
         self.input_cutoff_descriptor = self.config.get(
             'input_cutoff_descriptor')
 
@@ -325,7 +326,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         2
                         ).clone()
                     )
@@ -342,7 +343,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         len(model_properties_scaling['atomic_energies'])
                         ).clone()
                     )
@@ -359,7 +360,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         len(model_properties_scaling['energy'])
                         ).clone()
                     )
@@ -370,7 +371,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         2
                         ).clone()
                     )
@@ -383,7 +384,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         2
                         ).clone()
                     )
@@ -400,7 +401,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         len(model_properties_scaling['atomic_charges'])
                         ).clone()
                     )
@@ -411,7 +412,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     dtype=self.dtype,
                     device=self.device
                     ).expand(
-                        self.input_n_atombasis,
+                        self.input_n_maxatom,
                         2
                         ).clone()
                     )
@@ -435,7 +436,7 @@ class Calculator_PhysNet(torch.nn.Module):
                     torch.tensor(
                         [factor*item[0], item[1]],
                         dtype=self.dtype, device=self.device
-                        ).expand(self.input_n_atombasis, len(item)))
+                        ).expand(self.input_n_maxatom, len(item)))
 
         # Convert model scaling to torch dictionary
         self.model_scaling = torch.nn.ParameterDict(model_scaling)
@@ -553,10 +554,10 @@ class Calculator_PhysNet(torch.nn.Module):
         charge = batch['charge']
         idx_seg = batch['atoms_seg']
         
-        # PBC options
+        # PBC: Offset method
         pbc_offset = batch.get('pbc_offset')
         
-        # PyCHARMM Options
+        # PBC: Supercluster method
         atom_indices = batch.get('atom_indices')
         idx_jp = batch.get('idx_jp')
         idx_p = batch.get('idx_p')
