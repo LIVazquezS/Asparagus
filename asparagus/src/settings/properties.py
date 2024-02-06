@@ -65,10 +65,10 @@ _default_units = {
 # Default output block options for properties
 _default_output_block_options = {
     'energy':           {
-        'mode_aggregation': ['sum', 'atomic_energies'],
+        'aggregation':      ['sum', 'atomic_energies'],
         },
     'atomic_energies':      {
-        'mode_aggregation': None,
+        'aggregation':      None,
         'n_outputneurons':  1,
         'n_hiddenlayers':   2,
         'n_hiddenneurons':  None,

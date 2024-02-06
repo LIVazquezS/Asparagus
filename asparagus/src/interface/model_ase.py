@@ -250,6 +250,11 @@ class ASE_Calculator(ase_calc.Calculator):
                 self_interaction=False)
             atoms_batch['idx_i'] = torch.tensor(idx_i, dtype=torch.int64)
             atoms_batch['idx_j'] = torch.tensor(idx_j, dtype=torch.int64)
+            pbc_offset = np.sum(
+                (pbc_offset.reshape(-1, 3, 1)
+                    *self.atoms.get_cell().reshape(1, 3, 3)
+                ),
+                axis=-1)
             atoms_batch['pbc_offset'] = torch.tensor(
                 pbc_offset, dtype=torch.float64)
         else:
@@ -348,6 +353,11 @@ class ASE_Calculator(ase_calc.Calculator):
                     self_interaction=False)
                 atoms_idx_i = torch.tensor(atoms_idx_i, dtype=torch.int64)
                 atoms_idx_j = torch.tensor(atoms_idx_j, dtype=torch.int64)
+                atoms_pbc_offset = np.sum(
+                    (atoms_pbc_offset.reshape(-1, 3, 1)
+                        * atoms.get_cell().reshape(1, 3, 3)
+                    ),
+                    axis=-1)
                 atoms_pbc_offset = torch.tensor(
                     atoms_pbc_offset, dtype=torch.float64)
             else:
