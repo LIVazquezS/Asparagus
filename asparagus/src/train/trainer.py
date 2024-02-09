@@ -718,6 +718,8 @@ class Trainer:
 
         Returns
         -------
+        dict(str, torch.Tensor)
+            Model Calculator prediction of properties
 
         """
 

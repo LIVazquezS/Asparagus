@@ -222,6 +222,9 @@ class Calculator_PhysNet(torch.nn.Module):
         # Get number of atomic feature vectors for scaling properties 
         # and descriptor cutoff for electrostatic model
         self.input_n_maxatom = self.config.get('input_n_maxatom')
+        # TODO This is wrong assignment but changing it makes previously
+        # Adopted model unusuable
+        self.input_n_maxatom = self.config.get('input_n_atombasis') 
         self.input_cutoff_descriptor = self.config.get(
             'input_cutoff_descriptor')
 
@@ -538,7 +541,6 @@ class Calculator_PhysNet(torch.nn.Module):
                     Segment indices of atoms in batch
                 'charge': torch.Tensor, shape(B)
                     Total charge of molecules in batch
-
 
         Returns
         -------

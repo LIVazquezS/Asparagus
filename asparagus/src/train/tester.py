@@ -660,7 +660,6 @@ class Tester:
         ----------
         metrics: dict
             Dictionary of the metrics to update.
-
         metrics_update:
             Dictionary of the metrics to update with.
         test_properties:

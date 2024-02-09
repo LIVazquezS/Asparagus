@@ -133,7 +133,7 @@ class Input_PhysNetRBF(torch.nn.Module):
         # Initialize Atomic feature vectors up to Plutonium (Pu95)
         self.atom_features = torch.nn.Parameter(
             torch.empty(
-                self.input_n_maxatom + 1, self.input_n_atombasis, 
+                self.input_n_maxatom + 1, self.input_n_atombasis,
                 dtype=self.dtype,
                 device=self.device
                 ).uniform_(

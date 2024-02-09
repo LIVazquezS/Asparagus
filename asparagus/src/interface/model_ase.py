@@ -246,7 +246,7 @@ class ASE_Calculator(ase_calc.Calculator):
             idx_i, idx_j, pbc_offset = neighbor_list(
                 'ijS',
                 self.atoms,
-                self.interaction_cutoff,
+                100.0,
                 self_interaction=False)
             atoms_batch['idx_i'] = torch.tensor(idx_i, dtype=torch.int64)
             atoms_batch['idx_j'] = torch.tensor(idx_j, dtype=torch.int64)
