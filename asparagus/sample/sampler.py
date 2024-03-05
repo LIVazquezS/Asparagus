@@ -62,6 +62,11 @@ class Sampler:
         In case of string type input for 'sample_calculator', this
         dictionary is passed as keyword arguments at the initialization
         of the ASE calculator.
+    sample_num_threads: int, optional, default 1
+        Number of parallel threads of property calculation using the sample
+        calculator. Default is 1 (serial computation). Parallel computation
+        is not possible for all sampling methods but for:
+            Sampler, NMSampler, NMScanner
     sample_properties: List[str], optional, default None
         List of system properties which are computed by the ASE
         calculator class. Requested properties will be checked with the
@@ -96,6 +101,8 @@ class Sampler:
         'sample_systems_format':        None,
         'sample_calculator':            'XTB',
         'sample_calculator_args':       {},
+        'sample_save_trajectory':       False,
+        'sample_num_threads':           1,
         'sample_properties':            ['energy', 'forces', 'dipole'],
         'sample_systems_optimize':      False,
         'sample_systems_optimize_fmax': 0.001,
@@ -117,6 +124,8 @@ class Sampler:
         'sample_calculator':            [utils.is_string, 
                                          utils.is_object],
         'sample_calculator_args':       [utils.is_dictionary],
+        'sample_save_trajectory':       [utils.is_bool],
+        'sample_num_threads':           [utils.is_integer],
         'sample_properties':            [utils.is_string, 
                                          utils.is_string_array],
         'sample_systems_optimize':      [utils.is_bool, 
@@ -137,6 +146,8 @@ class Sampler:
         sample_systems_format: Optional[Union[str, List[str]]] = None,
         sample_calculator: Optional[Union[str, object]] = None,
         sample_calculator_args: Optional[Dict[str, Any]] = None,
+        sample_save_trajectory: Optional[bool] = None,
+        sample_num_threads: Optional[int] = None,
         sample_properties: Optional[List[str]] = None,
         sample_systems_optimize: Optional[bool] = None,
         sample_systems_optimize_fmax: Optional[float] = None,
@@ -203,7 +214,13 @@ class Sampler:
                 + f"'{type(self.sample_data_file)}'.")
         self.sample_data_file_format = sample_data_file_format
 
-        #self.sample_systems_atoms = self.read_systems()
+        # Define sample log file path and trajectory file
+        self.sample_log_file = os.path.join(
+            self.sample_directory,
+            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
+        self.sample_trajectory_file = os.path.join(
+            self.sample_directory, 
+            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
 
         #####################################
         # # # Prepare Sample Calculator # # #
@@ -299,53 +316,6 @@ class Sampler:
                         break
                     else:
                         isys += 1
-
-    def read_systems(self):
-        """
-        Read sample system files and return list of respective
-        ASE atoms objects
-        """
-
-        # Prepare system structure input by converting to matching lists
-        if utils.is_string(self.sample_systems):
-            self.sample_systems = [self.sample_systems]
-        elif utils.is_ase_atoms(self.sample_systems):
-            self.sample_systems = [self.sample_systems]
-
-        if self.sample_systems_format is None:
-            self.sample_systems_format = [None]*len(self.sample_systems)
-        elif utils.is_string(self.sample_systems_format):
-            self.sample_systems_format = (
-                [self.sample_systems_format]*len(self.sample_systems))
-        elif len(self.sample_systems) != len(self.sample_systems_format):
-            raise ValueError(
-                "Sample system input 'sample_systems' and "
-                + "'sample_systems_format' have different input size of "
-                + f"{len(self.sample_systems):d} and "
-                + f"{len(self.sample_systems_format):d}, respectively.")
-
-        # Iterate over system input and eventually read file to store as
-        # ASE Atoms object
-        sample_systems_atoms = []
-        for system, system_format in zip(
-                self.sample_systems, self.sample_systems_format):
-
-            # Check for ASE Atoms object or read system file
-            if utils.is_ase_atoms(system):
-                sample_systems_atoms.append(system)
-            else:
-                isys=0
-                while True:
-                    try:
-                        sample_systems_atoms.append(
-                            ase.io.read(
-                                system, index=isys, format=system_format))
-                    except (StopIteration, AssertionError):
-                        break
-                    else:
-                        isys += 1
-        
-        return sample_systems_atoms
 
     def assign_calculator(
         self,
@@ -515,7 +485,10 @@ class Sampler:
             msg += f"'{self.sample_data_file:s}'.\n"
             logger.info(f"INFO:\n{msg:s}")
 
-    def run_system(self, system):
+    def run_system(
+        self, 
+        system: ase.Atoms, 
+        save_trajectory: Optional[bool] = False):
         """
         Apply sample calculator on system input and write properties to 
         database.
@@ -524,9 +497,17 @@ class Sampler:
         ----------
         system: ase.Atoms
             ASE Atoms object serving as initial frame
+        save_trajectory: bool, optional default 'False'
+            Save sample systems to trajectory file.
         """
         # Initialize stored sample counter
         self.Nsample = 0
+        
+        # Initialize trajectory
+        if save_trajectory:
+            self.sample_trajectory = Trajectory(
+                self.sample_trajectory_file, atoms=system,
+                mode='a', properties=self.sample_properties)
         
         # Compute system properties
         self.sample_calculator.calculate(
@@ -553,3 +534,13 @@ class Sampler:
         system_properties = self.get_properties(system)
         self.sample_dataset.add_atoms(system, system_properties)
         self.Nsample += 1
+
+    def write_trajectory(self, system):
+        """
+        Write current image to trajectory file but without constraints
+        """
+        
+        system_noconstraint = system.copy()
+        system_noconstraint.calc = system.calc
+        system_noconstraint.set_constraint()
+        self.sample_trajectory.write(system_noconstraint)

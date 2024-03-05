@@ -11,6 +11,7 @@ from ase.calculators.calculator import FileIOCalculator, Parameters, ReadError
 
 
 class ORCA_Dipole(FileIOCalculator):
+
     implemented_properties = ['energy', 'forces', 'dipole']
 
     if 'ORCA_COMMAND' in os.environ:

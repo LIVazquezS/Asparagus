@@ -167,19 +167,21 @@ class MCSampler(sample.Sampler):
         self.beta = 1.0 / (units.kB * self.mc_temperature)
 
         # Initialize trajectory
-        self.mc_trajectory = Trajectory(
-            self.mc_trajectory_file, atoms=system,
-            mode='a', properties=self.sample_properties)
+        if save_trajectory:
+            self.mc_trajectory = Trajectory(
+                self.sample_trajectory_file, atoms=system,
+                mode='a', properties=self.sample_properties)
         
         # Perform MC simulation
-        self.monte_carlo_steps(initial_system, self.mc_steps)
+        self.monte_carlo_steps(initial_system, self.mc_steps, save_trajectory)
         
         return self.Nsample
 
     def monte_carlo_steps(
         self,
         system,
-        steps
+        steps,
+        save_trajectory
     ):
         """
         This does a simple Monte Carlo simulation using the Metropolis
@@ -194,6 +196,8 @@ class MCSampler(sample.Sampler):
             System to be sampled.
         steps: int
             Number of MC steps to perform.
+        save_trajectory: bool
+            Save system steps in trajectory file
         """
     
         # Compute initial energy
@@ -232,7 +236,8 @@ class MCSampler(sample.Sampler):
                 # Store properties
                 if not Naccept%self.mc_save_interval:
                     self.save_properties(system)
-                    self.write_trajectory(system)
+                    if save_trajectory:
+                        self.write_trajectory(system)
             
             # If not accepted
             else:

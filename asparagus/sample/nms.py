@@ -127,14 +127,6 @@ class NormalModeScanner(sample.Sampler):
             check_dtype=utils.get_dtype_args(self, sample)
         )
 
-        # Define MD log and trajectory file path
-        self.nms_log_file = os.path.join(
-            self.sample_directory,
-            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
-        self.nms_trajectory_file = os.path.join(
-            self.sample_directory,
-            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
-
         # Check sample properties for energy property which is required for
         # normal mode scanning
         if 'energy' not in self.sample_properties:
@@ -215,7 +207,7 @@ class NormalModeScanner(sample.Sampler):
 
         # Attach to trajectory
         self.nms_trajectory = Trajectory(
-            self.nms_trajectory_file, atoms=system,
+            self.sample_trajectory_file, atoms=system,
             mode='a', properties=self.sample_properties)
         self.write_trajectory(system)
 
@@ -318,7 +310,7 @@ class NormalModeScanner(sample.Sampler):
                 msg += f"   x   ({system_com_shift[ivib]:2.1e})\n"
             else:
                 msg += f"       ({system_com_shift[ivib]:2.1e})\n"
-        with open(self.nms_log_file, 'a') as flog:
+        with open(self.sample_log_file, 'a') as flog:
             flog.write(msg)
 
         # Iterate over number of normal mode combinations
@@ -425,7 +417,7 @@ class NormalModeScanner(sample.Sampler):
                                 else:
                                     msg += f"-{imode + 1:d}, "
                             msg += f") - {istep:4d} steps added\n"
-                            with open(self.nms_log_file, 'a') as flog:
+                            with open(self.sample_log_file, 'a') as flog:
                                 flog.write(msg)
 
                             # Set flag in case maximum Nsteps is reached
@@ -531,14 +523,6 @@ class NormalModeSampler(sample.Sampler):
             check_default=utils.get_default_args(self, sample),
             check_dtype=utils.get_dtype_args(self, sample)
         )
-
-        # Define MD log and trajectory file path
-        self.nms_log_file = os.path.join(
-            self.sample_directory,
-            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
-        self.nms_trajectory_file = os.path.join(
-            self.sample_directory,
-            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
 
         # Check sample properties for energy and forces property which is 
         # required for normal mode scanning
@@ -675,7 +659,7 @@ class NormalModeSampler(sample.Sampler):
 
         # Attach to trajectory
         self.nms_trajectory = Trajectory(
-            self.nms_trajectory_file, atoms=system,
+            self.sample_trajectory_file, atoms=system,
             mode='a', properties=self.sample_properties)
         self.write_trajectory(system)
 

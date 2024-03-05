@@ -137,14 +137,6 @@ class MDSampler(sample.Sampler):
             check_dtype=utils.get_dtype_args(self, sample)
         )
 
-        # Define MD log and trajectory file path
-        self.md_log_file = os.path.join(
-            self.sample_directory, 
-            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
-        self.md_trajectory_file = os.path.join(
-            self.sample_directory, 
-            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
-        
         # Check sample properties for energy and forces properties which are 
         # required for MD sampling
         if 'energy' not in self.sample_properties:
@@ -203,7 +195,7 @@ class MDSampler(sample.Sampler):
             timestep=self.md_time_step*units.fs,
             temperature_K=self.md_temperature,
             friction=self.md_langevin_friction,
-            logfile=self.md_log_file,
+            logfile=self.sample_log_file,
             loginterval=self.md_save_interval)
         
         # Perform MD equilibration simulation if requested
@@ -225,7 +217,7 @@ class MDSampler(sample.Sampler):
 
         # Attach trajectory
         self.md_trajectory = Trajectory(
-            self.md_trajectory_file, atoms=system, 
+            self.sample_trajectory_file, atoms=system, 
             mode='a', properties=self.sample_properties)
         md_dyn.attach(
             self.write_trajectory, 

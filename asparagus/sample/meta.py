@@ -239,16 +239,10 @@ class MetaSampler(sample.Sampler):
                         f"Atom index {ii:d} in Hookean constraint number " +
                         f"{ihk:d} is not an integer but of type {type(idx)}!")
 
-        # Define log file paths
-        self.meta_simulation_log_file = os.path.join(
-            self.sample_directory, 
-            f'{self.sample_counter:d}_{self.sample_tag:s}_simulation.log')
+        # Define collective variable log file paths
         self.meta_gaussian_log_file = os.path.join(
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}_gaussian.log')
-        self.meta_trajectory_file = os.path.join(
-            self.sample_directory, 
-            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
         
         # Check sample properties for energy and forces properties which are 
         # required for Meta sampling
@@ -335,7 +329,7 @@ class MetaSampler(sample.Sampler):
             timestep=self.meta_time_step*units.fs,
             temperature_K=self.meta_temperature,
             friction=self.meta_langevin_friction,
-            logfile=self.meta_simulation_log_file,
+            logfile=self.sample_log_file,
             loginterval=self.meta_save_interval)
         
         # Attach system properties saving function
@@ -346,7 +340,7 @@ class MetaSampler(sample.Sampler):
         
         # Attach trajectory
         self.meta_trajectory = Trajectory(
-            self.meta_trajectory_file, atoms=system, 
+            self.sample_trajectory_file, atoms=system, 
             mode='a', properties=self.sample_properties)
         meta_dyn.attach(
             self.write_trajectory, 
