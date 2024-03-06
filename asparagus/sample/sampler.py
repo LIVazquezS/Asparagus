@@ -1,5 +1,7 @@
 import os
+import queue
 import logging
+import threading
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import numpy as np
@@ -19,6 +21,32 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['Sampler']
 
+# ======================================
+# Threadsafe Iterator Class
+# ======================================
+
+class threadsafe_iter:
+    """
+    Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    """
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            return self.it.__next__()
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    """
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+    return g
 
 # ======================================
 # General Conformation Sampler Class
@@ -47,6 +75,9 @@ class Sampler:
         Working directory where to store eventually temporary ASE
         calculator files, ASE trajectory files and/or model calculator
         files. If None, files will be stored in parent directory.
+    sample_system_queue: queue.Queue, optional, default None
+        Queue object including sample systems or where 'sample_systems' input
+        will be added. If not defined, an empty queue will be assigned.
     sample_systems: (str, list, object), optional, default ''
         System coordinate file or a list of system coordinate files or
         ASE atoms objects that are considered as initial conformations for
@@ -97,6 +128,7 @@ class Sampler:
         'sample_directory':             None,
         'sample_data_file':             None,
         'sample_data_file_format':      None,
+        'sample_systems_queue':         None,
         'sample_systems':               None,
         'sample_systems_format':        None,
         'sample_calculator':            'XTB',
@@ -115,11 +147,13 @@ class Sampler:
         'sample_directory':             [utils.is_string, utils.is_None],
         'sample_data_file':             [utils.is_string, utils.is_None],
         'sample_data_file_format':      [utils.is_string, utils.is_None],
-        'sample_systems':               [utils.is_string,
-                                        utils.is_string_array,
-                                        utils.is_ase_atoms,
-                                        utils.is_ase_atoms_array],
-        'sample_systems_format':        [utils.is_string, 
+        'sample_systems':               [utils.is_None,
+                                         utils.is_string,
+                                         utils.is_string_array,
+                                         utils.is_ase_atoms,
+                                         utils.is_ase_atoms_array],
+        'sample_systems_format':        [utils.is_None,
+                                         utils.is_string, 
                                          utils.is_string_array],
         'sample_calculator':            [utils.is_string, 
                                          utils.is_object],
@@ -142,6 +176,7 @@ class Sampler:
         sample_data_file: Optional[str] = None,
         sample_data_file_format: Optional[str] = None,
         sample_directory: Optional[str] = None,
+        sample_systems_queue: Optional[queue.Queue] = None,
         sample_systems: Optional[Union[str, List[str], object]] = None,
         sample_systems_format: Optional[Union[str, List[str]]] = None,
         sample_calculator: Optional[Union[str, object]] = None,
@@ -181,7 +216,7 @@ class Sampler:
         self.config = config
 
         # Check system input
-        if self.sample_systems is None:
+        if self.sample_systems is None and self.sample_systems_queue is None:
             logger.warning(
                 "WARNING:\nNo input in 'sample_systems' is given!\n"
                 + "Please provide either a chemical structure file or "
@@ -222,6 +257,14 @@ class Sampler:
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
 
+        # Read sample systems into queue
+        if self.sample_systems_queue is None:
+            self.sample_systems_queue = queue.Queue()
+        self.sample_systems_queue = self.read_systems(
+            self.sample_systems_queue,
+            self.sample_systems,
+            self.sample_systems_format)
+
         #####################################
         # # # Prepare Sample Calculator # # #
         #####################################
@@ -238,6 +281,13 @@ class Sampler:
 
         # Store calculator tag name
         self.sample_calculator_tag = self.sample_calculator_tag
+        
+        # Check number of calculation threads
+        if self.sample_num_threads <= 0:
+            raise ValueError(
+                "Number of sample threads 'sample_num_threads' must be "
+                + "larger or equal 1, but "
+                + f"'{self.sample_num_threads:d}' is given!")
 
         #############################
         # # # Prepare Optimizer # # #
@@ -274,48 +324,58 @@ class Sampler:
         """
         return "Sampler class"
 
-    def read_next_system(self):
+    def read_systems(
+        self,
+        sample_systems_queue,
+        sample_systems,
+        sample_systems_format
+    ):
         """
         Iterator to read next sample system and return as ASE atoms object
         """
-
-        # Prepare system structure input by converting to matching lists
-        if utils.is_string(self.sample_systems):
-            self.sample_systems = [self.sample_systems]
-        elif utils.is_ase_atoms(self.sample_systems):
-            self.sample_systems = [self.sample_systems]
-
-        if self.sample_systems_format is None:
-            self.sample_systems_format = [None]*len(self.sample_systems)
-        elif utils.is_string(self.sample_systems_format):
-            self.sample_systems_format = (
-                [self.sample_systems_format]*len(self.sample_systems))
-        elif len(self.sample_systems) != len(self.sample_systems_format):
+        
+        # Check system and format input
+        if sample_systems is None or not len(sample_systems):
+            return sample_systems_queue
+        
+        if not utils.is_array_like(sample_systems):
+            sample_systems = [sample_systems]
+        
+        if sample_systems_format is None:
+            sample_systems_format = [None]*len(sample_systems)
+        elif utils.is_string(sample_systems_format):
+            sample_systems_format = (
+                [sample_systems_format]*len(sample_systems))
+        elif len(sample_systems) != len(sample_systems_format):
             raise ValueError(
                 "Sample system input 'sample_systems' and "
                 + "'sample_systems_format' have different input size of "
-                + f"{len(self.sample_systems):d} and "
-                + f"{len(self.sample_systems_format):d}, respectively.")
+                + f"{len(sample_systems):d} and "
+                + f"{len(sample_systems_format):d}, respectively.")
 
         # Iterate over system input and eventually read file to store as
-        # ASE Atoms object
-        for system, system_format in zip(
-                self.sample_systems, self.sample_systems_format):
-
+        # (ASE Atoms object, index, sample source)
+        for source, source_format in zip(
+            sample_systems, sample_systems_format
+        ):
+            
             # Check for ASE Atoms object or read system file
-            if utils.is_ase_atoms(system):
-                yield (system, 1, system)
+            if utils.is_ase_atoms(source):
+                sample_systems_queue.put((source, 1, source))
             else:
-                isys=0
-                while True:
+                isys=1
+                complete = False
+                while not complete:
                     try:
-                        system_i = ase.io.read(
-                            system, index=isys, format=system_format)
-                        yield (system_i, isys + 1, system)
+                        system = ase.io.read(
+                            source, index=isys, format=source_format)
+                        sample_systems_queue.put((system, isys, source))
                     except (StopIteration, AssertionError):
-                        break
+                        complete = True
                     else:
                         isys += 1
+
+        return sample_systems_queue
 
     def assign_calculator(
         self,
@@ -457,10 +517,63 @@ class Sampler:
         ###############################
         # # # Perform MD Sampling # # #
         ###############################
+        
+        self.run_systems()
 
-        # Iterate over systems
-        for (system, isys, source) in self.read_next_system():
-            
+    def run_systems(self):
+        """
+        Iterate over systems using 'sample_num_threads' threads
+        """
+        
+        # Initialize thread continuation flag
+        # Currently all False, might become useful later for adaptive sampling
+        self.thread_keep_going = np.array(
+            [False for ithread in range(self.sample_num_threads)],
+            dtype=bool
+            )
+
+        # Create threads
+        threads = [
+            threading.Thread(
+                target=self.run_system, 
+                args=(self.sample_systems_queue, ithread)
+                )
+            for ithread in range(self.sample_num_threads)]
+
+        # Start threads
+        for thread in threads:
+            thread.start()
+
+        # Wait for threads to finish
+        for thread in threads:
+            thread.join()
+        
+    def run_system(
+        self, 
+        sample_systems_queue: queue.Queue,
+        ithread: int,
+    ):
+        """
+        Apply sample calculator on system input and write properties to 
+        database.
+        
+        Parameters
+        ----------
+        sample_systems_queue: queue.Queue
+            Queue of sample system information providing tuples of ase Atoms
+            objects, index number and respective sample source.
+        ithread: int
+            Thread number.
+        """
+        
+        # Initialize stored sample counter
+        Nsample = 0
+
+        while not sample_systems_queue.empty() or self.keep_going(ithread):
+
+            # Get sample system
+            (system, index, source) = sample_systems_queue.get()
+
             # Assign calculator
             system = self.assign_calculator(system)
 
@@ -475,49 +588,49 @@ class Sampler:
                     ).run(
                         fmax=self.sample_systems_optimize_fmax)
 
-            # Start sampling
-            Nsamples = self.run_system(system, **kwargs)
+            # Initialize trajectory
+            if self.sample_save_trajectory:
+                self.sample_trajectory = Trajectory(
+                    self.sample_trajectory_file, atoms=system,
+                    mode='a', properties=self.sample_properties)
             
-            # Print sampling info
-            msg = f"Sampling method '{self.sample_tag:s}' complete for system "
-            msg += f"of index {isys:d} from '{source}!'\n"
-            msg += f"{Nsamples:d} samples written to "
-            msg += f"'{self.sample_data_file:s}'.\n"
-            logger.info(f"INFO:\n{msg:s}")
+            # Compute system properties
+            self.sample_calculator.calculate(
+                system,
+                properties=self.sample_properties)
+            
+            # Store results
+            Nsample = self.save_properties(system, Nsample)
+            if self.sample_save_trajectory:
+                self.write_trajectory(system)
 
-    def run_system(
-        self, 
-        system: ase.Atoms, 
-        save_trajectory: Optional[bool] = False):
+        # Print sampling info
+        msg = f"Sampling method '{self.sample_tag:s}' complete for system "
+        msg += f"of index {index:d} from '{source}!'\n"
+        if Nsample == 0:
+            msg += f"No samples written to "
+        if Nsample == 1:
+            msg += f"{Nsample:d} sample written to "
+        else:
+            msg += f"{Nsample:d} samples written to "
+        msg += f"'{self.sample_data_file:s}'.\n"
+        logger.info(f"INFO:\n{msg:s}")
+        
+        return
+
+    def keep_going(
+        self,
+        ithread
+    ):
         """
-        Apply sample calculator on system input and write properties to 
-        database.
+        Return thread continuation flag
         
         Parameters
         ----------
-        system: ase.Atoms
-            ASE Atoms object serving as initial frame
-        save_trajectory: bool, optional default 'False'
-            Save sample systems to trajectory file.
+        ithread: int
+            Thread number.
         """
-        # Initialize stored sample counter
-        self.Nsample = 0
-        
-        # Initialize trajectory
-        if save_trajectory:
-            self.sample_trajectory = Trajectory(
-                self.sample_trajectory_file, atoms=system,
-                mode='a', properties=self.sample_properties)
-        
-        # Compute system properties
-        self.sample_calculator.calculate(
-            system,
-            properties=self.sample_properties)
-        
-        # Store results
-        self.save_properties(system)
-
-        return self.Nsample
+        return self.thread_keep_going[ithread]
 
     def get_properties(self, system):
         """
@@ -526,14 +639,16 @@ class Sampler:
 
         return interface.get_ase_properties(system, self.sample_properties)
 
-    def save_properties(self, system):
+    def save_properties(self, system, Nsample):
         """
         Save system properties
         """
         
         system_properties = self.get_properties(system)
         self.sample_dataset.add_atoms(system, system_properties)
-        self.Nsample += 1
+        Nsample += 1
+        
+        return Nsample
 
     def write_trajectory(self, system):
         """

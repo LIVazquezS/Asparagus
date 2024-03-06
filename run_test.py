@@ -149,30 +149,35 @@ if True:
     
     from asparagus.sample import Sampler
     
-    sampler = Sampler(
-        config='test/smpl_nh3.json',
-        sample_directory='test',
-        sample_data_file='test/smpl_nh3.db',
-        sample_systems='data/nh3_c3v.xyz',
-        sample_systems_format='xyz',
-        )
-
-    sampler = Sampler(
-        config='test/smpl_nh3.json',
-        sample_directory='test',
-        sample_data_file='test/smpl_nh3.db',
-        sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
-        sample_systems_format='xyz',
-        )
+    #sampler = Sampler(
+        #config='test/smpl_nh3.json',
+        #sample_directory='test',
+        #sample_data_file='test/smpl_nh3.db',
+        #sample_systems='data/nh3_c3v.xyz',
+        #sample_systems_format='xyz',
+        #sample_num_threads=1,
+        #)
+    #sampler.run()
+    
+    #sampler = Sampler(
+        #config='test/smpl_nh3.json',
+        #sample_directory='test',
+        #sample_data_file='test/smpl_nh3.db',
+        #sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
+        #sample_systems_format='xyz',
+        #sample_num_threads=2,
+        #)
+    #sampler.run()
 
     sampler = Sampler(
         config='test/smpl_nh3.json',
         sample_directory='test',
         sample_data_file='test/smpl_nh3.db',
         sample_systems=['data/nh3_c3v.xyz', 'data/meta_nh3.traj'],
+        sample_num_threads=4,
         )
     sampler.run()
-    
+    exit()
     from asparagus.sample import MCSampler
 
     sampler = MCSampler(
@@ -266,3 +271,4 @@ if True:
     sampler.run()
 
     pass
+

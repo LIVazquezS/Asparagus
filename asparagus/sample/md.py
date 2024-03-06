@@ -216,13 +216,14 @@ class MDSampler(sample.Sampler):
             system=system)
 
         # Attach trajectory
-        self.md_trajectory = Trajectory(
-            self.sample_trajectory_file, atoms=system, 
-            mode='a', properties=self.sample_properties)
-        md_dyn.attach(
-            self.write_trajectory, 
-            interval=self.md_save_interval,
-            system=system)
+        if self.sample_save_trajectory:
+            self.md_trajectory = Trajectory(
+                self.sample_trajectory_file, atoms=system, 
+                mode='a', properties=self.sample_properties)
+            md_dyn.attach(
+                self.write_trajectory, 
+                interval=self.md_save_interval,
+                system=system)
 
         # Run MD simulation
         md_simulation_step = round(

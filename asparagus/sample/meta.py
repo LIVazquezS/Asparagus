@@ -339,13 +339,14 @@ class MetaSampler(sample.Sampler):
             system=system)
         
         # Attach trajectory
-        self.meta_trajectory = Trajectory(
-            self.sample_trajectory_file, atoms=system, 
-            mode='a', properties=self.sample_properties)
-        meta_dyn.attach(
-            self.write_trajectory, 
-            interval=self.meta_save_interval,
-            system=system)
+        if self.sample_save_trajectory:
+            self.meta_trajectory = Trajectory(
+                self.sample_trajectory_file, atoms=system, 
+                mode='a', properties=self.sample_properties)
+            meta_dyn.attach(
+                self.write_trajectory, 
+                interval=self.meta_save_interval,
+                system=system)
         
         # Attach collective variables writer
         meta_cv_logger = MetaDynamicLogger(meta_constraint, system)

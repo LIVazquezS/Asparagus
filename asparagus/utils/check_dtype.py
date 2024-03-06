@@ -527,9 +527,6 @@ def is_ase_atoms_array(x, inhomogeneity=False, verbose=False):
         True, if input variable match object type, else False.
     """
     if is_array_like(x, inhomogeneity=inhomogeneity) and len(x):
-        for xi in utils.flatten_array_like(x):
-            print(xi)
-        print([xi for xi in utils.flatten_array_like(x)])
         if all([is_ase_atoms(xi) for xi in utils.flatten_array_like(x)]):
             result = (
                 True,

@@ -143,7 +143,7 @@ class MCSampler(sample.Sampler):
     def run_system(
         self, 
         system: ase.Atoms, 
-        save_trajectory: Optional[bool] = False):
+    ):
         """
         Perform a very simple MC Simulation using the Metropolis algorithm with
         the sample system.
@@ -152,8 +152,6 @@ class MCSampler(sample.Sampler):
         ----------
         system: ase.Atoms
             System to be sampled.
-        save_trajectory: bool, optional default 'False'
-            Save trajectory of the MC simulation.
         """
 
         # Initialize stored sample counter
@@ -167,13 +165,13 @@ class MCSampler(sample.Sampler):
         self.beta = 1.0 / (units.kB * self.mc_temperature)
 
         # Initialize trajectory
-        if save_trajectory:
+        if self.sample_save_trajectory:
             self.mc_trajectory = Trajectory(
                 self.sample_trajectory_file, atoms=system,
                 mode='a', properties=self.sample_properties)
         
         # Perform MC simulation
-        self.monte_carlo_steps(initial_system, self.mc_steps, save_trajectory)
+        self.monte_carlo_steps(initial_system, self.mc_steps)
         
         return self.Nsample
 
@@ -236,7 +234,7 @@ class MCSampler(sample.Sampler):
                 # Store properties
                 if not Naccept%self.mc_save_interval:
                     self.save_properties(system)
-                    if save_trajectory:
+                    if self.sample_save_trajectory:
                         self.write_trajectory(system)
             
             # If not accepted

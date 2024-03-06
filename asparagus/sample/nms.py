@@ -206,10 +206,11 @@ class NormalModeScanner(sample.Sampler):
         self.sample_dataset.add_atoms(system, system_properties)
 
         # Attach to trajectory
-        self.nms_trajectory = Trajectory(
-            self.sample_trajectory_file, atoms=system,
-            mode='a', properties=self.sample_properties)
-        self.write_trajectory(system)
+        if self.sample_save_trajectory:
+            self.nms_trajectory = Trajectory(
+                self.sample_trajectory_file, atoms=system,
+                mode='a', properties=self.sample_properties)
+            self.write_trajectory(system)
 
         # Get non-fixed atoms indices
         if nms_indices is None:
@@ -383,7 +384,8 @@ class NormalModeScanner(sample.Sampler):
                             self.save_properties(system)
 
                         # Attach to trajectory
-                        self.write_trajectory(system)
+                        if self.sample_save_trajectory:
+                            self.write_trajectory(system)
 
                         # Check energy threshold
                         if threshold_reached:
@@ -658,10 +660,11 @@ class NormalModeSampler(sample.Sampler):
         self.sample_dataset.add_atoms(system, system_properties)
 
         # Attach to trajectory
-        self.nms_trajectory = Trajectory(
-            self.sample_trajectory_file, atoms=system,
-            mode='a', properties=self.sample_properties)
-        self.write_trajectory(system)
+        if self.sample_save_trajectory:
+            self.nms_trajectory = Trajectory(
+                self.sample_trajectory_file, atoms=system,
+                mode='a', properties=self.sample_properties)
+            self.write_trajectory(system)
 
         # Get non-fixed atoms indices
         if nms_indices is None:
@@ -732,7 +735,8 @@ class NormalModeSampler(sample.Sampler):
                     system,
                     properties=self.sample_properties)
                 self.save_properties(system)
-                self.write_trajectory(system)
+                if self.sample_save_trajectory:
+                    self.write_trajectory(system)
 
             # TODO Add correct exception error
             except:
