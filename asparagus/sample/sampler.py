@@ -257,14 +257,6 @@ class Sampler:
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
 
-        # Read sample systems into queue
-        if self.sample_systems_queue is None:
-            self.sample_systems_queue = queue.Queue()
-        self.sample_systems_queue = self.read_systems(
-            self.sample_systems_queue,
-            self.sample_systems,
-            self.sample_systems_format)
-
         #####################################
         # # # Prepare Sample Calculator # # #
         #####################################
@@ -355,13 +347,13 @@ class Sampler:
 
         # Iterate over system input and eventually read file to store as
         # (ASE Atoms object, index, sample source)
-        for source, source_format in zip(
-            sample_systems, sample_systems_format
+        for isample, (source, source_format) in enumerate(
+            zip(sample_systems, sample_systems_format)
         ):
             
             # Check for ASE Atoms object or read system file
             if utils.is_ase_atoms(source):
-                sample_systems_queue.put((source, 1, source))
+                sample_systems_queue.put((source, 1, source, isample))
             else:
                 isys=1
                 complete = False
@@ -369,7 +361,9 @@ class Sampler:
                     try:
                         system = ase.io.read(
                             source, index=isys, format=source_format)
-                        sample_systems_queue.put((system, isys, source))
+                        sample_systems_queue.put(
+                            (system, isys, source, isample)
+                            )
                     except (StopIteration, AssertionError):
                         complete = True
                     else:
@@ -514,16 +508,29 @@ class Sampler:
             msg += f" {isys + 1:3d}. '{system:s}'\n"
         logger.info(f"INFO:\n{msg:s}")
 
-        ###############################
-        # # # Perform MD Sampling # # #
-        ###############################
+        ##########################
+        # # # Start Sampling # # #
+        ##########################
         
-        self.run_systems()
+        self.run_systems(
+            sample_systems_queue,
+            sample_systems,
+            sample_systems_format,
+            **kwargs
+            )
 
     def run_systems(self):
         """
-        Iterate over systems using 'sample_num_threads' threads
+        Iterate over systems using 'sample_num_threads' threads.
         """
+
+        # Read sample systems into queue
+        if self.sample_systems_queue is None:
+            self.sample_systems_queue = queue.Queue()
+        self.sample_systems_queue = self.read_systems(
+            self.sample_systems_queue,
+            self.sample_systems,
+            self.sample_systems_format)
         
         # Initialize thread continuation flag
         # Currently all False, might become useful later for adaptive sampling
@@ -561,7 +568,8 @@ class Sampler:
         ----------
         sample_systems_queue: queue.Queue
             Queue of sample system information providing tuples of ase Atoms
-            objects, index number and respective sample source.
+            objects, index number and respective sample source and the total
+            sample index.
         ithread: int
             Thread number.
         """
@@ -572,7 +580,7 @@ class Sampler:
         while not sample_systems_queue.empty() or self.keep_going(ithread):
 
             # Get sample system
-            (system, index, source) = sample_systems_queue.get()
+            (system, index, source, isample) = sample_systems_queue.get()
 
             # Assign calculator
             system = self.assign_calculator(system)
@@ -615,7 +623,7 @@ class Sampler:
             msg += f"{Nsample:d} samples written to "
         msg += f"'{self.sample_data_file:s}'.\n"
         logger.info(f"INFO:\n{msg:s}")
-        
+
         return
 
     def keep_going(

@@ -1,17 +1,15 @@
 import os
 import logging
-from typing import Optional, List, Dict, Tuple, Union, Any
-import warnings
-import numpy as np
-
 import itertools
+import threading
+from typing import Optional, List, Dict, Tuple, Union, Any
+
+import numpy as np
 
 import ase
 from ase import units
-
 from ase import vibrations
 from ase.constraints import FixAtoms
-
 from ase.io.trajectory import Trajectory
 
 from .. import data
@@ -159,21 +157,15 @@ class NormalModeScanner(sample.Sampler):
             })
         return info
 
-    def run_system(
-        self,
-        system: object,
-        nms_indices: Optional[List[int]] = None,
-        nms_exclude_modes: Optional[List[int]] = None,
-        nms_clean: Optional[bool] = False,
-        **kwargs
+    def run_systems(
+        self
     ):
         """
         Perform Normal Mode Scanning on the sample system.
-
+        Iterate over systems using 'sample_num_threads' threads.
+        
         Parameters
         ----------
-        system: ase.Atoms object
-            ASE atoms object to perform Normal Mode Scanning on.
         nms_indices: list[int], optional, default None
             List of atom indices to include in normal mode analysis.
             If none, indices if a full list of atom indices with length ot the
@@ -189,10 +181,40 @@ class NormalModeScanner(sample.Sampler):
             Else, results from available  checkpoint files will be used.
 
         """
+        
+        # Read sample systems into queue
+        if self.sample_systems_queue is None:
+            self.sample_systems_queue = queue.Queue()
+        self.sample_systems_queue = self.read_systems(
+            self.sample_systems_queue,
+            self.sample_systems,
+            self.sample_systems_format)
+        
+        # Initialize thread continuation flag
+        self.thread_keep_going = np.array(
+            [False for ithread in range(self.sample_num_threads)],
+            dtype=bool
+            )
+        
+        # Create threads for normal mode calculation
+        threads = [
+            threading.Thread(
+                target=self.run_vibrations, 
+                args=(self.sample_systems_queue, ithread)
+                )
+            for ithread in range(self.sample_num_threads)]
+
+        # Start threads
+        for thread in threads:
+            thread.start()
+
+        # Wait for threads to finish
+        for thread in threads:
+            thread.join()
 
         # Initialize stored sample counter
         self.Nsample = 0
-
+        
         # Compute initial state properties
         # TODO Special calculator property function to handle special 
         # properties not supported by ASE such as, e.g., charge, hessian, etc.
@@ -211,7 +233,7 @@ class NormalModeScanner(sample.Sampler):
                 self.sample_trajectory_file, atoms=system,
                 mode='a', properties=self.sample_properties)
             self.write_trajectory(system)
-
+        
         # Get non-fixed atoms indices
         if nms_indices is None:
             indices = np.arange(system.get_global_number_of_atoms(), dtype=int)
@@ -267,7 +289,7 @@ class NormalModeScanner(sample.Sampler):
 
         # Compute and compare same quantities for displaced system
         system_com_shift = np.zeros(Nmodes, dtype=float)
-
+        
         for imode, mode in enumerate(system_modes):
 
             # COM shift
@@ -313,6 +335,64 @@ class NormalModeScanner(sample.Sampler):
                 msg += f"       ({system_com_shift[ivib]:2.1e})\n"
         with open(self.sample_log_file, 'a') as flog:
             flog.write(msg)
+        
+        # Add normal mode combination to the sample queue
+        steps = np.arange(1, self.nms_limit_of_steps + 1, 1)
+        vib_modes = np.where(system_vib_modes)[0]
+        for icomp in range(1, self.nms_number_of_coupling + 1):
+
+            # Prepare sign combinations
+            all_signs = np.array(list(
+                itertools.product((-1, 1), repeat=icomp)))
+
+            all_steps = np.array(list(
+                itertools.product(steps, repeat=icomp)))
+            Nsteps = all_steps.shape[0]
+
+            # Iterate over vib. normal mode indices and their combinations
+            for imodes in itertools.combinations(vib_modes, icomp):
+
+                # Iterate over sign combinations
+                for isign, signs in enumerate(all_signs):
+                    
+                    
+
+
+    def run_vibrations(
+        self,
+        )
+    
+    
+    def run_system(
+        self,
+        system: object,
+        nms_indices: Optional[List[int]] = None,
+        nms_exclude_modes: Optional[List[int]] = None,
+        nms_clean: Optional[bool] = False,
+        **kwargs
+    ):
+        """
+        Perform Normal Mode Scanning on the sample system.
+
+        Parameters
+        ----------
+        system: ase.Atoms object
+            ASE atoms object to perform Normal Mode Scanning on.
+        nms_indices: list[int], optional, default None
+            List of atom indices to include in normal mode analysis.
+            If none, indices if a full list of atom indices with length ot the
+            atom number of the system.
+            Atom indices from atoms constraint by FixAtoms are removed from
+            index list and the normal mode analysis.
+        nms_exclude_modes: list[int], optional, default None
+            List of vibrational modes, sorted by wave number, to exclude
+            from the sampling procedure.
+        nms_clean: bool, optional, default False
+            If True, checkpoint files for atom displacement calculations
+            in 'sample_directory'/vib will be deleted.
+            Else, results from available  checkpoint files will be used.
+
+        """
 
         # Iterate over number of normal mode combinations
         steps = np.arange(1, self.nms_limit_of_steps + 1, 1)
