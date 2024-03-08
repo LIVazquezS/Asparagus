@@ -144,98 +144,100 @@ if False:
 # Test Asparagus Sampler Methods
 #==============================================================================
 
-# Sampler - with XTB
+# Sampler - with XTB and ORCA
+# Mind: XTB is not thread safe when using with ASE modules such as Optimizer
+# or Vibrations, but simple Calculator call works
 if True:
     
     from asparagus.sample import Sampler
     
-    #sampler = Sampler(
-        #config='test/smpl_nh3.json',
-        #sample_directory='test',
-        #sample_data_file='test/smpl_nh3.db',
-        #sample_systems='data/nh3_c3v.xyz',
-        #sample_systems_format='xyz',
-        #sample_num_threads=1,
-        #)
-    #sampler.run()
+    sampler = Sampler(
+        config='test/smpl_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/nh3_c3v.xyz',
+        sample_systems_format='xyz',
+        sample_num_threads=1,
+        )
+    sampler.run()
     
-    #sampler = Sampler(
-        #config='test/smpl_nh3.json',
-        #sample_directory='test',
-        #sample_data_file='test/smpl_nh3.db',
-        #sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
-        #sample_systems_format='xyz',
-        #sample_num_threads=2,
-        #)
-    #sampler.run()
+    sampler = Sampler(
+        config='test/smpl_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
+        sample_systems_format='xyz',
+        sample_num_threads=2,
+        )
+    sampler.run()
 
     sampler = Sampler(
         config='test/smpl_nh3.json',
         sample_directory='test',
         sample_data_file='test/smpl_nh3.db',
         sample_systems=['data/nh3_c3v.xyz', 'data/meta_nh3.traj'],
-        sample_num_threads=4,
-        )
-    sampler.run()
-    exit()
-    from asparagus.sample import MCSampler
-
-    sampler = MCSampler(
-        config='test/mc_nh3.json',
-        sample_directory='test',
-        sample_data_file='test/mc_nh3.db',
-        sample_systems='data/nh3_c3v.xyz',
-        sample_systems_format='xyz',
-        sample_systems_optimize=True,
-        sample_systems_optimize_fmax=0.001,
-        mc_temperature=300.0,
-        mc_steps=100,
-        mc_max_displacement=0.1,
-        mc_save_interval=1,
+        sample_num_threads=1,
         )
     sampler.run()
 
-    from asparagus.sample import MDSampler
+    #from asparagus.sample import MCSampler
 
-    sampler = MDSampler(
-        config='test/md_nh3.json',
-        sample_directory='test',
-        sample_data_file='test/md_nh3.db',
-        sample_systems='data/nh3_c3v.xyz',
-        sample_systems_format='xyz',
-        sample_systems_optimize=True,
-        sample_systems_optimize_fmax=0.001,
-        md_temperature=500,
-        md_time_step=1.0,
-        md_simulation_time=1000.0,
-        md_save_interval=10,
-        md_langevin_friction=0.01,
-        md_equilibration_time=0,
-        md_initial_velocities=False,
-        )
-    sampler.run()
+    #sampler = MCSampler(
+        #config='test/mc_nh3.json',
+        #sample_directory='test',
+        #sample_data_file='test/mc_nh3.db',
+        #sample_systems='data/nh3_c3v.xyz',
+        #sample_systems_format='xyz',
+        #sample_systems_optimize=True,
+        #sample_systems_optimize_fmax=0.001,
+        #mc_temperature=300.0,
+        #mc_steps=100,
+        #mc_max_displacement=0.1,
+        #mc_save_interval=1,
+        #)
+    #sampler.run()
 
-    from asparagus.sample import MetaSampler
+    #from asparagus.sample import MDSampler
+
+    #sampler = MDSampler(
+        #config='test/md_nh3.json',
+        #sample_directory='test',
+        #sample_data_file='test/md_nh3.db',
+        #sample_systems='data/nh3_c3v.xyz',
+        #sample_systems_format='xyz',
+        #sample_systems_optimize=True,
+        #sample_systems_optimize_fmax=0.001,
+        #md_temperature=500,
+        #md_time_step=1.0,
+        #md_simulation_time=1000.0,
+        #md_save_interval=10,
+        #md_langevin_friction=0.01,
+        #md_equilibration_time=0,
+        #md_initial_velocities=False,
+        #)
+    #sampler.run()
+
+    #from asparagus.sample import MetaSampler
     
-    sampler = MetaSampler(
-        config='test/meta_nh3.json',
-        sample_directory='test',
-        sample_data_file='test/meta_nh3.db',
-        sample_systems='data/nh3_c3v.xyz',
-        sample_systems_format='xyz',
-        sample_systems_optimize=True,
-        sample_systems_optimize_fmax=0.001,
-        meta_cv=[[0, 1], [0, 2], [0, 3]],
-        meta_gaussian_height=0.10,
-        meta_gaussian_widths=0.1,
-        meta_gaussian_interval=10,
-        meta_hookean=[[0, 1, 4.0], [0, 2, 4.0], [0, 3, 4.0]],
-        meta_temperature=500,
-        meta_time_step=1.0,
-        meta_simulation_time=10_0.0,
-        meta_save_interval=10,
-        )
-    sampler.run()
+    #sampler = MetaSampler(
+        #config='test/meta_nh3.json',
+        #sample_directory='test',
+        #sample_data_file='test/meta_nh3.db',
+        #sample_systems='data/nh3_c3v.xyz',
+        #sample_systems_format='xyz',
+        #sample_systems_optimize=True,
+        #sample_systems_optimize_fmax=0.001,
+        #meta_cv=[[0, 1], [0, 2], [0, 3]],
+        #meta_gaussian_height=0.10,
+        #meta_gaussian_widths=0.1,
+        #meta_gaussian_interval=10,
+        #meta_hookean=[[0, 1, 4.0], [0, 2, 4.0], [0, 3, 4.0]],
+        #meta_temperature=500,
+        #meta_time_step=1.0,
+        #meta_simulation_time=10_0.0,
+        #meta_save_interval=10,
+        #)
+    #sampler.run()
 
     from asparagus.sample import NormalModeScanner
     
@@ -245,6 +247,8 @@ if True:
         sample_data_file='test/nms_nh3.db',
         sample_systems='data/nh3_c3v.xyz',
         sample_systems_format='xyz',
+        sample_calculator='XTB',   # Not thread save when using ASE modules
+        sample_num_threads=1,
         sample_systems_optimize=True,
         sample_systems_optimize_fmax=0.001,
         nms_harmonic_energy_step=0.10,
@@ -252,6 +256,32 @@ if True:
         nms_number_of_coupling=1,
         nms_limit_of_steps=10,
         nms_limit_com_shift=0.01,
+        nms_save_displacements=True,
+        )
+    sampler.run()
+
+    sampler = NormalModeScanner(
+        config='test/nms_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/nms_nh3.db',
+        sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
+        sample_systems_format='xyz',
+        sample_calculator='ORCA',
+        sample_calculator_args = {
+            'charge': 0,
+            'mult': 1,
+            'orcasimpleinput': 'RI PBE D3BJ def2-SVP def2/J TightSCF',
+            'orcablocks': '%pal nprocs 1 end',
+            'directory': 'test/orca'},
+        sample_num_threads=4,
+        sample_systems_optimize=True,
+        sample_systems_optimize_fmax=0.001,
+        nms_harmonic_energy_step=0.10,
+        nms_energy_limits=1.00,
+        nms_number_of_coupling=1,
+        nms_limit_of_steps=10,
+        nms_limit_com_shift=0.01,
+        nms_save_displacements=False,
         )
     sampler.run()
 
@@ -263,6 +293,30 @@ if True:
         sample_data_file='test/nms_nh3.db',
         sample_systems='data/nh3_c3v.xyz',
         sample_systems_format='xyz',
+        sample_calculator='XTB',   # Not thread save when using ASE modules
+        sample_num_threads=1,
+        sample_systems_optimize=True,
+        sample_systems_optimize_fmax=0.001,
+        nms_temperature=500.0,
+        nms_nsamples=100,
+        )
+    sampler.run()
+    
+    
+    sampler = NormalModeSampler(
+        config='test/nms_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/nms_nh3.db',
+        sample_systems='data/nh3_d3h.xyz',
+        sample_systems_format='xyz',
+        sample_calculator='ORCA',
+        sample_calculator_args = {
+            'charge': 0,
+            'mult': 1,
+            'orcasimpleinput': 'RI PBE D3BJ def2-SVP def2/J TightSCF',
+            'orcablocks': '%pal nprocs 1 end',
+            'directory': 'test/orca'},
+        sample_num_threads=4,
         sample_systems_optimize=True,
         sample_systems_optimize_fmax=0.001,
         nms_temperature=500.0,

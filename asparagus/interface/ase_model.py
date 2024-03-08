@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
@@ -41,7 +42,8 @@ ase_calculator_avaiable = {
 
 def get_ase_calculator(
     calculator,
-    calculator_args
+    calculator_args,
+    ithread=None,
 ):
     """
     ASE Calculator interface
@@ -50,9 +52,12 @@ def get_ase_calculator(
     ----------
     calculator: (str, object)
         Calculator label of an ASE calculator to initialize or an
-        ASE calculator object directly returned
+        ASE calculator object directly returned.
     calculator_args: dict
-        ASE calculator arguments if ASE calculator will be initialized
+        ASE calculator arguments if ASE calculator will be initialized.
+    ithread: int, optional, default None
+        Thread number to avoid conflict between files written by the
+        calculator.
 
     Returns
     -------
@@ -90,7 +95,14 @@ def get_ase_calculator(
         if hasattr(calculator, 'calculator_tag'):
             calculator_tag = calculator.calculator_tag
 
-    # Retrun ASE calculator and name label
+    # For application with multi threading (ithread not None), modify directory
+    # by adding subdirectory 'thread_{ithread:d}'
+    if ithread is not None:
+        calculator.directory = os.path.join(
+            calculator.directory,
+            f'thread_{ithread:d}')
+
+    # Return ASE calculator and name label
     return calculator, calculator_tag
 
 

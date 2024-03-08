@@ -255,24 +255,24 @@ class Sampler:
             f'{self.sample_counter:d}_{self.sample_tag:s}.log')
         self.sample_trajectory_file = os.path.join(
             self.sample_directory, 
-            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
+            f'{self.sample_counter:d}_{self.sample_tag:s}_{{:d}}.traj')
 
         #####################################
         # # # Prepare Sample Calculator # # #
         #####################################
 
         # Get ASE calculator
-        self.sample_calculator, self.sample_calculator_tag = (
+        ase_calculator, ase_calculator_tag = (
             interface.get_ase_calculator(
                 self.sample_calculator,
                 self.sample_calculator_args)
             )
 
         # Check requested system properties
-        self.check_properties()
+        self.check_properties(ase_calculator)
 
         # Store calculator tag name
-        self.sample_calculator_tag = self.sample_calculator_tag
+        self.sample_calculator_tag = ase_calculator_tag
         
         # Check number of calculation threads
         if self.sample_num_threads <= 0:
@@ -288,16 +288,8 @@ class Sampler:
         if self.sample_systems_optimize:
 
             # Assign ASE optimizer
-            optimizer_tag = "bfgs"
+            self.optimizer_tag = "bfgs"
             self.ase_optimizer = optimize.BFGS
-
-            # Assign optimization log and  trajectory file name
-            self.ase_optimizer_log_file = os.path.join(
-                self.sample_directory,
-                f'{self.sample_counter:d}_{optimizer_tag:s}.log')
-            self.ase_optimizer_trajectory_file = os.path.join(
-                self.sample_directory,
-                f'{self.sample_counter:d}_{optimizer_tag:s}.traj')
 
         #####################################
         # # # Initialize Sample DataSet # # #
@@ -328,7 +320,7 @@ class Sampler:
         
         # Check system and format input
         if sample_systems is None or not len(sample_systems):
-            return sample_systems_queue
+            return sample_systems_queue, ['Queue']
         
         if not utils.is_array_like(sample_systems):
             sample_systems = [sample_systems]
@@ -350,32 +342,33 @@ class Sampler:
         for isample, (source, source_format) in enumerate(
             zip(sample_systems, sample_systems_format)
         ):
-            
+
             # Check for ASE Atoms object or read system file
             if utils.is_ase_atoms(source):
-                sample_systems_queue.put((source, 1, source, isample))
+                sample_systems_queue.put((source, isample, str(source), 1))
             else:
-                isys=1
+                isys=0
                 complete = False
                 while not complete:
                     try:
                         system = ase.io.read(
                             source, index=isys, format=source_format)
                         sample_systems_queue.put(
-                            (system, isys, source, isample)
+                            (system, isample, source, isys)
                             )
                     except (StopIteration, AssertionError):
                         complete = True
                     else:
                         isys += 1
 
-        return sample_systems_queue
+        return sample_systems_queue, sample_systems
 
     def assign_calculator(
         self,
         sample_system: ase.Atoms,
         sample_calculator: Optional[Union[str, object]] = None,
         sample_calculator_args: Optional[Dict[str, Any]] = None,
+        ithread: Optional[int] = None,
     ):
         """
         Assign calculator to a list of sample ASE Atoms objects
@@ -390,6 +383,9 @@ class Sampler:
         sample_calculator_args : dict, optional, default None
             Dictionary of keyword arguments to initialize the ASE
             calculator
+        ithread: int, optional, default None
+            Thread number to avoid conflict between files written by the
+            calculator.
         """
 
         # Check calculator input
@@ -398,40 +394,37 @@ class Sampler:
         if sample_calculator_args is None:
             sample_calculator_args = self.sample_calculator_args
 
-        if sample_calculator is None:
-            
-            sample_calculator = self.sample_calculator
-            sample_calculator_tag = self.sample_calculator_tag
-        
-        else:
+        # Get ASE calculator
+        ase_calculator, ase_calculator_tag = (
+            interface.get_ase_calculator(
+                sample_calculator,
+                sample_calculator_args,
+                ithread=ithread)
+            )
 
-            # Get ASE calculator
-            sample_calculator, sample_calculator_tag = (
-                interface.get_ase_calculator(
-                    sample_calculator,
-                    sample_calculator_args)
-                )
-
-            # Check requested system properties
-            self.check_properties(sample_calculator)
+        # Check requested system properties
+        self.check_properties(ase_calculator)
 
         # Assign ASE calculator
-        sample_system.set_calculator(sample_calculator)
+        sample_system.set_calculator(ase_calculator)
 
         return sample_system
 
     def check_properties(
         self, 
-        sample_calculator: Optional[object] = None):
+        sample_calculator: object
+    ):
         """
         Check requested sample properties and units with implemented properties
         of the calculator
+        
+        Parameters
+        ----------
+        sample_calculator: object
+            ASE Calculator to compare requested and available properties
+            from the calculator.
         """
-        
-        # Check calculator input
-        if sample_calculator is None:
-            sample_calculator = self.sample_calculator
-        
+
         # Check requested system properties
         for prop in self.sample_properties:
             # TODO Special calculator properties list for special properties
@@ -472,6 +465,9 @@ class Sampler:
 
     def run(
         self,
+        sample_systems_queue: Optional[queue.Queue] = None,
+        sample_systems: Optional[Union[str, List[str], object]] = None,
+        sample_systems_format: Optional[Union[str, List[str]]] = None,
         **kwargs
     ):
         """
@@ -481,12 +477,28 @@ class Sampler:
         ################################
         # # # Check Sampling Input # # #
         ################################
+        
+        # Check input
+        if sample_systems_queue is None:
+            sample_systems_queue = self.sample_systems_queue
+        if sample_systems is None:
+            sample_systems = self.sample_systems
+        if sample_systems_format is None:
+            sample_systems_format = self.sample_systems_format
 
         # Collect sampling parameters
         config_sample_tag = f'{self.sample_counter}_{self.sample_tag}'
         config_sample = {
             config_sample_tag: self.get_info()
             }
+        
+        # Read sample systems into queue
+        if sample_systems_queue is None:
+            sample_systems_queue = queue.Queue()
+        sample_systems_queue, sample_systems = self.read_systems(
+            sample_systems_queue,
+            sample_systems,
+            sample_systems_format)
 
         # Update configuration file with sampling parameters
         if 'sampler_schedule' in self.config:
@@ -499,12 +511,9 @@ class Sampler:
             'sample_counter': self.sample_counter
             })
 
-        # Increment sample counter
-        self.sample_counter += 1
-
         # Print sampling overview
         msg = f"Perform sampling method '{self.sample_tag:s}' on systems:\n"
-        for isys, system in enumerate(self.sample_systems):
+        for isys, system in enumerate(sample_systems):
             msg += f" {isys + 1:3d}. '{system:s}'\n"
         logger.info(f"INFO:\n{msg:s}")
 
@@ -513,52 +522,61 @@ class Sampler:
         ##########################
         
         self.run_systems(
-            sample_systems_queue,
-            sample_systems,
-            sample_systems_format,
+            sample_systems_queue=sample_systems_queue,
             **kwargs
             )
 
-    def run_systems(self):
+        # Increment sample counter
+        self.sample_counter += 1
+
+    def run_systems(
+        self,
+        sample_systems_queue: queue.Queue,
+        **kwargs,
+    ):
         """
         Iterate over systems using 'sample_num_threads' threads.
         """
 
-        # Read sample systems into queue
-        if self.sample_systems_queue is None:
-            self.sample_systems_queue = queue.Queue()
-        self.sample_systems_queue = self.read_systems(
-            self.sample_systems_queue,
-            self.sample_systems,
-            self.sample_systems_format)
-        
         # Initialize thread continuation flag
         # Currently all False, might become useful later for adaptive sampling
         self.thread_keep_going = np.array(
-            [False for ithread in range(self.sample_num_threads)],
+            [True for ithread in range(self.sample_num_threads)],
             dtype=bool
             )
+        
+        # Add stop flag
+        for _ in range(self.sample_num_threads):
+            sample_systems_queue.put('stop')
 
-        # Create threads
-        threads = [
-            threading.Thread(
-                target=self.run_system, 
-                args=(self.sample_systems_queue, ithread)
-                )
-            for ithread in range(self.sample_num_threads)]
+        if self.sample_num_threads == 1:
+            
+            self.run_system(sample_systems_queue)
+        
+        else:
 
-        # Start threads
-        for thread in threads:
-            thread.start()
+            # Create threads
+            threads = [
+                threading.Thread(
+                    target=self.run_system, 
+                    args=(sample_systems_queue, ),
+                    kwargs={
+                        'ithread': ithread}
+                    )
+                for ithread in range(self.sample_num_threads)]
 
-        # Wait for threads to finish
-        for thread in threads:
-            thread.join()
+            # Start threads
+            for thread in threads:
+                thread.start()
+
+            # Wait for threads to finish
+            for thread in threads:
+                thread.join()
         
     def run_system(
         self, 
         sample_systems_queue: queue.Queue,
-        ithread: int,
+        ithread: Optional[int] = None,
     ):
         """
         Apply sample calculator on system input and write properties to 
@@ -570,47 +588,54 @@ class Sampler:
             Queue of sample system information providing tuples of ase Atoms
             objects, index number and respective sample source and the total
             sample index.
-        ithread: int
-            Thread number.
+        ithread: int, optional, default None
+            Thread number
         """
         
         # Initialize stored sample counter
         Nsample = 0
 
-        while not sample_systems_queue.empty() or self.keep_going(ithread):
-
-            # Get sample system
-            (system, index, source, isample) = sample_systems_queue.get()
+        while self.keep_going(ithread):
+            
+            # Get sample parameters or wait
+            sample = sample_systems_queue.get()
+            
+            # Check for stop flag
+            if sample == 'stop':
+                self.thread_keep_going[ithread] = False
+                continue
+            
+            # Extract sample system to optimize
+            (system, isample, source, index) = sample
 
             # Assign calculator
-            system = self.assign_calculator(system)
+            system = self.assign_calculator(
+                system, 
+                ithread=ithread)
 
             # If requested, perform structure optimization
             if self.sample_systems_optimize:
 
                 # Perform structure optimization
-                self.ase_optimizer(
-                    system,
-                    logfile=self.ase_optimizer_log_file,
-                    trajectory=self.ase_optimizer_trajectory_file,
-                    ).run(
-                        fmax=self.sample_systems_optimize_fmax)
-
-            # Initialize trajectory
+                system = self.run_optimization(
+                    sample_system=system,
+                    sample_index=isample)
+                
+            # Initialize trajectory file
             if self.sample_save_trajectory:
                 self.sample_trajectory = Trajectory(
-                    self.sample_trajectory_file, atoms=system,
+                    self.sample_trajectory_file.format(isample), atoms=system,
                     mode='a', properties=self.sample_properties)
             
             # Compute system properties
-            self.sample_calculator.calculate(
+            system.calc.calculate(
                 system,
                 properties=self.sample_properties)
             
             # Store results
             Nsample = self.save_properties(system, Nsample)
             if self.sample_save_trajectory:
-                self.write_trajectory(system)
+                self.write_trajectory(system, self.sample_trajectory)
 
         # Print sampling info
         msg = f"Sampling method '{self.sample_tag:s}' complete for system "
@@ -622,7 +647,138 @@ class Sampler:
         else:
             msg += f"{Nsample:d} samples written to "
         msg += f"'{self.sample_data_file:s}'.\n"
+        
         logger.info(f"INFO:\n{msg:s}")
+
+        return
+
+    def run_optimization(
+        self,
+        sample_system: Optional[ase.Atoms] = None,
+        sample_index: Optional[int] = None,
+        sample_systems_queue: Optional[queue.Queue] = None,
+        sample_optimzed_queue: Optional[queue.Queue] = None,
+        ithread: Optional[int] = None,
+    ):
+        """
+        Perform structure optimization on sample system
+        
+        Parameters
+        ----------
+        sample_system: ase.Atoms, optional, default None
+            ASE Atoms object which will be optimized using the optimizer 
+            defined in self.ase_optimizer.
+        sample_systems_queue: queue.Queue, optional, default None
+            Sample system queue cotaining ASE Atoms object which will be 
+            optimized using the optimizer defined in self.ase_optimizer.
+            If sample_system is not None, this queue will be ignored.
+        sample_optimzed_queue: queue.Queue, optional, default None
+            If defined, the optimized sample system will be put into the
+            queue.
+        ithread: int, optional, default None
+            Thread number
+        
+        Returns
+        -------
+        ase.Atoms
+            Optimized ASE atoms object
+        """
+        
+        # Check sample system input
+        if sample_system is None and sample_systems_queue is None:
+            return None
+        
+        # Optimize sample system
+        if sample_system is not None:
+            
+            # Prepare optimization log and trajectory file name
+            ase_optimizer_log_file = os.path.join(
+                self.sample_directory,
+                f'{self.sample_counter:d}_{self.optimizer_tag:s}.log')
+            ase_optimizer_trajectory_file = os.path.join(
+                self.sample_directory,
+                f'{self.sample_counter:d}_{self.optimizer_tag:s}.traj')
+            
+            # Assign calculator
+            system = self.assign_calculator(sample_system)
+
+            # Perform structure optimization
+            self.ase_optimizer(
+                system,
+                logfile=ase_optimizer_log_file,
+                trajectory=ase_optimizer_trajectory_file,
+                ).run(
+                    fmax=self.sample_systems_optimize_fmax)
+
+            # Add optimized ASE atoms object to the queue if defined
+            if sample_optimzed_queue is not None:
+                sample_optimzed_queue.put((system, isample, str(system), 1))
+
+            return system
+        
+        else:
+            
+            while self.keep_going(ithread):
+                
+                # Get sample parameters or wait
+                sample = sample_systems_queue.get()
+                
+                # Check for stop flag
+                if sample == 'stop':
+                    self.thread_keep_going[ithread] = False
+                    continue
+                
+                # Extract sample system to optimize
+                (system, isample, source, index) = sample
+
+                # Prepare optimization log and trajectory file name
+                ase_optimizer_log_file = os.path.join(
+                    self.sample_directory,
+                    f'{self.sample_counter:d}_{self.optimizer_tag:s}'
+                    + f'_{isample:d}.log')
+                ase_optimizer_trajectory_file = os.path.join(
+                    self.sample_directory,
+                    f'{self.sample_counter:d}_{self.optimizer_tag:s}'
+                    + f'_{isample:d}.traj')
+
+                # Assign calculator
+                system = self.assign_calculator(
+                    system,
+                    ithread=ithread)
+
+                # Perform structure optimization
+                try:
+
+                    ase_optimizer = self.ase_optimizer(
+                        system,
+                        logfile=ase_optimizer_log_file,
+                        trajectory=ase_optimizer_trajectory_file,
+                        )
+                    ase_optimizer.run(fmax=self.sample_systems_optimize_fmax)
+                
+                except ase.calculators.calculator.CalculationFailed:
+
+                    msg = "ERROR:\nSingle point calculation of the system "
+                    msg += f"from '{source}' of index {index:d} "
+                    msg += "is not converged "
+                    msg += "during structure optimization for sampling method "
+                    msg += f"'{self.sample_tag:s}' "
+                    msg += f"(see log file '{ase_optimizer_log_file:s}')!\n"
+                    if sample_optimzed_queue is not None:
+                        msg += "System will be skipped for further sampling.\n"
+                    logger.error(msg)
+                    
+                else:
+
+                    msg = "INFO:\nOptimization of system "
+                    msg += f"from '{source}' of index {index:d} "
+                    msg += f"is converged "
+                    msg += f"(see log file '{ase_optimizer_log_file:s}').\n"
+                    logger.info(msg)
+
+                # Add optimized ASE atoms object to the queue if defined
+                if sample_optimzed_queue is not None:
+                    sample_optimzed_queue.put((system, isample, source, index))
 
         return
 
@@ -638,7 +794,11 @@ class Sampler:
         ithread: int
             Thread number.
         """
-        return self.thread_keep_going[ithread]
+        if ithread is None:
+            return self.thread_keep_going[0]
+        if hasattr(self, 'thread_keep_going'):
+            return self.thread_keep_going[ithread]
+        return False
 
     def get_properties(self, system):
         """
@@ -658,7 +818,7 @@ class Sampler:
         
         return Nsample
 
-    def write_trajectory(self, system):
+    def write_trajectory(self, system, sample_trajectory):
         """
         Write current image to trajectory file but without constraints
         """
@@ -666,4 +826,4 @@ class Sampler:
         system_noconstraint = system.copy()
         system_noconstraint.calc = system.calc
         system_noconstraint.set_constraint()
-        self.sample_trajectory.write(system_noconstraint)
+        sample_trajectory.write(system_noconstraint)
