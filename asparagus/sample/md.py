@@ -1,21 +1,17 @@
 import os
+import queue
 import logging
+import threading
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import numpy as np
 
-import itertools
-
 import ase
-from ase import optimize
+from ase.md.langevin import Langevin
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
+from ase.io.trajectory import Trajectory
 from ase import units
 
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.md.langevin import Langevin
-
-from ase.io.trajectory import Trajectory
-
-from .. import data
 from .. import settings
 from .. import utils
 from .. import sample
@@ -32,7 +28,6 @@ class MDSampler(sample.Sampler):
 
     Parameters
     ----------
-
     md_temperature: float, optional, default 300
         Target temperature in Kelvin of the MD simulation controlled by a
         Langevin thermostat
@@ -110,7 +105,6 @@ class MDSampler(sample.Sampler):
         # Sampler class label
         self.sample_tag = 'md'
 
-
         # Initialize parent class
         super().__init__(
             sample_tag=self.sample_tag,
@@ -148,12 +142,12 @@ class MDSampler(sample.Sampler):
     
     def get_info(self):
         """
-        Get sampler information
+        Returns a dictionary with the information of the MD sampler.
 
         Returns
         -------
         dict
-            Sampler information dictionary
+            Dictionary with the information of the MD sampler.
         """
         
         info = super().get_info()
@@ -170,84 +164,252 @@ class MDSampler(sample.Sampler):
         
         return info
 
-    def run_system(self, system):
+    def run_systems(
+        self,
+        sample_systems_queue: Optional[queue.Queue] = None,
+        **kwargs,
+    ):
+        """
+        Perform Molecular Dynamics simulations on the sample system.
+        
+        Parameters
+        ----------
+        sample_systems_queue: queue.Queue, optional, default None
+            Queue object including sample systems or to which 'sample_systems' 
+            input will be added. If not defined, an empty queue will be 
+            assigned.
+        """
+        
+        # Initialize thread continuation flag
+        self.thread_keep_going = np.array(
+            [True for ithread in range(self.sample_num_threads)],
+            dtype=bool
+            )
+        
+        # Add stop flag
+        for _ in range(self.sample_num_threads):
+            sample_systems_queue.put('stop')
+
+        if self.sample_num_threads == 1:
+            
+            self.run_system(sample_systems_queue)
+        
+        else:
+
+            # Create threads
+            threads = [
+                threading.Thread(
+                    target=self.run_system, 
+                    args=(sample_systems_queue, ),
+                    kwargs={
+                        'ithread': ithread}
+                    )
+                for ithread in range(self.sample_num_threads)]
+
+            # Start threads
+            for thread in threads:
+                thread.start()
+
+            # Wait for threads to finish
+            for thread in threads:
+                thread.join()
+  
+        return
+
+    def run_system(
+        self, 
+        sample_systems_queue: queue.Queue,
+        ithread: Optional[int] = None,
+    ):
         """
         Perform MD Simulation with the sample system.
 
         Parameters
         ----------
-        system: ase.Atoms
-            ASE Atoms object serving as initial frame
+        sample_systems_queue: queue.Queue
+            Queue of sample system information providing tuples of ASE atoms
+            objects, index number and respective sample source and the total
+            sample index.
+        ithread: int, optional, default None
+            Thread number
         """
 
+        while self.keep_going(ithread):
+            
+            # Get sample parameters or wait
+            sample = sample_systems_queue.get()
+            
+            # Check for stop flag
+            if sample == 'stop':
+                self.thread_keep_going[ithread] = False
+                continue
+            
+            # Extract sample system to optimize
+            (system, isample, source, index) = sample
+
+            # If requested, perform structure optimization
+            if self.sample_systems_optimize:
+
+                # Perform structure optimization
+                system = self.run_optimization(
+                    sample_system=system,
+                    sample_index=isample,
+                    ithread=ithread)
+
+            # Initialize log file
+            sample_log_file = self.sample_log_file.format(isample)
+            
+            # Initialize trajectory file
+            if self.sample_save_trajectory:
+                sample_trajectory = Trajectory(
+                    self.sample_trajectory_file.format(isample), atoms=system,
+                    mode='a', properties=self.sample_properties)
+            else:
+                sample_trajectory = None
+
+            # Assign calculator
+            system = self.assign_calculator(
+                system,
+                ithread=ithread)
+
+            # Perform MD simulation
+            Nsample = self.run_langevin_md(
+                system,
+                log_file=sample_log_file,
+                trajectory=sample_trajectory,
+                ithread=ithread)
+            
+            # Print sampling info
+            msg = f"Sampling method '{self.sample_tag:s}' complete for system "
+            msg += f"of index {index:d} from '{source}!'\n"
+            if Nsample == 0:
+                msg += f"No samples written to "
+            if Nsample == 1:
+                msg += f"{Nsample:d} sample written to "
+            else:
+                msg += f"{Nsample:d} samples written to "
+            msg += f"'{self.sample_data_file:s}'.\n"
+            
+            logger.info(f"INFO:\n{msg:s}")
+
+        return
+
+    def run_langevin_md(
+        self,
+        system: ase.Atoms,
+        temperature: Optional[float] = None,
+        time_step: Optional[float] = None,
+        simulation_time: Optional[float] = None,
+        langevin_friction: Optional[float] = None,
+        equilibration_time: Optional[float] = None,
+        initial_velocities: Optional[bool] = None,
+        initial_temperature: Optional[float] = None,
+        log_file: Optional[str] = None,
+        trajectory: Optional[ase.io.Trajectory] = None,
+        ithread: Optional[int] = None,
+    ):
+        """
+        This does a Molecular Dynamics simulation using Langevin thermostat
+        and verlocity Verlet algorithm for an NVT ensemble.
+
+        In the future we could add more sophisticated sampling methods
+        (e.g. MALA or HMC)
+
+        Parameters
+        ----------
+        system: ase.Atoms
+            System to be sampled.
+        temperature: float, optional, default None
+            MD Simulation temperature in Kelvin
+        time_step: float, optional, default None
+            MD Simulation time step in fs
+        simulation_time: float, optional, default None
+            Total MD Simulation time in fs
+        langevin_friction: float, optional, default None
+            Langevin thermostat friction coefficient in Kelvin.
+        equilibration_time: float, optional, default None
+            Total MD Simulation time in fs for a equilibration run prior to
+            the production run.
+        initial_velocities: bool, optional, default None
+            Instruction flag if initial atom velocities are assigned.
+        initial_temperature: float, optional, default None
+            Temperature for initial atom velocities according to a Maxwell-
+            Boltzmann distribution.
+        log_file: str, optional, default None
+            Log file for sampling information
+        trajectory: ase.io.Trajectory, optional, default None
+            ASE Trajectory to append sampled system if requested
+        ithread: int, optional, default None
+            Thread number
+        
+        Return
+        ------
+        int
+            Number of sampled systems to database
+        """
+        
+        # Check input parameters
+        if temperature is None:
+            temperature = self.md_temperature
+        if time_step is None:
+            time_step = self.md_time_step
+        if simulation_time is None:
+            simulation_time = self.md_simulation_time
+        if langevin_friction is None:
+            langevin_friction = self.md_langevin_friction
+        if equilibration_time is None:
+            equilibration_time = self.md_equilibration_time
+        if initial_velocities is None:
+            initial_velocities = self.md_initial_velocities
+        if initial_temperature is None:
+            initial_temperature = self.md_initial_temperature
+
         # Initialize stored sample counter
-        self.Nsample = 0
+        Nsample = 0
 
         # Set initial atom velocities if requested
-        if self.md_initial_velocities:
+        if initial_velocities:
             MaxwellBoltzmannDistribution(
                 system, 
-                temperature_K=self.md_initial_temperature)
+                temperature_K=initial_temperature)
         
         # Initialize MD simulation propagator
         md_dyn = Langevin(
             system, 
-            timestep=self.md_time_step*units.fs,
-            temperature_K=self.md_temperature,
-            friction=self.md_langevin_friction,
-            logfile=self.sample_log_file,
+            timestep=time_step*units.fs,
+            temperature_K=temperature,
+            friction=langevin_friction,
+            logfile=log_file,
             loginterval=self.md_save_interval)
-        
+
         # Perform MD equilibration simulation if requested
-        if (
-                self.md_equilibration_time is not None 
-                and self.md_equilibration_time > 0.
-            ):
+        if equilibration_time is not None and equilibration_time > 0.:
             
             # Run equilibration simulation
-            md_equilibration_step = round(
-                self.md_equilibration_time/self.md_time_step)
-            md_dyn.run(md_equilibration_step)
+            equilibration_step = round(equilibration_time/time_step)
+            md_dyn.run(equilibration_step)
             
         # Attach system properties saving function
         md_dyn.attach(
             self.save_properties,
             interval=self.md_save_interval,
-            system=system)
+            system=system,
+            Nsample=Nsample)
 
         # Attach trajectory
         if self.sample_save_trajectory:
-            self.md_trajectory = Trajectory(
-                self.sample_trajectory_file, atoms=system, 
-                mode='a', properties=self.sample_properties)
             md_dyn.attach(
                 self.write_trajectory, 
                 interval=self.md_save_interval,
-                system=system)
+                system=system,
+                sample_trajectory=trajectory)
 
         # Run MD simulation
-        md_simulation_step = round(
-            self.md_simulation_time/self.md_time_step)
-        md_dyn.run(md_simulation_step)
+        simulation_steps = round(simulation_time/time_step)
+        md_dyn.run(simulation_steps)
         
-        return self.Nsample
-
-    def save_properties(self, system):
-        """
-        Save system properties
-        """
+        # As function attachment to ASE Dynamics class does not provide a 
+        # return option of Nsamples, guess attached samples
+        Nsample = simulation_steps//self.md_save_interval + 1
         
-        system_properties = self.get_properties(system)
-        self.sample_dataset.add_atoms(system, system_properties)
-        self.Nsample += 1
-        
-
-    def write_trajectory(self, system):
-        """
-        Write current image to trajectory file but without constraints
-        """
-        
-        system_noconstraint = system.copy()
-        system_noconstraint.calc = system.calc
-        system_noconstraint.set_constraint()
-        self.md_trajectory.write(system_noconstraint)
+        return Nsample

@@ -1,16 +1,16 @@
 import os
+import queue
 import logging
+import threading
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import numpy as np
 
 import ase
-from ase import units
-from ase.md.md import MolecularDynamics
-
+from ase.constraints import FixAtoms
 from ase.io.trajectory import Trajectory
+from ase import units
 
-from .. import data
 from .. import settings
 from .. import utils
 from .. import sample
@@ -103,14 +103,6 @@ class MCSampler(sample.Sampler):
             check_default=utils.get_default_args(self, sample),
             check_dtype=utils.get_dtype_args(self, sample)
         )
-
-        # Define MC log file path
-        self.mc_log_file = os.path.join(
-            self.sample_directory,
-            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
-        self.mc_trajectory_file = os.path.join(
-            self.sample_directory, 
-            f'{self.sample_counter:d}_{self.sample_tag:s}.traj')
         
         # Check sample properties for energy properties which are required for 
         # MC sampling
@@ -120,7 +112,6 @@ class MCSampler(sample.Sampler):
         return
 
     def get_info(self):
-
         """
         Returns a dictionary with the information of the MC sampler.
         
@@ -140,9 +131,62 @@ class MCSampler(sample.Sampler):
 
         return info
 
+    def run_systems(
+        self,
+        sample_systems_queue: Optional[queue.Queue] = None,
+        **kwargs,
+    ):
+        """
+        Perform Normal Mode Scanning on the sample system.
+        
+        Parameters
+        ----------
+        sample_systems_queue: queue.Queue, optional, default None
+            Queue object including sample systems or to which 'sample_systems' 
+            input will be added. If not defined, an empty queue will be 
+            assigned.
+        """
+        
+        # Initialize thread continuation flag
+        self.thread_keep_going = np.array(
+            [True for ithread in range(self.sample_num_threads)],
+            dtype=bool
+            )
+        
+        # Add stop flag
+        for _ in range(self.sample_num_threads):
+            sample_systems_queue.put('stop')
+
+        if self.sample_num_threads == 1:
+            
+            self.run_system(sample_systems_queue)
+        
+        else:
+
+            # Create threads
+            threads = [
+                threading.Thread(
+                    target=self.run_system, 
+                    args=(sample_systems_queue, ),
+                    kwargs={
+                        'ithread': ithread}
+                    )
+                for ithread in range(self.sample_num_threads)]
+
+            # Start threads
+            for thread in threads:
+                thread.start()
+
+            # Wait for threads to finish
+            for thread in threads:
+                thread.join()
+
+        return
+
     def run_system(
         self, 
-        system: ase.Atoms, 
+        sample_systems_queue: queue.Queue,
+        ithread: Optional[int] = None,
     ):
         """
         Perform a very simple MC Simulation using the Metropolis algorithm with
@@ -150,39 +194,81 @@ class MCSampler(sample.Sampler):
 
         Parameters
         ----------
-        system: ase.Atoms
-            System to be sampled.
+        sample_systems_queue: queue.Queue
+            Queue of sample system information providing tuples of ASE atoms
+            objects, index number and respective sample source and the total
+            sample index.
+        ithread: int, optional, default None
+            Thread number
         """
 
-        # Initialize stored sample counter
-        self.Nsample = 0
-        
-        # Set up system
-        initial_system = system.copy()
-        initial_system.set_calculator(self.sample_calculator)
-        
-        # Temperature parameter
-        self.beta = 1.0 / (units.kB * self.mc_temperature)
+        while self.keep_going(ithread):
+            
+            # Get sample parameters or wait
+            sample = sample_systems_queue.get()
+            
+            # Check for stop flag
+            if sample == 'stop':
+                self.thread_keep_going[ithread] = False
+                continue
+            
+            # Extract sample system to optimize
+            (system, isample, source, index) = sample
 
-        # Initialize trajectory
-        if self.sample_save_trajectory:
-            self.mc_trajectory = Trajectory(
-                self.sample_trajectory_file, atoms=system,
-                mode='a', properties=self.sample_properties)
+            # If requested, perform structure optimization
+            if self.sample_systems_optimize:
+
+                # Perform structure optimization
+                system = self.run_optimization(
+                    sample_system=system,
+                    sample_index=isample,
+                    ithread=ithread)
+
+            # Initialize trajectory file
+            if self.sample_save_trajectory:
+                sample_trajectory = Trajectory(
+                    self.sample_trajectory_file.format(isample), atoms=system,
+                    mode='a', properties=self.sample_properties)
+            else:
+                sample_trajectory = None
+
+            # Assign calculator
+            system = self.assign_calculator(
+                system,
+                ithread=ithread)
+
+            # Perform Monte-Carlo simulation
+            Nsample = self.monte_carlo_steps(
+                system, 
+                trajectory=sample_trajectory,
+                ithread=ithread)
+            
+            # Print sampling info
+            msg = f"Sampling method '{self.sample_tag:s}' complete for system "
+            msg += f"of index {index:d} from '{source}!'\n"
+            if Nsample == 0:
+                msg += f"No samples written to "
+            if Nsample == 1:
+                msg += f"{Nsample:d} sample written to "
+            else:
+                msg += f"{Nsample:d} samples written to "
+            msg += f"'{self.sample_data_file:s}'.\n"
+            
+            logger.info(f"INFO:\n{msg:s}")
         
-        # Perform MC simulation
-        self.monte_carlo_steps(initial_system, self.mc_steps)
-        
-        return self.Nsample
+        return
 
     def monte_carlo_steps(
         self,
-        system,
-        steps,
-        save_trajectory
+        system: ase.Atoms,
+        Nsteps: Optional[int] = None,
+        temperature: Optional[float] = None,
+        max_displacement: Optional[float] = None,
+        trajectory: Optional[ase.io.Trajectory] = None,
+        ithread: Optional[int] = None,
     ):
         """
-        This does a simple Monte Carlo simulation using the Metropolis
+        This does a simple Monte-Carlo simulation using the Metropolis
         algorithm.
 
         In the future we could add more sophisticated sampling methods
@@ -192,38 +278,87 @@ class MCSampler(sample.Sampler):
         ----------
         system: ase.Atoms
             System to be sampled.
-        steps: int
-            Number of MC steps to perform.
-        save_trajectory: bool
-            Save system steps in trajectory file
+        Nsteps: int, optional, default None
+            Number of Monte-Carlo steps to perform.
+        temperature: float, optional, default None
+            Sample temperature 
+        max_displacement: float, optional, default None
+            Maximum displacement of the MC simulation in Angstrom.
+        trajectory: ase.io.Trajectory, optional, default None
+            ASE Trajectory to append sampled system if requested
+        ithread: int, optional, default None
+            Thread number
+        
+        Return
+        ------
+        int
+            Number of sampled systems to database
         """
     
-        # Compute initial energy
-        current_energy = system.get_potential_energy()
+        # Check sample steps
+        if Nsteps is None:
+            Nsteps = self.mc_steps
         
-        # MC acceptance counter
+        # Check Temperature parameter
+        if temperature is None:
+            temperature = self.mc_temperature
+        beta = 1.0/(units.kB*self.mc_temperature)
+        
+        # Check maximum atom displacement
+        if max_displacement is None:
+            max_displacement = self.mc_max_displacement
+        
+        # Monte-Carlo acceptance and stored sample system counter
         Naccept = 0
+        Nsample = 0
+        
+        # Compute current energy
+        system.calc.calculate(
+            system,
+            properties=self.sample_properties)
+        system_properties = system.calc.results
+        current_energy = system_properties['energy']
+
+        # Store initial system properties
+        Nsample = self.save_properties(system, Nsample)
+        if self.sample_save_trajectory:
+            self.write_trajectory(system, trajectory)
+        
+        # Get selectable system atoms
+        atom_indices = np.arange(
+            system.get_global_number_of_atoms(), dtype=int)
+        for constraint in system.constraints:
+            if isinstance(constraint, FixAtoms):
+                atom_indices = [
+                    idx for idx in atom_indices
+                    if idx not in constraint.index]
+        atom_indices = np.array(atom_indices)
+        Natoms = len(atom_indices)
         
         # Iterate over MC steps
-        for step in range(steps):
-            
-            # First, randomly pick an atom
-            atom = np.random.randint(0, len(system))
+        for istep in range(Nsteps):
 
-            # Store its current position
-            old_position = system.positions[atom].copy()
+            # First, randomly select an atom
+            selected_atom = atom_indices[np.random.randint(Natoms)]
 
-            # Propose a new random position for this atom
+            # Store current selected atom position
+            old_position = system.positions[selected_atom].copy()
+
+            # Propose a new random atom position
             displacement = np.random.uniform(
-                -self.mc_max_displacement, self.mc_max_displacement, 3)
-            system[atom].position += displacement
+                -max_displacement, max_displacement, 3)
+            system.positions[selected_atom] += displacement
 
             # Get the potential energy of the new system
-            new_energy = system.get_potential_energy()
+            system.calc.calculate(
+                system,
+                properties=self.sample_properties)
+            system_properties = system.calc.results
+            new_energy = system_properties['energy']
 
             # Metropolis acceptance criterion
-            threshold = np.exp(-self.beta * (new_energy - current_energy))
-            
+            threshold = np.exp(-beta*(new_energy - current_energy))
+
             # If accepted 
             if np.random.rand() < threshold:
 
@@ -231,36 +366,16 @@ class MCSampler(sample.Sampler):
                 current_energy = new_energy
                 Naccept += 1
                 
-                # Store properties
+                # Store system properties
                 if not Naccept%self.mc_save_interval:
-                    self.save_properties(system)
-                    if self.sample_save_trajectory:
-                        self.write_trajectory(system)
+                    Nsample = self.save_properties(system, Nsample)
+                    if self.sample_save_trajectory and trajectory is not None:
+                        self.write_trajectory(system, trajectory)
             
             # If not accepted
             else:
                 
                 # Reset the position of the atom
-                system[atom].position = old_position
+                system.positions[selected_atom] = old_position
 
-        return
-
-
-    def save_properties(self, system):
-        """
-        Save system properties
-        """
-
-        system_properties = self.get_properties(system)
-        self.sample_dataset.add_atoms(system, system_properties)
-        self.Nsample += 1
-
-    def write_trajectory(self, system):
-        """
-        Write current image to trajectory file but without constraints
-        """
-        
-        system_noconstraint = system.copy()
-        system_noconstraint.calc = system.calc
-        system_noconstraint.set_constraint()
-        self.mc_trajectory.write(system_noconstraint)
+        return Nsample

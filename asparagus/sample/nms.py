@@ -15,7 +15,6 @@ from ase.io.trajectory import Trajectory
 from ase.parallel import world, paropen
 from ase import units
 
-from .. import data
 from .. import settings
 from .. import utils
 from .. import sample
@@ -201,8 +200,11 @@ class NormalModeScanner(sample.Sampler):
             If True, checkpoint files for atom displacement calculations
             in {sample_directory}/vib_{isample} will be deleted.
             Else, results from available  checkpoint files will be used.
-
         """
+        
+        # Check sample system queue
+        if sample_systems_queue is None:
+            sample_systems_queue = queue.Queue
         
         # Optimize sample systems or take as normal mode analysis input
         if self.sample_systems_optimize:
@@ -464,7 +466,7 @@ class NormalModeScanner(sample.Sampler):
                 msg += f"   x   ({system_com_shift[ivib]:2.1e})\n"
             else:
                 msg += f"       ({system_com_shift[ivib]:2.1e})\n"
-        with open(self.sample_log_file, 'a') as flog:
+        with open(self.sample_log_file.format(isample), 'a') as flog:
             flog.write(msg)
         
         # Iterate over number of normal mode combinations
@@ -495,7 +497,7 @@ class NormalModeScanner(sample.Sampler):
                     
                     # Add mode combination job parameters
                     sample_calculate_queue.put(
-                        (irun, icomp, imodes, isign, signs))
+                        (isample, irun, icomp, imodes, isign, signs))
                     irun += 1
 
         # Add stop flag
@@ -617,7 +619,7 @@ class NormalModeScanner(sample.Sampler):
                 continue
             
             # Extract normal mode combination parameters
-            (irun, icomp, imodes, isign, signs) = sample
+            (isample, irun, icomp, imodes, isign, signs) = sample
             
             # Prepare sign combinations
             all_signs = np.array(list(
@@ -719,7 +721,9 @@ class NormalModeScanner(sample.Sampler):
                         else:
                             msg += f"-{imode + 1:d}, "
                     msg += f") - {istep:4d} steps added\n"
-                    with open(self.sample_log_file, 'a') as flog:
+                    with (
+                        open(self.sample_log_file.format(isample), 'a') as flog
+                    ):
                         flog.write(msg)
 
                     # Set flag in case maximum Nsteps is reached
@@ -1086,7 +1090,7 @@ class NormalModeSampler(sample.Sampler):
         msg += "----------------------------\n"
         for ivib, freq in enumerate(system_frequencies):
             msg += f" {ivib + 1:5d} | {freq:18.2f} |\n"
-        with open(self.sample_log_file, 'a') as flog:
+        with open(self.sample_log_file.format(isample), 'a') as flog:
             flog.write(msg)
 
         # Initialize normal mode sampling queue

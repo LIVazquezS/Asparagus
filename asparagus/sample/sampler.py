@@ -93,6 +93,9 @@ class Sampler:
         In case of string type input for 'sample_calculator', this
         dictionary is passed as keyword arguments at the initialization
         of the ASE calculator.
+    sample_save_trajectory: bool, optional, default False
+        If True, add sampled systems added to the database file also to an
+        ASE trajectory file.
     sample_num_threads: int, optional, default 1
         Number of parallel threads of property calculation using the sample
         calculator. Default is 1 (serial computation). Parallel computation
@@ -252,7 +255,7 @@ class Sampler:
         # Define sample log file path and trajectory file
         self.sample_log_file = os.path.join(
             self.sample_directory,
-            f'{self.sample_counter:d}_{self.sample_tag:s}.log')
+            f'{self.sample_counter:d}_{self.sample_tag:s}_{{:d}}.log')
         self.sample_trajectory_file = os.path.join(
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}_{{:d}}.traj')
@@ -535,11 +538,17 @@ class Sampler:
         **kwargs,
     ):
         """
-        Iterate over systems using 'sample_num_threads' threads.
+        Apply sample calculation on sample systems.
+        
+        Parameters
+        ----------
+        sample_systems_queue: queue.Queue, optional, default None
+            Queue object including sample systems or to which 'sample_systems' 
+            input will be added. If not defined, an empty queue will be 
+            assigned.
         """
 
         # Initialize thread continuation flag
-        # Currently all False, might become useful later for adaptive sampling
         self.thread_keep_going = np.array(
             [True for ithread in range(self.sample_num_threads)],
             dtype=bool
@@ -549,6 +558,7 @@ class Sampler:
         for _ in range(self.sample_num_threads):
             sample_systems_queue.put('stop')
 
+        # Run sampling over sample systems
         if self.sample_num_threads == 1:
             
             self.run_system(sample_systems_queue)
@@ -623,7 +633,7 @@ class Sampler:
                 
             # Initialize trajectory file
             if self.sample_save_trajectory:
-                self.sample_trajectory = Trajectory(
+                sample_trajectory = Trajectory(
                     self.sample_trajectory_file.format(isample), atoms=system,
                     mode='a', properties=self.sample_properties)
             
@@ -635,7 +645,7 @@ class Sampler:
             # Store results
             Nsample = self.save_properties(system, Nsample)
             if self.sample_save_trajectory:
-                self.write_trajectory(system, self.sample_trajectory)
+                self.write_trajectory(system, sample_trajectory)
 
         # Print sampling info
         msg = f"Sampling method '{self.sample_tag:s}' complete for system "
@@ -668,6 +678,8 @@ class Sampler:
         sample_system: ase.Atoms, optional, default None
             ASE Atoms object which will be optimized using the optimizer 
             defined in self.ase_optimizer.
+        sample_index: int, optional, default None
+            Sample index number of the ASE atoms object to optimize.
         sample_systems_queue: queue.Queue, optional, default None
             Sample system queue cotaining ASE Atoms object which will be 
             optimized using the optimizer defined in self.ase_optimizer.
@@ -692,15 +704,27 @@ class Sampler:
         if sample_system is not None:
             
             # Prepare optimization log and trajectory file name
-            ase_optimizer_log_file = os.path.join(
-                self.sample_directory,
-                f'{self.sample_counter:d}_{self.optimizer_tag:s}.log')
-            ase_optimizer_trajectory_file = os.path.join(
-                self.sample_directory,
-                f'{self.sample_counter:d}_{self.optimizer_tag:s}.traj')
-            
+            if sample_index is None:
+                ase_optimizer_log_file = os.path.join(
+                    self.sample_directory,
+                    f'{self.sample_counter:d}_{self.optimizer_tag:s}.log')
+                ase_optimizer_trajectory_file = os.path.join(
+                    self.sample_directory,
+                    f'{self.sample_counter:d}_{self.optimizer_tag:s}.traj')
+            else:
+                ase_optimizer_log_file = os.path.join(
+                    self.sample_directory,
+                    f'{self.sample_counter:d}_{self.optimizer_tag:s}'
+                    + f'_{sample_index:d}.log')
+                ase_optimizer_trajectory_file = os.path.join(
+                    self.sample_directory,
+                    f'{self.sample_counter:d}_{self.optimizer_tag:s}'
+                    + f'_{sample_index:d}.traj')
+
             # Assign calculator
-            system = self.assign_calculator(sample_system)
+            system = self.assign_calculator(
+                sample_system,
+                ithread=ithread)
 
             # Perform structure optimization
             self.ase_optimizer(
@@ -815,7 +839,7 @@ class Sampler:
         system_properties = self.get_properties(system)
         self.sample_dataset.add_atoms(system, system_properties)
         Nsample += 1
-        
+
         return Nsample
 
     def write_trajectory(self, system, sample_trajectory):
