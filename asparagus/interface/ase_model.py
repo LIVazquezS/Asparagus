@@ -6,6 +6,7 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 import ase
 from xtb.ase.calculator import XTB
 from .orca_ase import ORCA_Dipole
+from .shell_ase import ShellCalculator
 
 from .. import utils
 
@@ -38,6 +39,7 @@ ase_calculator_units = {
 ase_calculator_avaiable = {
     'XTB'.lower(): XTB,
     'ORCA'.lower(): ORCA_Dipole,
+    'Shell'.lower(): ShellCalculator,
     }
 
 def get_ase_calculator(
@@ -74,11 +76,11 @@ def get_ase_calculator(
         # Check avaiability
         if calculator.lower() not in ase_calculator_avaiable:
             raise ValueError(
-                f"ASE calculator '{calculator}' is not avaiable!"
+                f"ASE calculator '{calculator}' is not avaiable!\n"
                 + "Choose from:\n" +
                 str(ase_calculator_avaiable.keys()))
 
-        # initialize ASE calculator
+        # Initialize ASE calculator
         try:
             calculator_tag = calculator
             calculator = ase_calculator_avaiable[calculator.lower()](

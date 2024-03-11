@@ -138,7 +138,6 @@ if False:
         data_overwrite=True,
     )
     data = model.get_DataContainer()
-    print(data[0])
 
 #==============================================================================
 # Test Asparagus Sampler Methods
@@ -443,5 +442,100 @@ if True:
         )
     sampler.run()
 
-    pass
+#==============================================================================
+# Test Asparagus Calculators
+#==============================================================================
 
+# Shell Calculator
+if True:
+    
+    from asparagus.sample import Sampler
+    
+    sampler = Sampler(
+        config='test/calc_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/nh3_c3v.xyz',
+        sample_systems_format='xyz',
+        sample_calculator='shell',
+        sample_calculator_args = {
+            'files': [
+                'data/template/run_orca.sh',
+                'data/template/run_orca.inp',
+                'data/template/run_orca.py',
+                ],
+            'files_replace': {
+                '%xyz%': '$xyz',
+                '%charge%': '$charge',
+                '%multiplicity%': '$multiplicity',
+                },
+            'execute_file': 'run_orca.sh',  # or 'data/template/run_orca.sh'
+            'charge': 0,
+            'multiplicity': 1,
+            'directory': 'test/shell',
+            'result_properties': ['energy', 'forces', 'dipole']
+            },
+        sample_num_threads=1,
+        )
+    sampler.run()
+
+    sampler = Sampler(
+        config='test/calc_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/meta_nh3.traj',
+        sample_calculator='shell',
+        sample_calculator_args = {
+            'files': [
+                'data/template/run_orca.sh',
+                'data/template/run_orca.inp',
+                'data/template/run_orca.py',
+                ],
+            'files_replace': {
+                '%xyz%': '$xyz',
+                '%charge%': '$charge',
+                '%multiplicity%': '$multiplicity',
+                },
+            'execute_file': 'data/template/run_orca.sh',
+            'charge': 0,
+            'multiplicity': 1,
+            'directory': 'test/shell',
+            'result_properties': ['energy', 'forces', 'dipole']
+            },
+        sample_num_threads=4,
+        sample_save_trajectory=True,
+        )
+    sampler.run()
+
+# Slurm Calculator
+if True:
+    
+    from asparagus.sample import Sampler
+    
+    sampler = Sampler(
+        config='test/calc_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/nh3_c3v.xyz',
+        sample_systems_format='xyz',
+        sample_calculator='shell',
+        sample_calculator_args = {
+            'files': [
+                'data/template/run_molpro.sh',
+                'data/template/run_molpro.inp',
+                'data/template/run_molpro.py',
+                ],
+            'files_replace': {
+                '%xyz%': '$xyz',
+                '%charge%': '$charge',
+                '%multiplicity%': '$multiplicity',
+                },
+            'execute_file': 'run_molpro.sh',
+            'charge': 0,
+            'multiplicity': 1,
+            'directory': 'test/shell',
+            'result_properties': ['energy', 'forces', 'dipole']
+            },
+        sample_num_threads=1,
+        )
+    sampler.run()

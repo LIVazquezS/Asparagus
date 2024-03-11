@@ -11,7 +11,6 @@ import ase
 from ase.vibrations import Vibrations as Vibrations_ASE
 from ase.vibrations.data import VibrationsData
 from ase.constraints import FixAtoms
-from ase.io.trajectory import Trajectory
 from ase.parallel import world, paropen
 from ase import units
 
@@ -291,12 +290,6 @@ class NormalModeScanner(sample.Sampler):
         
         # Get sample system for normal mode analysis
         (system, isample, source, index) = sample_systems_queue.get()
-
-        # Initialize trajectory file
-        if self.sample_save_trajectory:
-            self.sample_trajectory = Trajectory(
-                self.sample_trajectory_file.format(isample), atoms=system,
-                mode='a', properties=self.sample_properties)
 
         # Print sampler info
         msg = "INFO:\nStart normal mode scanning of the system "
@@ -687,7 +680,8 @@ class NormalModeScanner(sample.Sampler):
 
                 # Attach to trajectory
                 if self.sample_save_trajectory:
-                    self.write_trajectory(system, self.sample_trajectory)
+                    self.write_trajectory(
+                        system, self.sample_trajectory_file.format(isample))
 
                 # Check energy threshold
                 if threshold_reached:
@@ -957,12 +951,6 @@ class NormalModeSampler(sample.Sampler):
         # Get sample system for normal mode analysis
         (system, isample, source, index) = sample_systems_queue.get()
 
-        # Initialize trajectory file
-        if self.sample_save_trajectory:
-            self.sample_trajectory = Trajectory(
-                self.sample_trajectory_file.format(isample), atoms=system,
-                mode='a', properties=self.sample_properties)
-
         # Print sampler info
         msg = "INFO:\nStart normal mode sampling of the system "
         msg += f"from '{source}' of index {index:d}.\n"
@@ -1115,7 +1103,7 @@ class NormalModeSampler(sample.Sampler):
                     system_redmass, 
                     system_forceconst,
                     self.nms_temperature)
-                sample_calculate_queue.put((irun, sample_position))
+                sample_calculate_queue.put((isample, irun, sample_position))
             
             # Add stop flag
             for _ in range(self.sample_num_threads):
@@ -1155,7 +1143,7 @@ class NormalModeSampler(sample.Sampler):
                     system_redmass, 
                     system_forceconst,
                     self.nms_temperature)
-                sample_calculate_queue.put((irun, sample_position))
+                sample_calculate_queue.put((isample, irun, sample_position))
             
             # Add stop flag
             for _ in range(self.sample_num_threads):
@@ -1226,7 +1214,7 @@ class NormalModeSampler(sample.Sampler):
                 continue
             
             # Extract normal mode combination parameters
-            (irun, sample_positions) = sample
+            (isample, irun, sample_positions) = sample
             
             # Set sample positions to calculate
             system.set_positions(sample_positions)
@@ -1249,7 +1237,8 @@ class NormalModeSampler(sample.Sampler):
 
             # Attach to trajectory
             if self.sample_save_trajectory:
-                self.write_trajectory(system, self.sample_trajectory)
+                self.write_trajectory(
+                    system, self.sample_trajectory_file.format(isample))
 
         # Set number of stored samples
         if ithread is None:

@@ -10,7 +10,6 @@ import ase
 from ase.constraints import Hookean
 from ase.md.langevin import Langevin
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.io.trajectory import Trajectory
 from ase import units
 
 from .. import settings
@@ -379,11 +378,9 @@ class MetaSampler(sample.Sampler):
 
             # Initialize trajectory file
             if self.sample_save_trajectory:
-                sample_trajectory = Trajectory(
-                    self.sample_trajectory_file.format(isample), atoms=system,
-                    mode='a', properties=self.sample_properties)
+                trajectory_file = self.sample_trajectory_file.format(isample)
             else:
-                sample_trajectory = None
+                trajectory_file = None
 
             # Initialize Gaussian log file
             gaussian_log_file = self.meta_gaussian_log_file.format(isample)
@@ -404,7 +401,7 @@ class MetaSampler(sample.Sampler):
                         kwargs={
                             'gaussian_log_file': gaussian_log_file,
                             'log_file': sample_log_file,
-                            'trajectory': sample_trajectory,
+                            'trajectory_file': trajectory_file,
                             'Nsamples': Nsamples,
                             'ithread': ithread},
                         )
@@ -428,7 +425,7 @@ class MetaSampler(sample.Sampler):
                     system, 
                     gaussian_log_file=gaussian_log_file,
                     log_file=sample_log_file,
-                    trajectory=sample_trajectory,
+                    trajectory_file=trajectory_file,
                     ithread=ithread)
             
             # Print sampling info
@@ -463,7 +460,7 @@ class MetaSampler(sample.Sampler):
         initial_velocities: Optional[bool] = None,
         initial_temperature: Optional[float] = None,
         log_file: Optional[str] = None,
-        trajectory: Optional[ase.io.Trajectory] = None,
+        trajectory_file: Optional[str] = None,
         Nsamples: Optional[List[int]] = None,
         ithread: Optional[int] = None,
     ):
@@ -506,8 +503,8 @@ class MetaSampler(sample.Sampler):
             Boltzmann distribution.
         log_file: str, optional, default None
             Log file for sampling information
-        trajectory: ase.io.Trajectory, optional, default None
-            ASE Trajectory to append sampled system if requested
+        trajectory_file: str, optional, default None
+            ASE Trajectory file path to append sampled system if requested
         Nsamples: list(int), optional, default None
             List for number of sampled systems per thread
         ithread: int, optional, default None
@@ -604,7 +601,7 @@ class MetaSampler(sample.Sampler):
                 self.write_trajectory, 
                 interval=self.meta_save_interval,
                 system=system,
-                sample_trajectory=trajectory)
+                trajectory_file=trajectory_file)
 
         # Attach collective variables writer
         meta_cv_logger = MetaDynamicLogger(

@@ -1,4 +1,5 @@
 import os
+import time
 import queue
 import logging
 import threading
@@ -8,6 +9,7 @@ import numpy as np
 
 import ase
 from ase import optimize
+from ase.parallel import world
 
 from .. import sample
 
@@ -21,32 +23,6 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['Sampler']
 
-# ======================================
-# Threadsafe Iterator Class
-# ======================================
-
-class threadsafe_iter:
-    """
-    Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
-    """
-    def __init__(self, it):
-        self.it = it
-        self.lock = threading.Lock()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        with self.lock:
-            return self.it.__next__()
-
-def threadsafe_generator(f):
-    """A decorator that takes a generator function and makes it thread-safe.
-    """
-    def g(*a, **kw):
-        return threadsafe_iter(f(*a, **kw))
-    return g
 
 # ======================================
 # General Conformation Sampler Class
@@ -85,6 +61,9 @@ class Sampler:
     sample_systems_format: (str, list), optional, default ''
         System coordinate file format string (e.g. 'xyz') for the
         definition in 'sample_systems' in case of file paths.
+    sample_systems_indices: (int, list), optional, default None
+        List of sample number indices for specific selection of systems
+        in the sample system files.
     sample_calculator: (str, callable object), optional, default 'XTB'
         Definition of the ASE calculator type for reference data
         computation. The input can be either directly a ASE calculator
@@ -141,6 +120,7 @@ class Sampler:
         'sample_properties':            ['energy', 'forces', 'dipole'],
         'sample_systems_optimize':      False,
         'sample_systems_optimize_fmax': 0.001,
+        'sample_systems_indices':       None,
         'sample_data_overwrite':        False,
         'sample_tag':                   'sample',
         }
@@ -158,6 +138,8 @@ class Sampler:
         'sample_systems_format':        [utils.is_None,
                                          utils.is_string, 
                                          utils.is_string_array],
+        'sample_systems_indices':       [utils.is_integer, 
+                                         utils.is_integer_array],
         'sample_calculator':            [utils.is_string, 
                                          utils.is_object],
         'sample_calculator_args':       [utils.is_dictionary],
@@ -182,6 +164,7 @@ class Sampler:
         sample_systems_queue: Optional[queue.Queue] = None,
         sample_systems: Optional[Union[str, List[str], object]] = None,
         sample_systems_format: Optional[Union[str, List[str]]] = None,
+        sample_systems_indices: Optional[Union[int, List[int]]] = None,
         sample_calculator: Optional[Union[str, object]] = None,
         sample_calculator_args: Optional[Dict[str, Any]] = None,
         sample_save_trajectory: Optional[bool] = None,
@@ -260,6 +243,9 @@ class Sampler:
             self.sample_directory, 
             f'{self.sample_counter:d}_{self.sample_tag:s}_{{:d}}.traj')
 
+        # Initialize the multithreading lock
+        self.lock = threading.Lock()
+
         #####################################
         # # # Prepare Sample Calculator # # #
         #####################################
@@ -315,7 +301,8 @@ class Sampler:
         self,
         sample_systems_queue,
         sample_systems,
-        sample_systems_format
+        sample_systems_format,
+        sample_systems_indices,
     ):
         """
         Iterator to read next sample system and return as ASE atoms object
@@ -471,6 +458,7 @@ class Sampler:
         sample_systems_queue: Optional[queue.Queue] = None,
         sample_systems: Optional[Union[str, List[str], object]] = None,
         sample_systems_format: Optional[Union[str, List[str]]] = None,
+        sample_systems_indices: Optional[Union[int, List[int]]] = None,
         **kwargs
     ):
         """
@@ -488,6 +476,8 @@ class Sampler:
             sample_systems = self.sample_systems
         if sample_systems_format is None:
             sample_systems_format = self.sample_systems_format
+        if sample_systems_indices is None:
+            sample_systems_indices = self.sample_systems_indices
 
         # Collect sampling parameters
         config_sample_tag = f'{self.sample_counter}_{self.sample_tag}'
@@ -501,7 +491,8 @@ class Sampler:
         sample_systems_queue, sample_systems = self.read_systems(
             sample_systems_queue,
             sample_systems,
-            sample_systems_format)
+            sample_systems_format,
+            sample_systems_indices)
 
         # Update configuration file with sampling parameters
         if 'sampler_schedule' in self.config:
@@ -630,13 +621,7 @@ class Sampler:
                 system = self.run_optimization(
                     sample_system=system,
                     sample_index=isample)
-                
-            # Initialize trajectory file
-            if self.sample_save_trajectory:
-                sample_trajectory = Trajectory(
-                    self.sample_trajectory_file.format(isample), atoms=system,
-                    mode='a', properties=self.sample_properties)
-            
+
             # Compute system properties
             system.calc.calculate(
                 system,
@@ -645,11 +630,12 @@ class Sampler:
             # Store results
             Nsample = self.save_properties(system, Nsample)
             if self.sample_save_trajectory:
-                self.write_trajectory(system, sample_trajectory)
+                self.write_trajectory(
+                    system, self.sample_trajectory_file.format(isample))
 
         # Print sampling info
         msg = f"Sampling method '{self.sample_tag:s}' complete for system "
-        msg += f"of index {index:d} from '{source}!'\n"
+        msg += f"from '{source}!'\n"
         if Nsample == 0:
             msg += f"No samples written to "
         if Nsample == 1:
@@ -842,12 +828,24 @@ class Sampler:
 
         return Nsample
 
-    def write_trajectory(self, system, sample_trajectory):
+    def write_trajectory(self, system, trajectory_file):
         """
         Write current image to trajectory file but without constraints
         """
         
-        system_noconstraint = system.copy()
-        system_noconstraint.calc = system.calc
-        system_noconstraint.set_constraint()
-        sample_trajectory.write(system_noconstraint)
+        # Check trajectory file
+        if trajectory_file is None:
+            return
+        
+        # Save system without constraint to the trajectory file
+        with self.lock:
+            trajectory = ase.io.Trajectory(
+                    trajectory_file, atoms=system,
+                    mode='a', properties=self.sample_properties)
+            system_noconstraint = system.copy()
+            system_noconstraint.calc = system.calc
+            system_noconstraint.set_constraint()
+            trajectory.write(system_noconstraint)
+            trajectory.close()
+
+        return

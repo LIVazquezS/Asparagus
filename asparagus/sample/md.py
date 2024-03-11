@@ -9,7 +9,6 @@ import numpy as np
 import ase
 from ase.md.langevin import Langevin
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.io.trajectory import Trajectory
 from ase import units
 
 from .. import settings
@@ -261,11 +260,9 @@ class MDSampler(sample.Sampler):
             
             # Initialize trajectory file
             if self.sample_save_trajectory:
-                sample_trajectory = Trajectory(
-                    self.sample_trajectory_file.format(isample), atoms=system,
-                    mode='a', properties=self.sample_properties)
+                trajectory_file = self.sample_trajectory_file.format(isample)
             else:
-                sample_trajectory = None
+                trajectory_file = None
 
             # Assign calculator
             system = self.assign_calculator(
@@ -276,7 +273,7 @@ class MDSampler(sample.Sampler):
             Nsample = self.run_langevin_md(
                 system,
                 log_file=sample_log_file,
-                trajectory=sample_trajectory,
+                trajectory_file=trajectory_file,
                 ithread=ithread)
             
             # Print sampling info
@@ -305,7 +302,7 @@ class MDSampler(sample.Sampler):
         initial_velocities: Optional[bool] = None,
         initial_temperature: Optional[float] = None,
         log_file: Optional[str] = None,
-        trajectory: Optional[ase.io.Trajectory] = None,
+        trajectory_file: Optional[str] = None,
         ithread: Optional[int] = None,
     ):
         """
@@ -337,8 +334,8 @@ class MDSampler(sample.Sampler):
             Boltzmann distribution.
         log_file: str, optional, default None
             Log file for sampling information
-        trajectory: ase.io.Trajectory, optional, default None
-            ASE Trajectory to append sampled system if requested
+        trajectory_file: str, optional, default None
+            ASE Trajectory file path to append sampled system if requested
         ithread: int, optional, default None
             Thread number
         
@@ -402,7 +399,7 @@ class MDSampler(sample.Sampler):
                 self.write_trajectory, 
                 interval=self.md_save_interval,
                 system=system,
-                sample_trajectory=trajectory)
+                trajectory_file=trajectory_file)
 
         # Run MD simulation
         simulation_steps = round(simulation_time/time_step)

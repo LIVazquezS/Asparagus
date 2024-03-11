@@ -7,6 +7,8 @@ Interfaces implemented:
     - Asparagus to ASE (model_ase.py)
     - Asparagus to PyCHARMM (model_pycharmm.py)
     - ORCA to ASE (orca_ase.py)
+    - Shell file to ASE (shell_ase.py)
+    - Slurm batch file to ASE (slurm_ase.py)
 
 """
 

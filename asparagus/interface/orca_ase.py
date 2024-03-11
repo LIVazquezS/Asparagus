@@ -25,10 +25,16 @@ class ORCA_Dipole(FileIOCalculator):
         orcasimpleinput='tightscf PBE def2-SVP',
         orcablocks='%scf maxiter 200 end')
 
-    def __init__(self, restart=None,
-                 ignore_bad_restart_file=FileIOCalculator._deprecated,
-                 label='orca', atoms=None, **kwargs):
-        """ ASE interface to ORCA 4
+    def __init__(
+        self,
+        restart=None,
+        ignore_bad_restart_file=FileIOCalculator._deprecated,
+        label='orca',
+        atoms=None,
+        **kwargs
+    ):
+        """
+        ASE interface to ORCA 5
         by Ragnar Bjornsson, Based on NWchem interface but simplified.
         Only supports energies and gradients (no dipole moments,
         orbital energies etc.) for now.
@@ -48,8 +54,13 @@ class ORCA_Dipole(FileIOCalculator):
 
         Point Charge IO functionality added by A. Dohn.
         """
-        FileIOCalculator.__init__(self, restart, ignore_bad_restart_file,
-                                  label, atoms, **kwargs)
+        FileIOCalculator.__init__(
+            self,
+            restart,
+            ignore_bad_restart_file,
+            label,
+            atoms,
+            **kwargs)
 
         self.pcpot = None
 
@@ -104,7 +115,7 @@ class ORCA_Dipole(FileIOCalculator):
         re_not_converged = re.compile(r"Wavefunction not fully converged")
         found_line = re_energy.search(text)
         if found_line and not re_not_converged.search(found_line.group()):
-            self.results['energy'] = float(found_line.group().split()[-1]) * Hartree
+            self.results['energy'] = float(found_line.group().split()[-1])*Hartree
 
     def read_forces(self):
         """Read Forces from ORCA output file."""
@@ -189,3 +200,7 @@ class PointChargePotential:
             forces[i, :] = fx, fy, fz
 
         return -forces * Hartree / Bohr
+
+    @property
+    def calculator_tag(self):
+        return self.label

@@ -8,7 +8,6 @@ import numpy as np
 
 import ase
 from ase.constraints import FixAtoms
-from ase.io.trajectory import Trajectory
 from ase import units
 
 from .. import settings
@@ -226,11 +225,9 @@ class MCSampler(sample.Sampler):
 
             # Initialize trajectory file
             if self.sample_save_trajectory:
-                sample_trajectory = Trajectory(
-                    self.sample_trajectory_file.format(isample), atoms=system,
-                    mode='a', properties=self.sample_properties)
+                trajectory_file = self.sample_trajectory_file.format(isample)
             else:
-                sample_trajectory = None
+                trajectory_file = None
 
             # Assign calculator
             system = self.assign_calculator(
@@ -240,7 +237,7 @@ class MCSampler(sample.Sampler):
             # Perform Monte-Carlo simulation
             Nsample = self.monte_carlo_steps(
                 system, 
-                trajectory=sample_trajectory,
+                trajectory_file=trajectory_file,
                 ithread=ithread)
             
             # Print sampling info
@@ -264,7 +261,7 @@ class MCSampler(sample.Sampler):
         Nsteps: Optional[int] = None,
         temperature: Optional[float] = None,
         max_displacement: Optional[float] = None,
-        trajectory: Optional[ase.io.Trajectory] = None,
+        trajectory_file: Optional[str] = None,
         ithread: Optional[int] = None,
     ):
         """
@@ -284,8 +281,8 @@ class MCSampler(sample.Sampler):
             Sample temperature 
         max_displacement: float, optional, default None
             Maximum displacement of the MC simulation in Angstrom.
-        trajectory: ase.io.Trajectory, optional, default None
-            ASE Trajectory to append sampled system if requested
+        trajectory_file: str, optional, default None
+            ASE Trajectory file path to append sampled system if requested
         ithread: int, optional, default None
             Thread number
         
@@ -322,7 +319,7 @@ class MCSampler(sample.Sampler):
         # Store initial system properties
         Nsample = self.save_properties(system, Nsample)
         if self.sample_save_trajectory:
-            self.write_trajectory(system, trajectory)
+            self.write_trajectory(system, trajectory_file)
         
         # Get selectable system atoms
         atom_indices = np.arange(
@@ -369,8 +366,9 @@ class MCSampler(sample.Sampler):
                 # Store system properties
                 if not Naccept%self.mc_save_interval:
                     Nsample = self.save_properties(system, Nsample)
-                    if self.sample_save_trajectory and trajectory is not None:
-                        self.write_trajectory(system, trajectory)
+                    if self.sample_save_trajectory:
+                        self.write_trajectory(
+                            system, trajectory_file)
             
             # If not accepted
             else:
