@@ -146,7 +146,7 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if True:
+if False:
     
     from asparagus.sample import Sampler
     
