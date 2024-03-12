@@ -316,7 +316,8 @@ class Sampler:
             sample_systems = [sample_systems]
         
         if sample_systems_format is None:
-            sample_systems_format = [None]*len(sample_systems)
+            sample_systems_format = [
+                system.split('.')[-1] for system in sample_systems]
         elif utils.is_string(sample_systems_format):
             sample_systems_format = (
                 [sample_systems_format]*len(sample_systems))
@@ -326,30 +327,117 @@ class Sampler:
                 + "'sample_systems_format' have different input size of "
                 + f"{len(sample_systems):d} and "
                 + f"{len(sample_systems_format):d}, respectively.")
+        
+        # Check system index selection
+        if utils.is_integer(sample_systems_indices):
+            sample_systems_indices = [sample_systems_indices]
+        if (
+            sample_systems_indices is not None 
+            and len(sample_systems_indices) == 0
+        ):
+            sample_systems_indices = None
+
+        # If number of samples sources is larger 1, prepare system index 
+        # selection for sample sources
+        Nsamples = len(sample_systems)
+        if Nsamples > 1 and sample_systems_indices is not None:
+            indices = sample_systems_indices.copy()
+            for ii, idx in enumerate(sample_systems_indices):
+                if idx >= Nsamples or idx < (-1*Nsamples):
+                    raise SyntaxError(
+                        "System index selection 'sample_systems_indices' "
+                        + f"contains index ({idx:d}) which is outside of "
+                        + f"the sample number range of ({Nsamples:d})!")
+                if idx < 0:
+                    indices[ii] = Nsamples + idx
 
         # Iterate over system input and eventually read file to store as
         # (ASE Atoms object, index, sample source)
         for isample, (source, source_format) in enumerate(
             zip(sample_systems, sample_systems_format)
         ):
+            
+            # If sample index not in indices list in case of multiple sources
+            if Nsamples > 1 and sample_systems_indices is not None:
+                if isample not in indices:
+                    continue
 
             # Check for ASE Atoms object or read system file
             if utils.is_ase_atoms(source):
                 sample_systems_queue.put((source, isample, str(source), 1))
+            
+            # Check for an Asparagus dataset
+            elif source_format.lower() == 'db':
+                
+                # Open dataset
+                dataset = data.DataSet(source)
+                
+                # Prepare system index selection in case of just one sample 
+                # source
+                if Nsamples == 1 and sample_systems_indices is not None:
+                    Ndata = len(dataset)
+                    indices = sample_systems_indices.copy()
+                    for ii, idx in enumerate(sample_systems_indices):
+                        if idx >= Ndata or idx < (-1*Ndata):
+                            raise SyntaxError(
+                                "System index selection "
+                                + "'sample_systems_indices' contains index "
+                                + f"({idx:d}) which is outside of the data "
+                                + f"number range of ({Ndata:d}) in sample "
+                                + f"file '{source:s}'!")
+                        if idx < 0:
+                            indices[ii] = Ndata + idx
+
+                # Iterate over dataset
+                for isys, data_i in enumerate(dataset):
+
+                    # Skip if system index not in indices list 
+                    if Nsamples == 1 and sample_systems_indices is not None:
+                        if isys not in indices:
+                            continue
+
+                    # Create and append atoms object to sample queue
+                    system = ase.Atoms(
+                        data_i['atomic_numbers'],
+                        positions=data_i['positions'],
+                        pbc=data_i['pbc'],
+                        cell=data_i['cell'])
+                    if 'charge' in data_i:
+                        system.info['charge'] = int(
+                            data_i['charge'].numpy()[0])
+                    sample_systems_queue.put((system, isample, source, isys))
+            
+            # Else, use ase.read function with respective format
             else:
-                isys=0
+                
+                counter=0
                 complete = False
                 while not complete:
                     try:
+                        if (
+                            Nsamples == 1 
+                            and sample_systems_indices is not None
+                        ):
+                            isys = sample_systems_indices[counter]
+                        else:
+                            isys = counter
+                        
                         system = ase.io.read(
                             source, index=isys, format=source_format)
                         sample_systems_queue.put(
-                            (system, isample, source, isys)
-                            )
+                            (system, isample, source, isys))
+                    
                     except (StopIteration, AssertionError):
                         complete = True
+                    
                     else:
-                        isys += 1
+                        counter += 1
+                        if (
+                            Nsamples == 1 
+                            and sample_systems_indices is not None
+                            and counter >= len(sample_systems_indices)
+                        ):
+                            complete = True
 
         return sample_systems_queue, sample_systems
 

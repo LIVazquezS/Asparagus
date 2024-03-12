@@ -146,10 +146,12 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if False:
+if True:
     
     from asparagus.sample import Sampler
     
+    # Load single system from xyz file and compute properties using XTB default 
+    # calculator
     sampler = Sampler(
         config='test/smpl_nh3.json',
         sample_directory='test',
@@ -160,6 +162,8 @@ if False:
         )
     sampler.run()
     
+    # Load two system from xyz file and compute properties using XTB default 
+    # calculator in parallel (still works without using other ASE functions)
     sampler = Sampler(
         config='test/smpl_nh3.json',
         sample_directory='test',
@@ -170,6 +174,8 @@ if False:
         )
     sampler.run()
 
+    # Load two system from xyz file and a ASE trajectory file and compute 
+    # properties using XTB default calculator
     sampler = Sampler(
         config='test/smpl_nh3.json',
         sample_directory='test',
@@ -178,9 +184,24 @@ if False:
         sample_num_threads=1,
         )
     sampler.run()
+    
+    # Load a selection of sample system from an Asparagus data file and compute
+    # properties using XTB default calculator
+    sampler = Sampler(
+        config='test/smpl_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/nms_nh3.db',
+        sample_systems_format='db',
+        sample_systems_indices=[0, 1, 2, 3, -4, -3, -2, -1],
+        sample_num_threads=1,
+        )
+    sampler.run()
 
     from asparagus.sample import MCSampler
 
+    # Sample a single system loaded from a xyz file using the Monte-Carlo
+    # sampling method with the XTB calculator
     sampler = MCSampler(
         config='test/mc_nh3.json',
         sample_directory='test',
@@ -198,6 +219,8 @@ if False:
         )
     sampler.run()
     
+    # Sample a two system loaded from a xyz files in parallel using the
+    # Monte-Carlo sampling method and the ORCA calculator (thread safe)
     sampler = MCSampler(
         config='test/mc_nh3.json',
         sample_directory='test',
@@ -224,6 +247,8 @@ if False:
 
     from asparagus.sample import MDSampler
 
+    # Sample a single system loaded from a xyz file using the Molecular 
+    # Dynamics sampling method with the XTB calculator
     sampler = MDSampler(
         config='test/md_nh3.json',
         sample_directory='test',
@@ -244,6 +269,8 @@ if False:
         )
     sampler.run()
 
+    # Sample a two system loaded from a xyz files in parallel using the 
+    # Molecular Dynamics sampling method and the ORCA calculator (thread safe)
     sampler = MDSampler(
         config='test/md_nh3.json',
         sample_directory='test',
@@ -274,6 +301,8 @@ if False:
 
     from asparagus.sample import MetaSampler
     
+    # Sample a single system loaded from a xyz file using the Meta Dynamics$
+    # sampling method with the XTB calculator
     sampler = MetaSampler(
         config='test/meta_nh3.json',
         sample_directory='test',
@@ -297,6 +326,7 @@ if False:
         )
     sampler.run()
 
+    
     # Not yet working as planned
     sampler = MetaSampler(
         config='test/meta_nh3.json',
@@ -328,6 +358,8 @@ if False:
         )
     sampler.run()
 
+    # Sample a two system loaded from a xyz files in parallel using the 
+    # Molecular Dynamics sampling method and the ORCA calculator (thread safe)
     sampler = MetaSampler(
         config='test/meta_nh3.json',
         sample_directory='test',
@@ -518,7 +550,7 @@ if True:
         sample_data_file='test/smpl_nh3.db',
         sample_systems='data/nh3_c3v.xyz',
         sample_systems_format='xyz',
-        sample_calculator='shell',
+        sample_calculator='slurm',
         sample_calculator_args = {
             'files': [
                 'data/template/run_molpro.sh',

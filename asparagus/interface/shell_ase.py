@@ -210,8 +210,8 @@ class ShellCalculator(FileIOCalculator):
         result_file: Optional[str] = 'results.json',
         result_file_format: Optional[str] = 'json',
         atoms: Optional[ase.Atoms] = None,
-        charge: Optional[int] = 0,
-        multiplicity: Optional[int] = 1,
+        charge: Optional[int] = None,
+        multiplicity: Optional[int] = None,
         command: Optional[str] = 'bash',
         restart: Optional[bool] = None,
         label: Optional[str] = 'shell',
@@ -447,16 +447,12 @@ class ShellCalculator(FileIOCalculator):
         """
         
         # Check charge
-        if charge is None:
-            charge = 0
-        elif not utils.is_numeric(charge):
+        if charge is not None and not utils.is_numeric(charge):
             raise SyntaxError(
                 "System charge input is not a numeric input!")
 
         # Check multiplicity
-        if multiplicity is None:
-            multiplicity = 1
-        elif not utils.is_numeric(multiplicity):
+        if multiplicity is not None and not utils.is_numeric(multiplicity):
             raise SyntaxError(
                 "System spin multiplicity input is not a numeric input!")
 
@@ -493,14 +489,23 @@ class ShellCalculator(FileIOCalculator):
         parameters = Parameters(self.parameters.copy())
         
         # Set system charge and spin multiplicity
-        if charge is None:
-            charge = self.charge
-        else:
+        if charge is not None:
             charge = self.set_system_properties(charge, multiplicity)[0]
+        elif self.charge is None and 'charge' in atoms.info:
+            charge = self.set_system_properties(atoms.info['charge'], None)[0]
+        elif self.charge is None:
+            charge = 0
+        else:
+            charge = self.charge
         if multiplicity is None:
             multiplicity = self.multiplicity
+        elif self.multiplicity is None and 'multiplicity' in atoms.info:
+            multiplicity = self.set_system_properties(
+                None, atoms.info['multiplicity'])[1]
+        elif self.multiplicity is None:
+            multiplicity = 1
         else:
-            multiplicity = self.set_system_properties(charge, multiplicity)[1]
+            multiplicity = self.multiplicity
         parameters['charge'] = charge
         parameters['multiplicity'] = multiplicity
         

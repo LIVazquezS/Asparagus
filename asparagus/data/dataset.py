@@ -107,6 +107,25 @@ class DataSet():
 
         return self._set_properties([idx], [properties])
     
+    def __iter__(
+        self
+    ):
+        # Start data counter and set dataset length
+        self.counter = 0
+        self.Ndata = len(self)
+        return self
+
+    def __next__(
+        self
+    ):
+        # Check counter within number of data range
+        if self.counter < self.Ndata:
+            data = self.get(self.counter)
+            self.counter += 1
+            return data
+        else:
+            raise StopIteration
+
     def get(
         self,
         idx: int,
