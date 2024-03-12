@@ -36,6 +36,7 @@ class TagReplacement:
             '$charge': self.get_charge,
             '$mult': self.get_multiplicity,
             '$multiplicity': self.get_multiplicity,
+            '$spin2': self.get_spin_times_2,
             '$dir': self.calculator.directory,
             '$directory': self.calculator.directory,
             }
@@ -93,7 +94,7 @@ class TagReplacement:
         parameters: Optional[Dict[str, Any]] = {},
     ):
         """
-        Return system charge as string of an integer.
+        Return system multiplicity as string of an integer.
         """
         if 'multiplicity' in parameters:
             out = f"{parameters['multiplicity']:d}"
@@ -101,6 +102,24 @@ class TagReplacement:
             out = f"{self.calculator.parameters['multiplicity']:d}"
         else:
             out = "1"
+
+        return out
+
+    def get_spin_times_2(
+        self,
+        atoms: ase.Atoms,
+        parameters: Optional[Dict[str, Any]] = {},
+    ):
+        """
+        Return system multiplicity in form of 2*S = 2*(n*1/2) equal the number
+        of unpaired spins n as string of an integer.
+        """
+        if 'multiplicity' in parameters:
+            out = f"{parameters['multiplicity'] - 1:d}"
+        elif 'multiplicity' in self.calculator.parameters:
+            out = f"{self.calculator.parameters['multiplicity'] - 1:d}"
+        else:
+            out = "0"
 
         return out
 

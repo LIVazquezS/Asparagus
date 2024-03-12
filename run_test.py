@@ -146,7 +146,7 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if True:
+if False:
     
     from asparagus.sample import Sampler
     
@@ -174,7 +174,7 @@ if True:
         )
     sampler.run()
 
-    # Load two system from xyz file and a ASE trajectory file and compute 
+    # Load two systems from xyz file and a ASE trajectory file and compute 
     # properties using XTB default calculator
     sampler = Sampler(
         config='test/smpl_nh3.json',
@@ -219,7 +219,7 @@ if True:
         )
     sampler.run()
     
-    # Sample a two system loaded from a xyz files in parallel using the
+    # Sample two systems loaded from a xyz files in parallel using the
     # Monte-Carlo sampling method and the ORCA calculator (thread safe)
     sampler = MCSampler(
         config='test/mc_nh3.json',
@@ -269,7 +269,7 @@ if True:
         )
     sampler.run()
 
-    # Sample a two system loaded from a xyz files in parallel using the 
+    # Sample two systems loaded from a xyz files in parallel using the 
     # Molecular Dynamics sampling method and the ORCA calculator (thread safe)
     sampler = MDSampler(
         config='test/md_nh3.json',
@@ -301,7 +301,7 @@ if True:
 
     from asparagus.sample import MetaSampler
     
-    # Sample a single system loaded from a xyz file using the Meta Dynamics$
+    # Sample a single system loaded from a xyz file using the Meta Dynamics
     # sampling method with the XTB calculator
     sampler = MetaSampler(
         config='test/meta_nh3.json',
@@ -327,6 +327,11 @@ if True:
     sampler.run()
 
     
+    # Sample a system loaded from a xyz files in parallel using the Meta
+    # Dynamics sampling method and the ORCA calculator (thread safe)
+    # Here each of the multiple runs store the Gaussian add-potentials into 
+    # in the same list, affecting the other runs as well and decrease the
+    # sample steps to reach higher potential areas.
     # Not yet working as planned
     sampler = MetaSampler(
         config='test/meta_nh3.json',
@@ -358,8 +363,8 @@ if True:
         )
     sampler.run()
 
-    # Sample a two system loaded from a xyz files in parallel using the 
-    # Molecular Dynamics sampling method and the ORCA calculator (thread safe)
+    # Sample two system loaded from a xyz files in parallel using the Meta
+    # Dynamics sampling method and the ORCA calculator (thread safe)
     sampler = MetaSampler(
         config='test/meta_nh3.json',
         sample_directory='test',
@@ -391,6 +396,8 @@ if True:
 
     from asparagus.sample import NormalModeScanner
     
+    # Sample a single system loaded from a xyz file using the Normal Mode
+    # Scanner sampling method with the XTB calculator
     sampler = NormalModeScanner(
         config='test/nms_nh3.json',
         sample_directory='test',
@@ -410,6 +417,12 @@ if True:
         )
     sampler.run()
 
+    # Sample two systems loaded from a xyz file using the Normal Mode
+    # Scanner sampling method with the ORCA calculator (thread safe).
+    # Here it parallelize over the (1) system optimizations, (2) atom
+    # displacement calculations for numeric normal mode analysis and (3) the
+    # scans along single or combinations of normal modes. Step (2) and (3) will
+    # run in serial for each sample system.
     sampler = NormalModeScanner(
         config='test/nms_nh3.json',
         sample_directory='test',
@@ -437,6 +450,8 @@ if True:
 
     from asparagus.sample import NormalModeSampler
     
+    # Sample a single system loaded from a xyz file using the Normal Mode
+    # Sampler sampling method with the XTB calculator
     sampler = NormalModeSampler(
         config='test/nms_nh3.json',
         sample_directory='test',
@@ -452,7 +467,12 @@ if True:
         )
     sampler.run()
     
-    
+    # Sample a system loaded from a xyz file using the Normal Mode
+    # Sampler sampling method with the ORCA calculator (thread safe).
+    # Here it parallelize over the (1) system optimizations, (2) atom
+    # displacement calculations for numeric normal mode analysis and (3) the
+    # number of randomly sampled system conformations. Step (2) and (3) will
+    # run in serial for each potential sample system.
     sampler = NormalModeSampler(
         config='test/nms_nh3.json',
         sample_directory='test',
@@ -479,10 +499,12 @@ if True:
 #==============================================================================
 
 # Shell Calculator
-if True:
+if False:
     
     from asparagus.sample import Sampler
     
+    # Calculate properties of a sample system with multiple conformations
+    # using the Shell calculator with template files for an ORCA calculation.
     sampler = Sampler(
         config='test/calc_nh3.json',
         sample_directory='test',
@@ -511,6 +533,9 @@ if True:
         )
     sampler.run()
 
+    # Calculate properties of a sample system with multiple conformations
+    # using the Shell calculator with template files for an ORCA calculation
+    # and in parallel.
     sampler = Sampler(
         config='test/calc_nh3.json',
         sample_directory='test',
@@ -544,6 +569,8 @@ if True:
     
     from asparagus.sample import Sampler
     
+    # Calculate properties of a sample system with multiple conformations
+    # using the Slurm calculator with template files for an ORCA calculation.
     sampler = Sampler(
         config='test/calc_nh3.json',
         sample_directory='test',
@@ -560,7 +587,7 @@ if True:
             'files_replace': {
                 '%xyz%': '$xyz',
                 '%charge%': '$charge',
-                '%multiplicity%': '$multiplicity',
+                '%multiplicity%': '$spin2',
                 },
             'execute_file': 'run_molpro.sh',
             'charge': 0,

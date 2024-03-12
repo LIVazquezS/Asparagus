@@ -7,6 +7,7 @@ import ase
 from xtb.ase.calculator import XTB
 from .orca_ase import ORCA_Dipole
 from .shell_ase import ShellCalculator
+from .slurm_ase import SlurmCalculator
 
 from .. import utils
 
@@ -40,6 +41,7 @@ ase_calculator_avaiable = {
     'XTB'.lower(): XTB,
     'ORCA'.lower(): ORCA_Dipole,
     'Shell'.lower(): ShellCalculator,
+    'Slurm'.lower(): SlurmCalculator,
     }
 
 def get_ase_calculator(

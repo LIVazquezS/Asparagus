@@ -186,7 +186,7 @@ class SlurmCalculator(ShellCalculator):
             execute_file = os.path.split(self.files[0])[1]
         else:
             execute_file = self.execute_file
-
+        exit()
         # Execute command with executable file
         proc = subprocess.Popen(
             [command, execute_file], 
