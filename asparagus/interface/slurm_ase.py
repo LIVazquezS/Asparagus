@@ -126,7 +126,7 @@ class SlurmCalculator(ShellCalculator):
             }
 
         # Initialize parent class
-        SlurmCalculator.__init__(
+        ShellCalculator.__init__(
             self,
             files=files,
             files_replace=files_replace,
