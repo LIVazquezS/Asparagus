@@ -2,6 +2,7 @@
 # compute atoms properties and provide them as a .json or .npy file.
 import os
 import json
+import time
 import subprocess
 import numpy as np
 from typing import Optional, List, Dict, Tuple, Union, Any
@@ -110,6 +111,8 @@ class SlurmCalculator(ShellCalculator):
         multiplicity: Optional[int] = 1,
         command: Optional[str] = 'sbatch',
         scan_interval: Optional[int] = 1,
+        scan_catch_id: Optional[callable] = None,
+        scan_check_id: Optional[callable] = None,
         restart: Optional[bool] = None,
         label: Optional[str] = 'slurm',
         directory: Optional[str] = 'calc',
@@ -142,7 +145,7 @@ class SlurmCalculator(ShellCalculator):
             label=label,
             directory=directory,
             **kwargs)
-        
+
         # Assign additional class parameters
         if utils.is_numeric(scan_interval):
             self.scan_interval = scan_interval
@@ -150,6 +153,24 @@ class SlurmCalculator(ShellCalculator):
             raise SyntaxError(
                 "Submitted job scan interval 'scan_interval' is not a "
                 "numeric value!")
+        
+        if scan_catch_id is None:
+            self.scan_catch_id = None
+        elif utils.is_callable(scan_catch_id):
+            self.scan_catch_id = scan_catch_id
+        else:
+            raise SyntaxError(
+                "Submitted job id catch function 'scan_catch_id' is not a "
+                "callable function!")
+        
+        if scan_check_id is None:
+            self.scan_check_id = None
+        elif utils.is_callable(scan_check_id):
+            self.scan_check_id = scan_check_id
+        else:
+            raise SyntaxError(
+                "Submitted job id check function 'scan_check_id' is not a "
+                "callable function!")
 
     def __str__(self):
         return f"SlurmCalculator {self.execute_file:s}"
@@ -177,7 +198,7 @@ class SlurmCalculator(ShellCalculator):
         
         # Check shell command 
         if self.command is None:
-            command = 'bash'
+            command = 'sbatch'
         else:
             command = self.command
 
@@ -186,22 +207,39 @@ class SlurmCalculator(ShellCalculator):
             execute_file = os.path.split(self.files[0])[1]
         else:
             execute_file = self.execute_file
-        exit()
+
         # Execute command with executable file
-        proc = subprocess.Popen(
-            [command, execute_file], 
+        proc = subprocess.run(
+            [command, execute_file],
             cwd=self.directory,
-            stdout=subprocess.PIPE)
+            capture_output=True)
         
-        # Catch slurm id
+        # Get slurm id
+        if self.scan_catch_id is None:
+            slurm_id = int(proc.stdout.decode().split()[-1])
+        else:
+            slurm_id = self.scan_catch_id(proc.stdout.decode())
+
+        # Check for job completeness
         done = False
         while not done:
-            output = proc.stdout.readline()
-            if output == '' and proc.poll() is not None:
-                done = True
-            if output:
-                print(int(output.decode().strip().split()[-1]))
-        exit()
+            
+            # Get and check task id with active task ids
+            if self.scan_check_id is None:
+                proc = subprocess.run(
+                    ['squeue', '-u', os.environ['USER']],
+                    capture_output=True)
+                active_id = [
+                    int(tasks.split()[0])
+                    for tasks in proc.stdout.decode().split('\n')[1:-1]]
+                done = not slurm_id in active_id
+            else:
+                done = self.scan_check_id(slurm_id)
+
+            # Wait for next scan step
+            time.sleep(self.scan_interval)
+            
+        # Read results from result file
         self.read_results()
 
         return

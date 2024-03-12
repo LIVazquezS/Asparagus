@@ -28,7 +28,6 @@ class ORCA_Dipole(FileIOCalculator):
     def __init__(
         self,
         restart=None,
-        ignore_bad_restart_file=FileIOCalculator._deprecated,
         label='orca',
         atoms=None,
         **kwargs

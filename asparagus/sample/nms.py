@@ -715,9 +715,8 @@ class NormalModeScanner(sample.Sampler):
                         else:
                             msg += f"-{imode + 1:d}, "
                     msg += f") - {istep:4d} steps added\n"
-                    with (
-                        open(self.sample_log_file.format(isample), 'a') as flog
-                    ):
+                    log_file = self.sample_log_file.format(isample)
+                    with open(log_file, 'a') as flog:
                         flog.write(msg)
 
                     # Set flag in case maximum Nsteps is reached

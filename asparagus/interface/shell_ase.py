@@ -240,7 +240,7 @@ class ShellCalculator(FileIOCalculator):
         """
         Initialize Shell Calculator class.
         """
-        
+
         # Valid result file formats
         self._valid_result_file_format = {
             'npz': self.load_results_npz,
@@ -254,7 +254,7 @@ class ShellCalculator(FileIOCalculator):
             label=label,
             directory=directory,
             restart=restart,
-            ignore_bad_restart_file=FileIOCalculator._deprecated,
+            command=command,
             **kwargs)
 
         # Set calculator parameters

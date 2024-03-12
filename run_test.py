@@ -544,16 +544,16 @@ if False:
         sample_calculator='shell',
         sample_calculator_args = {
             'files': [
-                'data/template/run_orca.sh',
-                'data/template/run_orca.inp',
-                'data/template/run_orca.py',
+                'data/template/shell/run_orca.sh',
+                'data/template/shell/run_orca.inp',
+                'data/template/shell/run_orca.py',
                 ],
             'files_replace': {
                 '%xyz%': '$xyz',
                 '%charge%': '$charge',
                 '%multiplicity%': '$multiplicity',
                 },
-            'execute_file': 'data/template/run_orca.sh',
+            'execute_file': 'data/template/shell/run_orca.sh',
             'charge': 0,
             'multiplicity': 1,
             'directory': 'test/shell',
@@ -570,7 +570,7 @@ if True:
     from asparagus.sample import Sampler
     
     # Calculate properties of a sample system with multiple conformations
-    # using the Slurm calculator with template files for an ORCA calculation.
+    # using the Slurm calculator with template files for a MOLPRO calculation.
     sampler = Sampler(
         config='test/calc_nh3.json',
         sample_directory='test',
@@ -580,21 +580,99 @@ if True:
         sample_calculator='slurm',
         sample_calculator_args = {
             'files': [
-                'data/template/run_molpro.sh',
-                'data/template/run_molpro.inp',
-                'data/template/run_molpro.py',
+                'data/template/slurm/run_molpro.sh',
+                'data/template/slurm/run_molpro.inp',
+                'data/template/slurm/run_molpro.py',
                 ],
             'files_replace': {
                 '%xyz%': '$xyz',
                 '%charge%': '$charge',
-                '%multiplicity%': '$spin2',
+                '%spin2%': '$spin2',
                 },
             'execute_file': 'run_molpro.sh',
             'charge': 0,
             'multiplicity': 1,
-            'directory': 'test/shell',
+            'directory': 'test/slurm',
             'result_properties': ['energy', 'forces', 'dipole']
             },
         sample_num_threads=1,
+        )
+    sampler.run()
+
+    # Calculate properties of a sample system with multiple conformations
+    # using the Slurm calculator with template files for a MOLPRO calculation.
+    # Here, define own slurm task id catch and check function
+    
+    def catch_id(stdout):
+        """
+        Catch slurm task id from the output when running:
+          subrocess.run([command, execute_file], capture_output=True)
+          (here [command, execute_file] -> 'sbatch run_molpro.sh')
+        
+        Parameters
+        ----------
+        stdout: str
+            Decoded output line (e.g. 'Submitted batch job 10937679')
+        
+        Return
+        ------
+        int
+            Task id
+        """
+        return int(proc.stdout.decode().split()[-1])
+    
+    import subprocess
+    def check_id(slurm_id):
+        """
+        Check slurm task id with e.g. task id list extracted from squeue
+        
+        Parameters
+        ----------
+        slurm_id: int
+            Slurm task id of the submitted job
+        
+        Return
+        ------
+        bool
+            Answer if task is done:
+            False, if task is still running (task id is found in squeue)
+            True, if task is done (task id not found in squeue)
+        """
+        proc = subprocess.run(
+            ['squeue', '-u', os.environ['USER']],
+            capture_output=True)
+        active_id = [
+            int(tasks.split()[0])
+            for tasks in proc.stdout.decode().split('\n')[1:-1]]
+        return not slurm_id in active_id
+
+    sampler = Sampler(
+        config='test/calc_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/nh3_c3v.xyz',
+        sample_systems_format='xyz',
+        sample_calculator='slurm',
+        sample_calculator_args = {
+            'files': [
+                'data/template/slurm/run_molpro.sh',
+                'data/template/slurm/run_molpro.inp',
+                'data/template/slurm/run_molpro.py',
+                ],
+            'files_replace': {
+                '%xyz%': '$xyz',
+                '%charge%': '$charge',
+                '%spin2%': '$spin2',
+                },
+            'execute_file': 'run_molpro.sh',
+            'charge': 0,
+            'multiplicity': 1,
+            'directory': 'test/slurm',
+            'result_properties': ['energy', 'forces', 'dipole']
+            },
+        sample_num_threads=1,
+        scan_interval=1,
+        scan_catch_id=catch_id,
+        scan_check_id=check_id,
         )
     sampler.run()
