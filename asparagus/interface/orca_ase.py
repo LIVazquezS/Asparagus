@@ -55,10 +55,9 @@ class ORCA_Dipole(FileIOCalculator):
         """
         FileIOCalculator.__init__(
             self,
-            restart,
-            ignore_bad_restart_file,
-            label,
-            atoms,
+            atoms=atoms,
+            label=label,
+            restart=restart,
             **kwargs)
 
         self.pcpot = None

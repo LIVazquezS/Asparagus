@@ -19,6 +19,7 @@ module load molpro/molpro2024-gcc-9.2.0
 # Run Molpro
 #------------
 
+rm -f run_molpro.xml
 molpro -o run_molpro.out run_molpro.inp
 
 #-------------

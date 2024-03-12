@@ -43,7 +43,7 @@ if False:
 #==============================================================================
 
 # SQL
-if False:
+if True:
 
     # Open DataBase file
     model = asparagus.Asparagus(
@@ -146,7 +146,7 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if False:
+if True:
     
     from asparagus.sample import Sampler
     
@@ -499,7 +499,7 @@ if False:
 #==============================================================================
 
 # Shell Calculator
-if False:
+if True:
     
     from asparagus.sample import Sampler
     
@@ -514,9 +514,9 @@ if False:
         sample_calculator='shell',
         sample_calculator_args = {
             'files': [
-                'data/template/run_orca.sh',
-                'data/template/run_orca.inp',
-                'data/template/run_orca.py',
+                'data/template/shell/run_orca.sh',
+                'data/template/shell/run_orca.inp',
+                'data/template/shell/run_orca.py',
                 ],
             'files_replace': {
                 '%xyz%': '$xyz',
@@ -565,7 +565,7 @@ if False:
     sampler.run()
 
 # Slurm Calculator
-if True:
+if False:
     
     from asparagus.sample import Sampler
     
@@ -603,7 +603,11 @@ if True:
     # using the Slurm calculator with template files for a MOLPRO calculation.
     # Here, define own slurm task id catch and check function
     
-    def catch_id(stdout):
+    import subprocess
+    
+    def catch_id(
+        stdout: str,
+    ) -> int:
         """
         Catch slurm task id from the output when running:
           subrocess.run([command, execute_file], capture_output=True)
@@ -621,8 +625,9 @@ if True:
         """
         return int(proc.stdout.decode().split()[-1])
     
-    import subprocess
-    def check_id(slurm_id):
+    def check_id(
+        slurm_id: int,
+    ) -> bool:
         """
         Check slurm task id with e.g. task id list extracted from squeue
         
@@ -674,5 +679,36 @@ if True:
         scan_interval=1,
         scan_catch_id=catch_id,
         scan_check_id=check_id,
+        )
+    sampler.run()
+    
+    # Calculate properties of a sample system with multiple conformations
+    # using the Slurm calculator with template files for a MOLPRO calculation.
+    sampler = Sampler(
+        config='test/calc_nh3.json',
+        sample_directory='test',
+        sample_data_file='test/smpl_nh3.db',
+        sample_systems='data/nms_nh3.db',
+        sample_systems_format='db',
+        sample_systems_indices=[0, 1, 2, 3, -4, -3, -2, -1],
+        sample_calculator='slurm',
+        sample_calculator_args = {
+            'files': [
+                'data/template/slurm/run_molpro.sh',
+                'data/template/slurm/run_molpro.inp',
+                'data/template/slurm/run_molpro.py',
+                ],
+            'files_replace': {
+                '%xyz%': '$xyz',
+                '%charge%': '$charge',
+                '%spin2%': '$spin2',
+                },
+            'execute_file': 'run_molpro.sh',
+            'charge': 0,
+            'multiplicity': 1,
+            'directory': 'test/slurm',
+            'result_properties': ['energy', 'forces', 'dipole']
+            },
+        sample_num_threads=4,
         )
     sampler.run()
