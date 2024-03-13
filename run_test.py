@@ -20,14 +20,14 @@ dtype=torch.float32
 #==============================================================================
 
 # Dictionary initialization
-if False:
+if True:
 
     model = asparagus.Asparagus(config)
     model = asparagus.Asparagus(config=config_file)
     model = asparagus.Asparagus(config_file=config_file)
 
 # Global device and dtype setting
-if False:
+if True:
 
     model = asparagus.Asparagus(
         config,
@@ -43,7 +43,7 @@ if False:
 #==============================================================================
 
 # SQL
-if True:
+if False:
 
     # Open DataBase file
     model = asparagus.Asparagus(
@@ -146,7 +146,7 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if True:
+if False        :
     
     from asparagus.sample import Sampler
     
@@ -499,7 +499,7 @@ if True:
 #==============================================================================
 
 # Shell Calculator
-if True:
+if False:
     
     from asparagus.sample import Sampler
     

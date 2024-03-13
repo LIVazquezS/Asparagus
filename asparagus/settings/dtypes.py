@@ -26,14 +26,9 @@ _dtypes_args = {
     # Input module
     'input_model':                  [utils.is_callable],
     'input_type':                   [utils.is_string, utils.is_None],
-    'input_cutoff_descriptor':      [utils.is_numeric],
-    'input_cutoff_fn':              [utils.is_string, utils.is_callable],
     # Representation module
     'graph_model':                  [utils.is_callable],
     'graph_type':                   [utils.is_string, utils.is_None],
-    'graph_n_atombasis':            [utils.is_integer],
-    'graph_n_interaction':          [utils.is_integer],
-    'graph_activation_fn':          [utils.is_string, utils.is_callable],
     'graph_stability_constant':     [utils.is_numeric],
     # Output module
     'output_model':                 [utils.is_callable],

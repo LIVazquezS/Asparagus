@@ -32,7 +32,6 @@ class Sampler:
     """
     Conformation Sampler main class for generation of reference structures.
 
-
     Parameters
     ----------
     config: (str, dict, object)

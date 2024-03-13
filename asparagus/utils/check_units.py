@@ -31,10 +31,11 @@ def check_units(
 
     Returns
     -------
-        float
-            Conversion factor from 'source_unit' to 'target_unit'
-        bool
-            If True: unit match; False: otherwise
+    float
+        Conversion factor from 'source_unit' to 'target_unit'
+    bool
+        If True: unit match; False: otherwise
+
     """
     
     # In case of undefined unit label
@@ -72,7 +73,7 @@ def convert_unit_ase(
     verbose: Optional[bool] = False
 ) -> float:
     """
-    Get conversion factor to ASE units
+    Get conversion factor to ASE units.
     
     Parameters
     ----------
@@ -83,8 +84,8 @@ def convert_unit_ase(
     
     Returns
     -------
-        float
-            Conversion factor from unit to ASE units
+    float
+        Conversion factor from unit to ASE units
     """
     
     # If unit is None, return default factor 1.0
