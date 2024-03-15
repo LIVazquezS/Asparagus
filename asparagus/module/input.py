@@ -6,15 +6,17 @@ import torch
 #======================================
 
 def get_Input_PhysNet():
-    from .mdu_physnet import Input_PhysNet
+    from .physnet_modules import Input_PhysNet
     return Input_PhysNet
 
 def get_Input_PhysNet_original():
-    from .mdu_physnet import Input_PhysNet_original
+    raise NotImplementedError()
+    from .physnet_modules import Input_PhysNet_original
     return Input_PhysNet_original
 
 def get_Input_PaiNN():
-    from .mdu_painn import Input_PaiNN
+    raise NotImplementedError()
+    from .painn_modules import Input_PaiNN
     return Input_PaiNN
 
 
@@ -54,11 +56,11 @@ def get_input_module(
         raise SyntaxError("No input module type is defined by 'input_type'!")
     
     # Return requested input module
-    if input_type.lower() in input_model_available:
-        return input_model_available[input_type.lower()](
+    if input_type.lower() in input_module_available:
+        return input_module_available[input_type.lower()](
             input_type=input_type,
             **kwargs)
     else:
         raise ValueError(
             f"Input model type input '{input_type:s}' is not known!\n" +
-            "Choose from:\n" + str(input_model_available.keys()))
+            "Choose from:\n" + str(input_module_available.keys()))

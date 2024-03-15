@@ -18,14 +18,10 @@ class PC_shielded_electrostatics(torch.nn.Module):
 
     Parameters
     ----------
-    split_distance: bool
-        If True, the electrostatic potential is split into ordinary and
-        shielded contributions. If False, only ordinary contributions are
-        used.
-    short_range_cutoff: float
-        Short range cutoff distance in Angstrom.
-    long_range_cutoff: float
-        Long range cutoff distance in Angstrom.
+    cutoff: float
+        interaction cutoff distance.
+    cutoff_short_range: float
+        Short range cutoff distance.
     unit_properties: dict, optional, default None
         Dictionary of unit properties.
     switch_fn: (str, callable), optional, default None
@@ -41,11 +37,10 @@ class PC_shielded_electrostatics(torch.nn.Module):
 
     def __init__(
         self,
-        split_distance: bool,
-        short_range_cutoff: float,
-        long_range_cutoff: float,
+        cutoff: float,
+        cutoff_short_range: Optional[float] = None,
         unit_properties: Optional[Dict[str, str]] = None,
-        switch_fn: Optional[Union[str, object]] = None,
+        switch_fn: Optional[Union[str, object]] = 'Poly6',
         device: Optional[str] = 'cpu',
         dtype: Optional[object] = torch.float64,
         **kwargs
@@ -54,21 +49,37 @@ class PC_shielded_electrostatics(torch.nn.Module):
         super(PC_shielded_electrostatics, self).__init__()
 
         # Assign variables
-        self.split_distance = split_distance
-        self.short_range_cutoff = short_range_cutoff
-        self.long_range_cutoff = long_range_cutoff
-        self.long_range_cutoff_squared = long_range_cutoff**2
+        self.cutoff = cutoff
+        if cutoff_short_range is None or cutoff == cutoff_short_range:
+            self.cutoff_short_range = cutoff
+            self.split_distance = False
+        else:
+            self.cutoff_short_range = cutoff_short_range
+            self.split_distance = True
+        self.cutoff_squared = cutoff**2
+        
+        # Assign module variable parameters from configuration
         self.dtype = dtype
         self.device = device
 
         # Assign switch_fn
         switch_class = layers.get_cutoff_fn(switch_fn)
-        self.switch_fn = switch_class(short_range_cutoff)
+        self.switch_fn = switch_class(self.cutoff_short_range)
 
         # Set property units for parameter scaling
         self.set_unit_properties(unit_properties)
 
         return
+
+    def __str__(self):
+        return "Shielded Point Charge Electrostatics"
+
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Return class information
+        """
+
+        return {}
 
     def set_unit_properties(
         self,
@@ -93,12 +104,11 @@ class PC_shielded_electrostatics(torch.nn.Module):
     
         # Convert 1/(2*4*pi*epsilon) from e**2/eV/Ang to model units
         kehalf_ase = 7.199822675975274
+        kehalf = torch.tensor(
+            [kehalf_ase*factor_charge**2/factor_energy/factor_positions],
+            device=self.device, dtype=self.dtype)
         self.register_buffer(
-            'kehalf',
-            torch.tensor(
-                [kehalf_ase*factor_charge**2/factor_energy/factor_positions],
-                dtype=self.dtype)
-            )
+            'kehalf', kehalf)
 
         return
 
@@ -148,12 +158,12 @@ class PC_shielded_electrostatics(torch.nn.Module):
             # Compute ordinary (unshielded) and shielded contributions
             E_ordinary = (
                 1.0/distances
-                + distances/self.long_range_cutoff_squared
-                - 2.0/self.long_range_cutoff)
+                + distances/self.cutoff_squared
+                - 2.0/self.cutoff)
             E_shielded = (
                 1.0/distances_shielded
-                + distances_shielded/self.long_range_cutoff_squared
-                - 2.0/self.long_range_cutoff)
+                + distances_shielded/self.cutoff_squared
+                - 2.0/self.cutoff)
 
             # Combine electrostatic contributions
             E = (
@@ -166,26 +176,18 @@ class PC_shielded_electrostatics(torch.nn.Module):
             # Compute ordinary (unshielded) and shielded contributions
             E_ordinary = 1.0/distances
             E_shielded = 1.0/distances_shielded
-            
-            ## Compute ordinary (unshielded) and shielded contributions
-            #E_ordinary = (
-                #1.0/distances
-                #+ distances/self.long_range_cutoff_squared
-                #- 2.0/self.long_range_cutoff)
-            #E_shielded = (
-                #1.0/distances_shielded
-                #+ distances_shielded/self.long_range_cutoff_squared
-                #- 2.0/self.long_range_cutoff)
 
             # Combine electrostatic contributions
             E = (
-                self.kehalf*atomic_charges_i*atomic_charges_j*(
-                    switch_off_weights*E_shielded
-                    + switch_on_weights*E_ordinary))
+                self.kehalf*atomic_charges_i*atomic_charges_j
+                * (
+                    switch_off_weights*E_shielded 
+                    + switch_on_weights*E_ordinary)
+                )
 
         # Apply interaction cutoff
         E = torch.where(
-            distances <= self.long_range_cutoff,
+            distances <= self.cutoff,
             E,                      # distance <= cutoff
             torch.zeros_like(E))    # distance > cutoff
 

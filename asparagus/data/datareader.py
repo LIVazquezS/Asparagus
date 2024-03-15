@@ -199,7 +199,9 @@ class DataReader():
                 continue
 
             match, modified, valid_label = utils.check_property_label(
-                custom_label, settings._valid_properties, alt_property_labels)
+                custom_label,
+                valid_property_labels=settings._valid_properties,
+                alt_property_labels=alt_property_labels)
             if match:
                 assigned_properties[valid_label] = custom_label
             elif modified:
@@ -464,7 +466,9 @@ class DataReader():
                 continue
 
             match, modified, valid_label = utils.check_property_label(
-                custom_label, settings._valid_properties, alt_property_labels)
+                custom_label,
+                valid_property_labels=settings._valid_properties,
+                alt_property_labels=alt_property_labels)
             if match:
                 assigned_properties[valid_label] = custom_label
             elif modified:
@@ -706,7 +710,9 @@ class DataReader():
         for custom_label in source.keys():
 
             match, modified, valid_label = utils.check_property_label(
-                custom_label, settings._valid_properties, alt_property_labels)
+                custom_label,
+                valid_property_labels=settings._valid_properties,
+                alt_property_labels=alt_property_labels)
             if match:
                 assigned_properties[valid_label] = custom_label
             elif modified:
@@ -1016,7 +1022,7 @@ class DataReader():
             logger.warning(
                 f"WARNING:\nData source '{data_source:s}' is empty!")
             return
-        
+
         # Get data sample to compare property labels
         data_sample = db_source[0]
         
@@ -1041,7 +1047,9 @@ class DataReader():
                 continue
 
             match, modified, valid_label = utils.check_property_label(
-                custom_label, settings._valid_properties, alt_property_labels)
+                custom_label,
+                valid_property_labels=settings._valid_properties,
+                alt_property_labels=alt_property_labels)
             if match:
                 assigned_properties[valid_label] = custom_label
             elif modified:
@@ -1094,13 +1102,25 @@ class DataReader():
             # Check units of positions and properties
             unit_conversion = {}
             unit_mismatch = {}
-
-            for prop in assigned_properties.keys():
-                unit_conversion[prop], unit_mismatch[prop] = (
-                    utils.check_units(
-                        data_unit_properties[prop],
-                        None)
-                    )
+            for prop in assigned_properties:
+                if (
+                    data_unit_properties.get(prop) is None
+                    and settings._default_units.get(prop) is None
+                ):
+                    raise SyntaxError(
+                        f"Unit for property label '{prop:s}' is not known! "
+                        + "Define property unit in '{data_source:s}' "
+                        + "within 'data_unit_properties' input!")
+                elif data_unit_properties.get(prop) is None:
+                    data_unit_properties[prop] = settings._default_units[prop]
+                    unit_conversion[prop] = 1.0
+                    unit_mismatch[prop] = False
+                else:
+                    unit_conversion[prop], unit_mismatch[prop] = (
+                        utils.check_units(
+                            data_unit_properties[prop],
+                            None)
+                        )
 
             message = (
                 "INFO:\nProperty assignment from database "

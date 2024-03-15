@@ -1,5 +1,4 @@
 """
-
 This module contains the interface between external packages and Asparagus.
 
 Interfaces implemented:

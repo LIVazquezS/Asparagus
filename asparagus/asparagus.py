@@ -11,10 +11,10 @@ import torch
 #from pytorch_lightning.accelerators import GPUAccelerator #TODO
 
 from . import settings
-#from . import utils
+from . import utils
 from . import data
-from . import sample
-#from . import model
+#from . import sample
+from . import model
 #from . import train
 #from . import interface
 
@@ -52,9 +52,9 @@ class Asparagus():
 
         super().__init__()
 
-        ##############################
-        ## # # Check Model Input # # #
-        ##############################
+        #############################
+        # # # Check Model Input # # #
+        #############################
 
         # Initialize model parameter configuration dictionary
         # Keyword arguments overwrite entries in the configuration dictionary
@@ -67,9 +67,9 @@ class Asparagus():
             check_dtype=True,
             )
 
-        ############################
-        ## # # Class Parameter # # #
-        ############################
+        ###########################
+        # # # Class Parameter # # #
+        ###########################
 
         # DataContainer of reference data
         self.data_container = None
@@ -123,7 +123,7 @@ class Asparagus():
         # Check input
         if config is None:
             config = self.config
-        
+        print('kwargs', kwargs)
         # Initialize DataContainer
         self.data_container = data.DataContainer(
             config,
@@ -163,4 +163,79 @@ class Asparagus():
             **kwargs
             )
 
-    
+    def get_model_calculator(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        config_file: Optional[str] = None,
+        model_checkpoint: Optional[int] = None,
+        **kwargs,
+    ) -> torch.nn.Module:
+        """
+        Return calculator model class object
+
+        Parameters
+        ----------
+        config: (str, dict, object)
+            Either the path to json file (str), dictionary (dict) or
+            settings.config class object of model parameters
+        config_file: str, optional, default see settings.default['config_file']
+            Path to json file (str)
+        model_checkpoint: int, optional, default None
+            If None, load best model checkpoint. Otherwise define a checkpoint
+            index number of the respective checkpoint file.
+        
+        Returns
+        -------
+        torch.nn.Module
+            Asparagus calculator model object
+
+        """
+
+        ########################################
+        # # # Check Model Calculator Input # # #
+        ########################################
+
+        # Assign model parameter configuration library
+        if config is None:
+            config_model = settings.get_config(
+                self.config, config_file, **kwargs)
+        else:
+            config_model = settings.get_config(
+                config, config_file, **kwargs)
+
+        # Check model parameter configuration and set default
+        config_model.check(
+            check_default=True,
+            check_dtype=True,
+            )
+
+        ##################################
+        # # # Prepare NNP Calculator # # #
+        ##################################
+
+        # Assign model calculator
+        model_calculator = self.model.get_model_calculator(
+            config_model,
+            **kwargs)
+        
+        # Add calculator info to configuration dictionary
+        if hasattr(model_calculator, "get_info"):
+            config_model.update(
+                model_calculator.get_info(),
+                verbose=False)
+
+        # Initialize checkpoint file manager and load best model
+        filemanager = utils.FileManager(config_model, **kwargs)
+        if model_checkpoint is None:
+            checkpoint = filemanager.load_checkpoint(best=True)
+        elif utils.is_integer(model_checkpoint):
+            checkpoint = filemanager.load_checkpoint(
+                num_checkpoint=model_checkpoint)
+        else:
+            raise ValueError(
+                "Input 'model_checkpoint' must be either None to load best "
+                + "model checkpoint or an integer of a respective checkpoint "
+                + "file.")
+        self.model_calculator.load_state_dict(checkpoint['model_state_dict'])
+        
+        return self.model_calculator    

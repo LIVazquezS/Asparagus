@@ -473,11 +473,27 @@ class DataContainer():
     def get_property_scaling(
         self,
         overwrite: Optional[bool] = False,
-        property_atom_scaled: Optional[List[str]] = ['energy'],
+        property_atom_scaled: Optional[Dict[str, str]] = {
+            'energy': 'atomic_energies'},
     ) -> Dict[str, List[float]]:
         """
-        Get property scaling factors and shift terms equivalent to
-        the property mean value and standard deviation.
+        Compute property statistics with average and standard deviation.
+        
+        Parameters
+        ----------
+        overwrite: bool, optional, default False
+            If property statistics already available and up-to-date, recompute
+            them. The up-to-date flag will be reset to False if any database
+            manipulation is done.
+        property_atom_scaled: dict(str, str), optional, default ...
+            Property statistics (key) will be scaled by the number of atoms
+            per system and stored with new property label (item).
+            Default: {'energy': 'atomic_energies'}
+
+        Return
+        ------
+        dict(str, list(float))
+            Property statistics dictionary
         """
 
         # Get current metadata dictionary
@@ -497,62 +513,101 @@ class DataContainer():
         ):
             return metadata.get('data_property_scaling')
 
-        # Iterate over training data properties and compute property mean
+        # Announce start of property statistics calculation
         logger.info(
-            "INFO:\nStart computing means for training data property. " +
-            "This might take a moment.")
+            "INFO:\nStart computing training data property statistics. "
+            + "This might take a moment.")
+
+        # Iterate over training data properties and compute property mean
         Nsamples = 0.0
         for sample in self.train_set:
 
             # Iterate over sample properties
             for prop in metadata.get('load_properties'):
 
+                # Get property values
                 vals = sample.get(prop).numpy().reshape(-1)
 
-                # Scale by atom number if requested
-                if prop in property_atom_scaled:
-                    Natoms = sample.get('atoms_number').numpy().reshape(-1)
-                    vals /= Natoms.astype(float)
-
+                # Compute average
                 scalar = np.mean(vals)
                 property_scaling[prop][1] = (
                     property_scaling[prop][1]
                     + (scalar - property_scaling[prop][1])/(Nsamples + 1.0)
                     ).item()
+                
+                # Scale by atom number if requested
+                if prop in property_atom_scaled:
+                    
+                    # Compute atom scaled average
+                    atom_prop = property_atom_scaled[prop]
+                    Natoms = sample.get('atoms_number').numpy().reshape(-1)
+                    vals /= Natoms.astype(float)
+                    
+                    # Compute statistics normalized by atom numbers
+                    scalar = np.mean(vals)
+                    property_scaling[atom_prop][0] = (
+                        property_scaling[atom_prop][0]
+                        + (scalar - property_scaling[atom_prop][0])
+                        / (Nsamples + 1.0)
+                        ).item()
 
             # Increment sample counter
             Nsamples += 1.0
 
         # Iterate over training data properties and compute standard deviation
-        logger.info(
-            "INFO:\nStart computing standard deviation for training data " +
-            "property. This might take a moment.")
         for sample in self.train_set:
 
             # Iterate over sample properties
             for prop in metadata.get('load_properties'):
 
+                # Get property values
                 vals = sample.get(prop).numpy().reshape(-1)
                 Nvals = len(vals)
 
+                # Compute standard deviation contribution
+                for scalar in vals:
+                    property_scaling[prop][1] = (
+                        property_scaling[prop][1]
+                        + (scalar - property_scaling[prop][0])**2/Nvals)
+
                 # Scale by atom number if requested
                 if prop in property_atom_scaled:
+                    
+                    # Compute atom scaled standard deviation contribution
+                    atom_prop = property_atom_scaled[prop]
                     Natoms = sample.get('atoms_number').numpy().reshape(-1)
                     vals /= Natoms.astype(float)
-
-                for scalar in vals:
-
-                    property_scaling[prop][0] = (
-                        property_scaling[prop][0]
-                        + (scalar - property_scaling[prop][1])**2/Nvals)
-
-        logger.info("INFO:\nDone.\n")
-
+                    
+                    # Compute atom scaled standard deviation contribution
+                    for scalar in vals:
+                        property_scaling[atom_prop][1] = (
+                            property_scaling[atom_prop][1]
+                            + (scalar - property_scaling[atom_prop][0])**2
+                            / Nvals)
+        
         # Iterate over sample properties to complete standard deviation
         for prop in metadata.get('load_properties'):
+            property_scaling[prop][1] = np.sqrt(
+                property_scaling[prop][1]/Nsamples).item()
+            if prop in property_atom_scaled:
+                atom_prop = property_atom_scaled[prop]
+                property_scaling[atom_prop][1] = np.sqrt(
+                    property_scaling[atom_prop][1]/Nsamples).item()
 
-            property_scaling[prop][0] = np.sqrt(
-                property_scaling[prop][0]/Nsamples).item()
+        # Collect and print property statistics information
+        msg = f"  {'Property':<17s}|  {'Average':<17s}|  "
+        msg += f"{'Std. Deviation':<17s}\n"
+        msg += "-"*len(msg)
+        # Iterate over sample properties
+        for prop in metadata.get('load_properties'):
+            msg += f"  {prop:<17s}|  {property_scaling[prop][0]:>15.3e}  |  "
+            msg += f"{property_scaling[prop][1]:>15.3e}\n"
+            if prop in property_atom_scaled:
+                atom_prop = property_atom_scaled[prop]
+                msg += f"  {prop:<17s}|  "
+                msg += f"{property_scaling[atom_prop][0]:>15.3e}  |  "
+                msg += f"{property_scaling[atom_prop][1]:>15.3e}\n"
+        logger.info("INFO:\n" + msg + "Done.\n")
 
         # Update property scaling
         if metadata.get('data_property_scaling') is None:
@@ -587,8 +642,9 @@ class DataContainer():
             data_load_properties = [data_load_properties]
         for ip, prop in enumerate(data_load_properties):
             match, modified, new_prop = utils.check_property_label(
-                prop, settings._valid_properties,
-                data_alt_property_labels)
+                prop,
+                valid_property_labels=settings._valid_properties,
+                alt_property_labels=data_alt_property_labels)
             if match and modified:
                 logger.warning(
                     f"WARNING:\nProperty key '{prop}' in "
@@ -605,8 +661,8 @@ class DataContainer():
         props = list(data_unit_properties.keys())
         for prop in props:
             match, modified, new_prop = utils.check_property_label(
-                prop, settings._valid_properties,
-                data_alt_property_labels)
+                prop,                valid_property_labels=settings._valid_properties,
+                alt_property_labels=data_alt_property_labels)
             if match and modified:
                 logger.warning(
                     f"WARNING:\nProperty key '{prop}' in "

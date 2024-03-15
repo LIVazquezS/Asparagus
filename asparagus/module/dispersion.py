@@ -26,9 +26,9 @@ class D3_dispersion(torch.nn.Module):
     Parameters
     ----------
     cutoff: float
-        Cutoff distance
-    width: float
-        Range of the switching function from (cutoff - width) to (cutoff)
+        Upper cutoff distance
+    cuton: float, optional, default None
+        Lower cutoff distance starting switch-off function
     unit_properties: dict, optional, default {}
         Dictionary with the units of the model properties to initialize correct
         conversion factors.
@@ -52,7 +52,7 @@ class D3_dispersion(torch.nn.Module):
     def __init__(
         self,
         cutoff: float,
-        width: float,
+        cuton: Optional[float] = None,
         unit_properties: Optional[Dict[str, str]] = None,
         d3_s6: Optional[float] = None,
         d3_s8: Optional[float] = None,
@@ -119,13 +119,16 @@ class D3_dispersion(torch.nn.Module):
         self.d3_k2 = torch.tensor([4./3.], dtype=dtype).to(device)
         self.d3_k3 = torch.tensor([-4.000], dtype=dtype).to(device)
         
-        # Cutoff range
+        # Prepare interaction switch-off range
         self.cutoff = torch.tensor([cutoff], dtype=dtype).to(device)
-        self.width = torch.tensor([width], dtype=dtype).to(device)
-        self.cuton = torch.tensor([cutoff - width], dtype=dtype).to(device)
-        if self.width == 0.0:
+        if cuton is None or cuton == cutoff:
+            self.cuton = None
+            self.switchoff_range = None
             self.use_switch = False
         else:
+            self.cuton = torch.tensor([cuton], dtype=dtype).to(device)
+            self.switchoff_range = torch.tensor(
+                [cutoff - cuton], dtype=dtype).to(device)
             self.use_switch = True
 
         # Unit conversion factors
@@ -133,6 +136,16 @@ class D3_dispersion(torch.nn.Module):
 
         return
         
+    def __str__(self):
+        return "D3 Dispersion"
+
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Return class information
+        """
+
+        return {}
+
     def set_unit_properties(
         self,
         unit_properties: Dict[str, str],
@@ -167,12 +180,12 @@ class D3_dispersion(torch.nn.Module):
         distances: torch.Tensor
     ) -> torch.Tensor:
         """
-        Computes a smooth step from 1 to 0 in the range of  'cutoff' minus 
-        'width'.
+        Computes a smooth step from 1 to 0 in the range from 'cuton to 
+        'cutoff'.
         
         """
         
-        x = (self.cutoff - distances) / (self.width)
+        x = (self.cutoff - distances) / self.switchoff_range
         
         return torch.where(
             distances < self.cuton,

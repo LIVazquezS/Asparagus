@@ -1,3 +1,8 @@
+"""
+This data directory contains all modules for the data management in Asparagus.
+
+"""
+
 from .datacontainer import (
     DataContainer
 )

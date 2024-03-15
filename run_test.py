@@ -43,7 +43,7 @@ if True:
 #==============================================================================
 
 # SQL
-if False:
+if True:
 
     # Open DataBase file
     model = asparagus.Asparagus(
@@ -124,6 +124,20 @@ if False:
         data_source='data/meta_nh3.traj',
         data_overwrite=True,
     )
+    
+    ## TODO Check automatic unit conversion
+    ## Load ASE trajectory file with different property units
+    #model.set_DataContainer(
+        #config=config_file,
+        #data_file='test/meta_nh3_test_unit.db',
+        #data_source='data/meta_nh3.traj',
+        #data_load_properties=['energy', 'forces'],
+        #data_unit_properties={
+            #'positions': 'Bohr',
+            #'energy': 'kcal/mol',
+            #'forces': 'kcal/mol/Bohr'},
+        #data_overwrite=True,
+    #)
 
 # HDF5
 if False:
@@ -146,7 +160,7 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if False        :
+if True:
     
     from asparagus.sample import Sampler
     
@@ -499,7 +513,7 @@ if False        :
 #==============================================================================
 
 # Shell Calculator
-if False:
+if True:
     
     from asparagus.sample import Sampler
     
@@ -712,3 +726,7 @@ if False:
         sample_num_threads=4,
         )
     sampler.run()
+
+
+
+

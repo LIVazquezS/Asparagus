@@ -8,21 +8,14 @@ from .. import utils
 # Expected data types of input variables
 _dtypes_args = {
     # Model
-    'model_directory':              [utils.is_string, utils.is_None],
-    'model_num_threads':            [utils.is_integer, utils.is_None],
     'model_calculator':             [utils.is_callable],
     'model_type':                   [utils.is_string, utils.is_None],
-    'model_properties':             [utils.is_string_array],
-    'model_unit_properties':        [utils.is_dictionary, utils.is_None],
+    'model_directory':              [utils.is_string, utils.is_None],
+    'model_path':                   [utils.is_string],
+    'model_num_threads':            [utils.is_integer, utils.is_None],
     'model_save_top_k':             [utils.is_integer],
-    'model_interaction_cutoff':     [utils.is_numeric],
-    'model_cutoff_width':           [utils.is_numeric],
-    'model_repulsion':              [utils.is_bool],
-    'model_dispersion':             [utils.is_bool],
-    'model_electrostatic':          [utils.is_bool],
-    'model_activation_fn':          [utils.is_string, utils.is_callable],
-    'model_rate':                   [utils.is_numeric],
     'model_device':                 [utils.is_string],
+    'model_seed':                   [utils.is_integer],
     # Input module
     'input_model':                  [utils.is_callable],
     'input_type':                   [utils.is_string, utils.is_None],
@@ -33,10 +26,6 @@ _dtypes_args = {
     # Output module
     'output_model':                 [utils.is_callable],
     'output_type':                  [utils.is_string, utils.is_None],
-    'output_n_residual':            [utils.is_integer],
-    'output_activation_fn':         [utils.is_string, utils.is_callable],
-    'output_properties':            [utils.is_string_array],
-    'output_unit_properties':       [utils.is_dictionary],
     # Trainer
     'trainer_restart':              [utils.is_bool],
     'trainer_max_epochs':           [utils.is_integer],

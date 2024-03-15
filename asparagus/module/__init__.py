@@ -7,6 +7,14 @@ from .input import (
     get_input_module
 )
 
+from .graph import (
+    get_graph_module
+)
+
+from .output import (
+    get_output_module
+)
+
 from .electrostatics import (
     PC_shielded_electrostatics
 )

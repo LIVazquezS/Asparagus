@@ -48,9 +48,8 @@ def check_input_dtype(
 
 def check_property_label(
     property_label, 
-    valid_property_labels,
-    alt_property_labels, 
-    logger: Optional[logging.Logger] = None,
+    valid_property_labels: Optional[List[str]] = None,
+    alt_property_labels: Optional[Dict[str, List[str]]] = None, 
     return_modified: Optional[bool] = True,
 ) -> Dict[str, List[str]]:
     """
@@ -63,17 +62,21 @@ def check_property_label(
     ----------
     property_label : str
         Property labels to be checked.
-    valid_property_labels : list(str)
-        List of valid property labels.
-    alt_property_labels: dict
+    valid_property_labels : list(str), optional, default None
+        List of valid property labels. If not defined, valid property labels
+        are taken from settings._valid_properties.
+    alt_property_labels: dict, optional, default None
         Dictionary with alternative property labels as keys and valid property
-        labels as values.
-    return_modified : bool, optional
-        Return if property label was modified. The default is True.
+        labels as values. If not defined, no check for alternatively spelled
+        properties is done.
+    return_modified : bool, optional, default True
+        Return if property label was modified.
 
     """
     
     # Check if property label is valid
+    if valid_property_labels is None:
+        valid_property_labels = settings._valid_properties
     if property_label.lower() in valid_property_labels:
         # If already lower case or not
         if property_label.lower() == property_label:
@@ -88,6 +91,8 @@ def check_property_label(
                 return True
             
     # Check if a valid alternative can be found for property label
+    if alt_property_labels is None:
+        alt_property_labels = settings._alt_property_labels
     for key, items in alt_property_labels.items():
         if utils.is_string(items):
             items_lower = [items.lower()]
@@ -98,7 +103,7 @@ def check_property_label(
                 return True, True, key.lower()
             else:
                 return True
-        
+
     # Property label is not valid nor is an alternative found.
     if return_modified:
         return False, False, property_label
