@@ -2,7 +2,7 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
 
-from .. import layers
+from .. import layer
 from .. import utils
 from .. import settings
 
@@ -63,7 +63,7 @@ class PC_shielded_electrostatics(torch.nn.Module):
         self.device = device
 
         # Assign switch_fn
-        switch_class = layers.get_cutoff_fn(switch_fn)
+        switch_class = layer.get_cutoff_fn(switch_fn)
         self.switch_fn = switch_class(self.cutoff_short_range)
 
         # Set property units for parameter scaling

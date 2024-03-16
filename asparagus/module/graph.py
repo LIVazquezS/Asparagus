@@ -20,8 +20,8 @@ def get_Graph_PaiNN():
 #======================================
 
 graph_module_available = {
-    'PhysNet'.lower(): get_Graph_PhysNet(),
-    'PaiNN'.lower(): Graph_PaiNN,
+    'PhysNet'.lower(): get_Graph_PhysNet,
+    'PaiNN'.lower(): get_Graph_PaiNN,
     }
 
 def get_graph_module(
@@ -51,8 +51,7 @@ def get_graph_module(
     
     # Return requested graph module
     if graph_type.lower() in graph_module_available:
-        return graph_module_available[graph_type.lower()](
-            graph_type=graph_type,
+        return graph_module_available[graph_type.lower()]()(
             **kwargs)
     else:
         raise ValueError(

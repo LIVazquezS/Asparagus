@@ -5,6 +5,7 @@ import numpy as np
 
 import torch
 
+from .. import model
 from .. import module
 from .. import settings
 from .. import utils
@@ -53,7 +54,6 @@ class Model_PhysNet(torch.nn.Module):
     
     # Default arguments for graph module
     _default_args = {
-        'model_type':                   'PhysNet',
         'model_properties':             ['energy', 'forces'],
         'model_unit_properties':        None,
         'model_cutoff':                 12.0,
@@ -67,7 +67,6 @@ class Model_PhysNet(torch.nn.Module):
 
     # Expected data types of input variables
     _dtypes_args = {
-        'model_type':                   [utils.is_string],
         'model_properties':             [utils.is_string_array],
         'model_unit_properties':        [utils.is_dictionary, utils.is_None],
         'model_cutoff':                 [utils.is_numeric],
@@ -99,6 +98,8 @@ class Model_PhysNet(torch.nn.Module):
         model_electrostatic: Optional[bool] = None,
         model_dispersion: Optional[bool] = None,
         model_dispersion_trainable: Optional[bool] = None,
+        device: Optional[str] = None,
+        dtype: Optional[str] = None,
         **kwargs
     ):
         """
@@ -107,6 +108,7 @@ class Model_PhysNet(torch.nn.Module):
         """
 
         super(Model_PhysNet, self).__init__()
+        model_type = 'PhysNet'
 
         ##########################################
         # # # Check PhysNet Calculator Input # # #
@@ -130,8 +132,9 @@ class Model_PhysNet(torch.nn.Module):
         config.update(config_update)
         
         # Assign module variable parameters from configuration
-        self.dtype = config.get('dtype')
+
         self.device = config.get('device')
+        self.dtype = config.get('dtype')
 
         ##########################################
         # # # Check PhysNet Model Properties # # #
@@ -146,7 +149,7 @@ class Model_PhysNet(torch.nn.Module):
                     + list(settings._valid_properties))
         
         # Check model properties - Energy and energy gradient properties
-        self.model_properties = list(model_properties)
+        self.model_properties = list(self.model_properties)
         if any([
             prop in self.model_properties
             for prop in ['atomic_energies', 'energy']]
@@ -202,6 +205,8 @@ class Model_PhysNet(torch.nn.Module):
                 "Lower atom pair cutoff distance 'model_cuton' "
                 + f"({self.model_cuton:.2f}) is larger than the upper cutoff "
                 + f"distance ({self.model_cutoff:.2f})!")
+        else:
+            self.model_switch_range = self.model_cutoff - self.model_cuton
         
         #################################
         # # # PhysNet Modules Setup # # #
@@ -221,9 +226,13 @@ class Model_PhysNet(torch.nn.Module):
 
             if config.get('input_type') is None:
                 self.input_type = self._default_modules.get('input_type')
+            else:
+                self.input_type = config.get('input_type')
             self.input_module = module.get_input_module(
                 self.input_type,
                 config=config,
+                device=self.device,
+                dtype=self.dtype,
                 **kwargs)
 
         # Check for graph module object in input
@@ -240,9 +249,13 @@ class Model_PhysNet(torch.nn.Module):
 
             if config.get('graph_type') is None:
                 self.graph_type = self._default_modules.get('graph_type')
+            else:
+                self.graph_type = config.get('graph_type')
             self.graph_module = module.get_graph_module(
                 self.graph_type,
-                config,
+                config=config,
+                device=self.device,
+                dtype=self.dtype,
                 **kwargs)
 
         # Check for output module object in input
@@ -259,15 +272,19 @@ class Model_PhysNet(torch.nn.Module):
 
             if config.get('output_type') is None:
                 self.output_type = self._default_modules.get('output_type')
+            else:
+                self.output_type = config.get('output_type')
             self.output_module = module.get_output_module(
                 self.output_type,
-                config,
+                config=config,
+                device=self.device,
+                dtype=self.dtype,
                 **kwargs)
 
         # Assign atom repulsion module
         if self.model_repulsion:
             pass
-        
+
         # Assign electrostatic interaction module
         if self.model_electrostatic and self.model_energy:
 
@@ -277,7 +294,7 @@ class Model_PhysNet(torch.nn.Module):
                 cutoff_short_range=config.get('input_radial_cutoff'),
                 unit_properties=self.model_unit_properties,
                 device=self.device,
-                dtype=self.dtype
+                dtype=self.dtype,
                 **kwargs)
 
         elif self.model_electrostatic:
@@ -290,13 +307,13 @@ class Model_PhysNet(torch.nn.Module):
         if self.model_dispersion and self.model_energy:
             
             # Grep dispersion correction parameters
-            d3_s6 = self.config.get("model_dispersion_d3_s6")
-            d3_s8 = self.config.get("model_dispersion_d3_s8")
-            d3_a1 = self.config.get("model_dispersion_d3_a1")
-            d3_a2 = self.config.get("model_dispersion_d3_a2")
+            d3_s6 = config.get("model_dispersion_d3_s6")
+            d3_s8 = config.get("model_dispersion_d3_s8")
+            d3_a1 = config.get("model_dispersion_d3_a1")
+            d3_a2 = config.get("model_dispersion_d3_a2")
             
             # Get Grimme's D3 dispersion model calculator
-            self.dispersion_module = layers.D3_dispersion(
+            self.dispersion_module = module.D3_dispersion(
                 self.model_cutoff,
                 cuton=self.model_cuton,
                 unit_properties=self.model_unit_properties,
@@ -328,12 +345,12 @@ class Model_PhysNet(torch.nn.Module):
         info = {}
         
         # Collect model info
-        if hasattr(self.input_model, "get_info"):
-            info = {**info, **self.input_model.get_info()}
-        if hasattr(self.graph_model, "get_info"):
-            info = {**info, **self.graph_model.get_info()}
-        if hasattr(self.output_model, "get_info"):
-            info = {**info, **self.output_model.get_info()}
+        if hasattr(self.input_module, "get_info"):
+            info = {**info, **self.input_module.get_info()}
+        if hasattr(self.graph_module, "get_info"):
+            info = {**info, **self.graph_module.get_info()}
+        if hasattr(self.output_module, "get_info"):
+            info = {**info, **self.output_module.get_info()}
         if self.model_repulsion:
             pass
         if (
@@ -347,13 +364,17 @@ class Model_PhysNet(torch.nn.Module):
         ):
             info = {**info, **self.dispersion_module.get_info()}
 
-
         return {
-            'output_type': self.output_type,
-            'output_properties': self.output_properties,
-            'output_unit_properties': self.output_unit_properties,
-            'output_n_residual': self.output_n_residual,
-            'output_activation_fn': self.output_activation_fn
+            **info, 
+            'model_properties': self.model_properties,
+            'model_unit_properties': self.model_unit_properties,
+            'model_cutoff': self.model_cutoff,
+            'model_cuton': self.model_cuton,
+            'model_switch_range': self.model_switch_range,
+            'model_repulsion': self.model_repulsion,
+            'model_electrostatic': self.model_electrostatic,
+            'model_dispersion': self.model_dispersion,
+            'model_dispersion_trainable': self.model_dispersion_trainable,
             }
 
     def set_property_scaling(

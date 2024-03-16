@@ -9,25 +9,32 @@ import time
 # Test Parameter
 #==============================================================================
 
+
+flag_dictionary_initialization = False
+flag_database_sql = False
+flag_database_hdf5 = False
+flag_sampler_all = False
+flag_sampler_shell = False
+flag_sampler_slurm = False
+flag_model_physnet = True
+
+
+#==============================================================================
+# Test Asparagus Main Class Initialization
+#==============================================================================
+
 config_file = 'test/init.json'
 config = {
     'config_file': config_file}
 device = 'cpu'
 dtype=torch.float32
-    
-#==============================================================================
-# Test Asparagus Main Class Initialization
-#==============================================================================
 
 # Dictionary initialization
-if True:
+if flag_dictionary_initialization:
 
     model = asparagus.Asparagus(config)
     model = asparagus.Asparagus(config=config_file)
     model = asparagus.Asparagus(config_file=config_file)
-
-# Global device and dtype setting
-if True:
 
     model = asparagus.Asparagus(
         config,
@@ -42,8 +49,12 @@ if True:
 # Test Asparagus DataContainer Class Initialization
 #==============================================================================
 
+config_file = 'test/data.json'
+config = {
+    'config_file': config_file}
+
 # SQL
-if True:
+if flag_database_sql:
 
     # Open DataBase file
     model = asparagus.Asparagus(
@@ -140,7 +151,7 @@ if True:
     #)
 
 # HDF5
-if False:
+if flag_database_hdf5:
 
     # Create new DataBase file
     model.set_DataContainer(
@@ -160,7 +171,7 @@ if False:
 # Sampler - with XTB and ORCA
 # Mind: XTB is not thread safe when using with ASE modules such as Optimizer
 # or Vibrations, but simple Calculator call works
-if True:
+if flag_sampler_all:
     
     from asparagus.sample import Sampler
     
@@ -509,11 +520,11 @@ if True:
     sampler.run()
 
 #==============================================================================
-# Test Asparagus Calculators
+# Test Asparagus Calculators - Shell & Slurm
 #==============================================================================
 
 # Shell Calculator
-if True:
+if flag_sampler_shell:
     
     from asparagus.sample import Sampler
     
@@ -579,8 +590,8 @@ if True:
     sampler.run()
 
 # Slurm Calculator
-if False:
-    
+if flag_sampler_slurm:
+
     from asparagus.sample import Sampler
     
     # Calculate properties of a sample system with multiple conformations
@@ -727,6 +738,23 @@ if False:
         )
     sampler.run()
 
+
+#==============================================================================
+# Test Asparagus Model Calculator - PhysNet
+#==============================================================================
+
+if flag_model_physnet:
+    
+    config_file = 'test/model.json'
+    
+    model = asparagus.Asparagus(
+        config_file=config_file,
+        )
+    
+    model.get_model_calculator()
+    #model.get_model_calculator(
+        #model_type='physnet',
+        #)
 
 
 

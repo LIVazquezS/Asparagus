@@ -1,19 +1,17 @@
-'''
-
+"""
 Basic settings for the Asparagus package.
 
-Definition of global variables and functions to set them, additionally it handles the configuration file.
+Definition of global variables and functions to set them, additionally it 
+handles the configuration file.
 
-
-'''
-
-from .dtypes import (
-    _dtypes_args
-)
+"""
 
 from .default import (
-    _default_args, _default_calculator_model,
-    _available_input_model, _available_graph_model, _available_output_model
+    _default_args, _default_calculator_model
+)
+
+from .dtypes import (
+    _dtypes_args, _dtype_library
 )
 
 from .properties import (

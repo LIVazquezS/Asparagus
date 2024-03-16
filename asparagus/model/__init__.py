@@ -3,6 +3,6 @@ This directory contains calculator models.
 
 """
 
-#from .physnet import (
-    #Model_PhysNet
-#)
+from .calculator import (
+    get_model_calculator
+)

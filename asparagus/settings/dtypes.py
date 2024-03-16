@@ -1,3 +1,6 @@
+import numpy as np
+
+import torch
 
 from .. import utils
 
@@ -59,4 +62,19 @@ _dtypes_args = {
     'recalc_source_data_file':      [utils.is_string, utils.is_string_array],
     'recalc_target_data_file':      [utils.is_string, utils.is_string_array],
     'recalc_directory':             [utils.is_string],
+    }
+
+#======================================
+# Python data type library
+#======================================
+
+_dtype_library = {
+    'float': float, 
+    'np.float16': np.float16, 
+    'np.float32': np.float32, 
+    'np.float64': np.float64,
+    'torch.float': torch.float,
+    'torch.float16': torch.float16,
+    'torch.float32': torch.float32,
+    'torch.float64': torch.float64,
     }

@@ -63,8 +63,8 @@ class Asparagus():
 
         # Check model parameter configuration and set default
         self.config.check(
-            check_default=True,
-            check_dtype=True,
+            check_default=utils.get_default_args(self, None),
+            check_dtype=utils.get_dtype_args(self, None)
             )
 
         ###########################
@@ -123,7 +123,7 @@ class Asparagus():
         # Check input
         if config is None:
             config = self.config
-        print('kwargs', kwargs)
+
         # Initialize DataContainer
         self.data_container = data.DataContainer(
             config,
@@ -167,6 +167,7 @@ class Asparagus():
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
+        model_type: Optional[str] = None,
         model_checkpoint: Optional[int] = None,
         **kwargs,
     ) -> torch.nn.Module:
@@ -180,6 +181,9 @@ class Asparagus():
             settings.config class object of model parameters
         config_file: str, optional, default see settings.default['config_file']
             Path to json file (str)
+        model_type: str, optional, default 'PhysNet'
+            Model calculator type to initialize, e.g. 'PhysNet'. The default
+            model is defined in settings.default._default_calculator_model.
         model_checkpoint: int, optional, default None
             If None, load best model checkpoint. Otherwise define a checkpoint
             index number of the respective checkpoint file.
@@ -205,25 +209,33 @@ class Asparagus():
 
         # Check model parameter configuration and set default
         config_model.check(
-            check_default=True,
-            check_dtype=True,
+            check_default=utils.get_default_args(self, None),
+            check_dtype=utils.get_dtype_args(self, None)
             )
+
+        # Check requested model type
+        if model_type is None and config_model.get('model_type') is None:
+            model_type = settings._default_calculator_model
+        elif model_type is None:
+            model_type = config_model['model_type']
 
         ##################################
         # # # Prepare NNP Calculator # # #
         ##################################
 
         # Assign model calculator
-        model_calculator = self.model.get_model_calculator(
-            config_model,
+        model_calculator = model.get_model_calculator(
+            model_type,
+            config=config_model,
             **kwargs)
-        
+
         # Add calculator info to configuration dictionary
         if hasattr(model_calculator, "get_info"):
+            print(model_calculator.get_info())
             config_model.update(
                 model_calculator.get_info(),
                 verbose=False)
-
+        exit()
         # Initialize checkpoint file manager and load best model
         filemanager = utils.FileManager(config_model, **kwargs)
         if model_checkpoint is None:

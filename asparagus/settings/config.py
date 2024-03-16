@@ -117,7 +117,7 @@ class Configuration():
 
         # Initialize class config dictionary
         self.config_dict = {}
-        self.config_indent = 4
+        self.config_indent = 2
 
         # Check and set configuration dictionary and file path.
         # If both undefined: Set empty config at default config file path
@@ -159,18 +159,18 @@ class Configuration():
                 + "Input 'config' is not a dictionary containing a valid "
                 + "'config_file' input!")
 
+        # Save current configuration dictionary to file
+        config_dir = os.path.dirname(self.config_file)
+        if not os.path.isdir(config_dir) and len(config_dir):
+            os.makedirs(os.path.dirname(self.config_file))
+        self.dump()
+
         # Update configuration dictionary with keyword arguments
         if len(kwargs):
             self.update(
                 kwargs,
                 config_from=config_from,
                 )
-
-        # Save current configuration dictionary to file
-        config_dir = os.path.dirname(self.config_file)
-        if not os.path.isdir(config_dir) and len(config_dir):
-            os.makedirs(os.path.dirname(self.config_file))
-        self.dump()
 
         # Adopt default settings arguments and their valid dtypes
         self.default_args = settings._default_args
@@ -207,11 +207,17 @@ class Configuration():
         config_file: str,
     ) -> Dict[str, Any]:
 
+        # Read json file
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
                 config_dict = json.load(f)
         else:
             config_dict = {}
+
+        # Check for convertible parameter keys and convert 
+        for key, item in config_dict.items():
+            if self.is_convertible(key):
+                config_dict[key] = self.convert(key, item, 'read')
 
         return config_dict
 
@@ -274,8 +280,14 @@ class Configuration():
             msg += "  (ignore conflicts)\n"
         
         # Iterate over new configuration dictionary
-        n_add, n_equal, n_overwrite = 0, 0, 0
+        n_all, n_add, n_equal, n_overwrite = 0, 0, 0, 0
         for key, item in config_new.items():
+
+            # Skip if parameter value is None
+            if item is None:
+                continue
+            else:
+                n_all += 1
 
             # Check for conflicting keyword
             conflict = key in self.config_dict.keys()
@@ -308,7 +320,7 @@ class Configuration():
 
         # Add numbers
         msg += (
-            f"{len(config_new):d} new parameter, {n_add:d} added, "
+            f"{n_all:d} new parameter, {n_add:d} added, "
             + f"{n_equal:d} equal, {n_overwrite:d} overwritten\n")
         # Show additional information output
         if verbose:
@@ -358,28 +370,25 @@ class Configuration():
             # but nothing else which might be to fancy
             elif utils.is_array_like(item):
                 config_dump[key] = list(item)
+            elif self.is_convertible(key):
+                config_dump[key] = self.convert(key, item, 'dump')
             else:
                 continue
 
         if config_file is None:
-            with open(self.config_file, 'w') as f:
-                json.dump(
-                    config_dump, f, 
-                    indent=self.config_indent,
-                    default=str)
-        else:
-            with open(config_file, 'w') as f:
-                json.dump(
-                    config_dump, f, 
-                    indent=self.config_indent,
-                    default=str)
+            config_file = self.config_file
+        with open(self.config_file, 'w') as f:
+            json.dump(
+                config_dump, f, 
+                indent=self.config_indent,
+                default=str)
         
         return
 
     def check(
         self,
-        check_default: Optional[bool] = True,
-        check_dtype: Optional[bool] = True,
+        check_default: Optional[Dict] = None,
+        check_dtype: Optional[Dict] = None,
     ):
         """
         Check configuration parameter for correct data type and, eventually,
@@ -387,25 +396,27 @@ class Configuration():
 
         Parameters
         ----------
-        check_default: bool, optional, default True
-            If model parameter is None replace with parameter from default list
-            if available.
-        check_dtype: bool, optional, default True
-            Check data type of model parameter and raise Error for mismatch
+        check_default: dict, optional, default None
+            Default argument parameter dictionary.
+        check_dtype: dict, optional, default None
+            Default argument data type dictionary.
         """
 
-        for key, item in self.config_dict.items():
+        for arg, item in self.config_dict.items():
 
             # Check if input parameter is None, if so take default value
-            if item is None and check_default:
-                if key in self.default_args:
-                    self.config_dict[key] = self.default_args[key]
+            if check_default is not None and item is None:
+                if arg in check_default:
+                    item = check_default[arg]
+                    self[arg] = item
 
             # Check datatype of defined arguments
-            if key in self.dtypes_args and check_dtype:
+            if check_dtype is not None and arg in check_dtype:
                 _ = utils.check_input_dtype(
-                    key, self.config_dict[key], self.dtypes_args,
-                    raise_error=True)
+                    arg, item, check_dtype, raise_error=True)
+
+        # Save successfully checked configuration
+        self.dump()
         
         return
 
@@ -489,3 +500,80 @@ class Configuration():
 
     def get_dictionary(self):
         return self.config_dict
+
+    def conversion_dict(self):
+        """
+        Generate conversion dictionary.
+        
+        """
+        
+        self.convertible_dict = {
+            'dtype': self.convert_dtype
+            }
+        
+        return
+    
+    def is_convertible(self, key):
+        """
+        Check if parameter 'key' is covert in the convertible dictionary.
+
+        Parameters
+        ----------
+        key: str
+            Parameter name
+
+        """
+        
+        # Check if convertible dictionary is already initialized
+        if not hasattr(self, 'convertible_dict'):
+            self.conversion_dict()
+
+        # Look for parameter in conversion dictionary
+        return key in self.convertible_dict
+    
+    def convert(self, key, arg, operation):
+        """
+        Convert argument 'arg' of parameter 'key' between json compatible
+        format and internal type.
+        
+        Parameters
+        ----------
+        key: str
+            Parameter name
+        arg: Any
+            Parameter value
+        operation: str
+            Convert direction such as 'dump' (internal -> json) or 'read'
+            (json -> internal).
+        
+        """
+        
+        # Check if convertible dictionary is already initialized
+        if hasattr(self, 'convertible_dict'):
+            self.conversion_dict()
+
+        # Provide conversion result
+        return self.convertible_dict[key](arg, operation)
+    
+    def convert_dtype(self, arg, operation):
+        """
+        Convert data type to data label
+
+        """
+        if operation == 'dump':
+            for dlabel, dtype in settings._dtype_library.items():
+                if arg is dtype:
+                    return dlabel
+            return None
+        elif operation == 'read':
+            for dlabel, dtype in settings._dtype_library.items():
+                if arg == dlabel:
+                    return dtype
+            return None
+        else:
+            return None
+        
+        
+        
+        
+        

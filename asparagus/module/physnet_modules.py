@@ -1,11 +1,15 @@
 import logging
-from typing import Optional, Union, List, Callable, Any
+import numpy as np
+from typing import Optional, Union, List, Dict, Callable, Any
 
 import torch
 
+from .. import module
 from .. import layer
 from .. import settings
 from .. import utils
+
+from ..layer import physnet_layers
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,12 +33,14 @@ class Input_PhysNet(torch.nn.Module):
         Path to json file (str)
     input_n_atombasis: int, optional, default 128
         Number of atomic features (length of the atomic feature vector)
+    input_radialbasis_fn: (str, callable), optional, default 'GaussianRBF'
+        Type of the radial basis function.
     input_n_radialbasis: int, optional, default 64
         Number of input radial basis centers
-    input_radial_cutoff: float, optional, default 8.0
-        Cutoff distance radial basis function
     input_cutoff_fn: (str, callable), optional, default 'Poly6'
         Cutoff function type for radial basis function scaling
+    input_radial_cutoff: float, optional, default 8.0
+        Cutoff distance radial basis function
     input_rbf_center_start: float, optional, default 1.0
         Lowest radial basis center distance.
     input_rbf_center_end: float, optional, default None (input_radial_cutoff)
@@ -55,46 +61,46 @@ class Input_PhysNet(torch.nn.Module):
     
     # Default arguments for input module
     _default_args = {
-        'input_type':                   None,
         'input_n_atombasis':            128,
+        'input_radial_fn':              'GaussianRBF',
         'input_n_radialbasis':          64,
-        'input_radial_cutoff':          8.0,
         'input_cutoff_fn':              'Poly6',
+        'input_radial_cutoff':          8.0,
         'input_rbf_center_start':       1.0,
         'input_rbf_center_end':         None,
         'input_rbf_trainable':          True,
         'input_n_maxatom':              94,
-        'input_atom_features_range':    np.sqrt(3),
+        #'input_atom_features_range':    np.sqrt(3),
         }
 
     # Expected data types of input variables
     _dtypes_args = {
-        'input_type':                   [utils.is_string],
         'input_n_atombasis':            [utils.is_integer],
+        'input_radial_fn':              [utils.is_string, utils.is_callable],
         'input_n_radialbasis':          [utils.is_integer],
-        'input_radial_cutoff':          [utils.is_numeric],
         'input_cutoff_fn':              [utils.is_string, utils.is_callable],
+        'input_radial_cutoff':          [utils.is_numeric],
         'input_rbf_center_start':       [utils.is_numeric],
         'input_rbf_center_end':         [utils.is_None, utils.is_numeric],
         'input_rbf_trainable':          [utils.is_bool],
         'input_n_maxatom':              [utils.is_integer],
-        'input_atom_features_range':    [utils.is_numeric],
+        #'input_atom_features_range':    [utils.is_numeric],
         }
 
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
-        input_type: Optional[str] = None,
         input_n_atombasis: Optional[int] = None,
+        input_radial_fn: Optional[Union[str, object]] = None,
         input_n_radialbasis: Optional[int] = None,
-        input_radial_cutoff: Optional[float] = None,
         input_cutoff_fn: Optional[Union[str, object]] = None,
+        input_radial_cutoff: Optional[float] = None,
         input_rbf_center_start: Optional[float] = None,
         input_rbf_center_end: Optional[float] = None,
         input_rbf_trainable: Optional[bool] = None,
         input_n_maxatom: Optional[int] = None,
-        input_atom_features_range: Optional[float] = None,
+        #input_atom_features_range: Optional[float] = None,
         **kwargs
     ):
         """
@@ -103,7 +109,8 @@ class Input_PhysNet(torch.nn.Module):
         """
 
         super(Input_PhysNet, self).__init__()
-        
+        input_type = 'PhysNet'
+
         ####################################
         # # # Check Module Class Input # # #
         ####################################
@@ -144,7 +151,7 @@ class Input_PhysNet(torch.nn.Module):
         ####################################
         
         # Initialize atomic feature vectors
-        self.atom_features = nn.Embedding(
+        self.atom_features = torch.nn.Embedding(
             self.input_n_maxatom + 1,
             self.input_n_atombasis, 
             padding_idx=0)
@@ -159,7 +166,7 @@ class Input_PhysNet(torch.nn.Module):
             #)
         
         # Initialize radial cutoff function
-        self.input_cutoff_fn = layer.get_cutoff_fn(self.input_cutoff_fn)(
+        self.cutoff_fn = layer.get_cutoff_fn(self.input_cutoff_fn)(
             self.input_radial_cutoff)
         
         # Get upper RBF center range
@@ -167,8 +174,8 @@ class Input_PhysNet(torch.nn.Module):
             self.input_rbf_center_end = self.input_radial_cutoff
         
         # Initialize Radial basis function
-        radial_fn = layer.get_radial_fn(self.input_type)
-        self.input_radial_fn = radial_fn(
+        radial_fn = layer.get_radial_fn(self.input_radial_fn)
+        self.radial_fn = radial_fn(
             self.input_n_radialbasis,
             self.input_rbf_center_start, self.input_rbf_center_end,
             self.input_rbf_trainable, 
@@ -187,6 +194,7 @@ class Input_PhysNet(torch.nn.Module):
         return {
             'input_type': self.input_type,
             'input_n_atombasis': self.input_n_atombasis,
+            'input_radial_fn': str(self.input_radial_fn),
             'input_n_radialbasis': self.input_n_radialbasis,
             'input_radial_cutoff': self.input_radial_cutoff,
             'input_cutoff_fn': str(self.input_cutoff_fn),
@@ -245,10 +253,10 @@ class Input_PhysNet(torch.nn.Module):
                 dim=-1)
 
         # Compute distance cutoff values
-        cutoffs = self.input_cutoff_fn(distances)
+        cutoffs = self.cutoff_fn(distances)
 
         # Compute radial basis functions
-        rbfs = self.input_radial_fn(distances)
+        rbfs = self.radial_fn(distances)
 
         return features, distances, cutoffs, rbfs
 
@@ -284,16 +292,14 @@ class Graph_PhysNet(torch.nn.Module):
     
     # Default arguments for graph module
     _default_args = {
-        'graph_type':                   'PhysNet',
         'graph_n_blocks':               5,
         'graph_n_residual_interaction': 3,
         'graph_n_residual_features':    2,
-        'graph_activation_fn':          'Poly6',
+        'graph_activation_fn':          'shifted_softplus',
         }
 
     # Expected data types of input variables
     _dtypes_args = {
-        'graph_type':                   [utils.is_string, utils.is_None],
         'graph_n_blocks':               [utils.is_integer],
         'graph_n_residual_interaction': [utils.is_integer],
         'graph_n_residual_features':    [utils.is_integer],
@@ -304,7 +310,6 @@ class Graph_PhysNet(torch.nn.Module):
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
-        graph_type: Optional[str] = None,
         graph_n_blocks: Optional[int] = None,
         graph_n_residual_interaction: Optional[int] = None,
         graph_n_residual_features: Optional[int] = None,
@@ -316,7 +321,8 @@ class Graph_PhysNet(torch.nn.Module):
 
         """
         
-        super(Graph_PhysNet).__init__()
+        super(Graph_PhysNet, self).__init__()
+        graph_type = 'PhysNet'
         
         ####################################
         # # # Check Module Class Input # # #
@@ -357,15 +363,14 @@ class Graph_PhysNet(torch.nn.Module):
 
         # Initialize message passing blocks
         self.interaction_blocks = torch.nn.ModuleList([
-            layer.physnet_layers.InteractionBlock(
+            physnet_layers.InteractionBlock(
                 self.input_n_atombasis, 
                 self.input_n_radialbasis, 
                 self.graph_n_residual_interaction,
                 self.graph_n_residual_features,
                 self.graph_activation_fn,
                 device=self.device,
-                dtype=self.dtype,
-                )
+                dtype=self.dtype)
             for _ in range(self.graph_n_blocks)
             ])
 
@@ -468,16 +473,14 @@ class Output_PhysNet(torch.nn.Module):
 
     # Default arguments for graph module
     _default_args = {
-        'output_type':                  'PhysNet',
         'output_properties':            None,
         'output_n_residual':            1,
-        'output_activation_fn':         'Poly6',
+        'output_activation_fn':         'shifted_softplus',
         'output_scaling_parameter':     None,
         }
 
     # Expected data types of input variables
     _dtypes_args = {
-        'output_type':                  [utils.is_string],
         'output_properties':            [utils.is_string_array, utils.is_None],
         'output_n_residual':            [utils.is_integer],
         'output_activation_fn':         [utils.is_string, utils.is_callable],
@@ -493,7 +496,7 @@ class Output_PhysNet(torch.nn.Module):
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
-        output_type: Optional[List[str]] = None,
+        output_properties: Optional[List[str]] = None,
         output_n_residual: Optional[int] = None,
         output_activation_fn: Optional[Union[str, object]] = None,
         output_scaling_parameter: Optional[Dict[str, List[float]]] = None,
@@ -504,7 +507,8 @@ class Output_PhysNet(torch.nn.Module):
 
         """
 
-        super(Output_PhysNet).__init__()
+        super(Output_PhysNet, self).__init__()
+        output_type = 'PhysNet'
 
         ####################################
         # # # Check Module Class Input # # #
@@ -555,7 +559,7 @@ class Output_PhysNet(torch.nn.Module):
         #####################################
 
         # Initialize activation function
-        self.output_activation_fn = layer.get_activation_fn(
+        self.activation_fn = layer.get_activation_fn(
             self.output_activation_fn)
 
         # Initialize property to output block dictionary
@@ -573,15 +577,15 @@ class Output_PhysNet(torch.nn.Module):
             # Set case flag for output module predicting atomic energies and
             # charges
             self.output_energies_charges = True
+            self.output_n_property['atomic_energies_charges'] = 2
 
             # PhysNet energy and atom charges output block
             output_block = torch.nn.ModuleList([
-                layer.physnet_layers.OutputBlock(
+                physnet_layers.OutputBlock(
                     input_n_atombasis,
+                    self.output_n_property['atomic_energies_charges'],
                     self.output_n_residual,
-                    self.output_activation_fn,
-                    output_n_results=2,
-                    rate=self.rate,
+                    self.activation_fn,
                     device=self.device,
                     dtype=self.dtype)
                 for _ in range(graph_n_blocks)]
@@ -590,25 +594,30 @@ class Output_PhysNet(torch.nn.Module):
             # Assign output block to dictionary
             self.output_property_block['atomic_energies_charges'] = (
                 output_block)
-            self.output_n_property['atomic_energies_charges'] = 2
 
         if any([
             prop in self.output_properties
             for prop in ['atomic_energies', 'atomic_charges']]
         ):
+            
+            # Get property label
+            if 'atomic_energies' in self.output_properties:
+                prop = 'atomic_energies'
+            else:
+                prop = 'atomic_charges'
 
             # Set case flag for output module predicting just atomic energies
             # or charges
             self.output_energies_charges = False
+            self.output_n_property[prop] = 1
 
             # PhysNet energy only output block
             output_block = torch.nn.ModuleList([
-                layer.physnet_layers.OutputBlock(
+                physnet_layers.OutputBlock(
                     input_n_atombasis,
+                    self.output_n_property[prop],
                     self.output_n_residual,
-                    self.output_activation_fn,
-                    output_n_results=1,
-                    rate=self.rate,
+                    self.activation_fn,
                     device=self.device,
                     dtype=self.dtype)
                 for _ in range(graph_n_blocks)
@@ -616,7 +625,6 @@ class Output_PhysNet(torch.nn.Module):
 
             # Assign output block to dictionary
             self.output_property_block[prop] = output_block
-            self.output_property_num[prop] = 1
 
         else:
 
@@ -636,8 +644,8 @@ class Output_PhysNet(torch.nn.Module):
 
             # Initialize scaling factor and shifting term if not done already
             if prop not in self.output_scaling:
-                self.output_scaling[prop] = torch.nn.Parameters(
-                    torch.Tensor(
+                self.output_scaling[prop] = torch.nn.Parameter(
+                    torch.tensor(
                         [[1.0, 0.0] for _ in range(self.input_n_maxatom)],
                         device=self.device, 
                         dtype=self.dtype)
@@ -648,13 +656,13 @@ class Output_PhysNet(torch.nn.Module):
                 continue
 
             # Initialize output block
+            self.output_n_property[prop] = 1
             output_block = torch.nn.ModuleList([
                 layer.physnet_layers.OutputBlock(
                     input_n_atombasis,
+                    self.output_n_property[prop],
                     self.output_n_residual,
-                    self.output_activation_fn,
-                    output_n_results=1,
-                    rate=self.rate,
+                    self.activation_fn,
                     device=self.device,
                     dtype=self.dtype)
                 for _ in range(graph_n_blocks)
@@ -662,7 +670,6 @@ class Output_PhysNet(torch.nn.Module):
 
             # Assign output block to dictionary
             self.output_property_block[prop] = output_block
-            self.output_property_num[prop] = 1
 
         return
 
@@ -677,9 +684,8 @@ class Output_PhysNet(torch.nn.Module):
         return {
             'output_type': self.output_type,
             'output_properties': self.output_properties,
-            'output_unit_properties': self.output_unit_properties,
             'output_n_residual': self.output_n_residual,
-            'output_activation_fn': self.output_activation_fn
+            'output_activation_fn': self.output_activation_fn,
             }
 
     def set_property_scaling(
@@ -714,7 +720,7 @@ class Output_PhysNet(torch.nn.Module):
                 continue
 
             self.output_scaling[prop] = torch.nn.Parameters(
-                torch.Tensor(
+                torch.tensor(
                     [[scale, shift] for _ in range(self.input_n_maxatom)],
                     device=self.device, 
                     dtype=self.dtype)

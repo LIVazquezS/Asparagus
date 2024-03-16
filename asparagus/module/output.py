@@ -20,7 +20,7 @@ def get_Output_PaiNN():
 #======================================
 
 output_module_available = {
-    'PhysNet'.lower(): get_Output_PhysNet(),
+    'PhysNet'.lower(): get_Output_PhysNet,
     'PaiNN'.lower(): get_Output_PaiNN,
     }
 
@@ -51,8 +51,7 @@ def get_output_module(
     
     # Return requested output module
     if output_type.lower() in output_module_available:
-        return output_module_available[output_type.lower()](
-            output_type=output_type,
+        return output_module_available[output_type.lower()]()(
             **kwargs)
     else:
         raise ValueError(

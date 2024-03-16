@@ -8,27 +8,6 @@ import torch
 # Default calculator model
 _default_calculator_model = 'PhysNet'
 
-# Available input model of respective 'model_type'
-_available_input_model = {
-    'PhysNet':                      'PhysNetRBF',
-    'PhysNet_original':             'PhysNetRBF_original',
-    'PaiNN':                        'PaiNNRBF',
-    }
-
-# Available graph model of respective 'model_type'
-_available_graph_model = {
-    'PhysNet':                      'PhysNetMP',
-    'PhysNet_original':             'PhysNetMP',
-    'PaiNN':                        'PaiNNMP',
-    }
-
-# Available output model of respective 'model_type'
-_available_output_model = {
-    'PhysNet':                      'PhysNetOut',
-    'PhysNet_original':             'PhysNetOut',
-    'PaiNN':                        'PaiNNOut',
-    }
-
 # ======================================
 # Default Input
 # ======================================
@@ -37,6 +16,8 @@ _available_output_model = {
 _default_args = {
     'config':                       {},
     'config_file':                  'config.json',
+    'device':                       'cpu',
+    'dtype':                        torch.float64,
     # Model
     'model_calculator':             None,
     'model_type':                   None,

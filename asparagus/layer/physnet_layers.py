@@ -151,8 +151,8 @@ class InteractionLayer(torch.nn.Module):
         # Dense layer for the conversion from radial basis vector to atomic 
         # feature vector length
         self.radial2atom = DenseLayer(
-            n_radialbasis,
-            n_atombasis,
+            input_n_radialbasis,
+            input_n_atombasis,
             bias=False,
             weight_init=torch.nn.init.zeros_,
             device=device,
@@ -160,16 +160,16 @@ class InteractionLayer(torch.nn.Module):
 
         # Dense layer for atomic feature vector for atom i
         self.dense_i = DenseLayer(
-            n_atombasis,
-            n_atombasis,
+            input_n_atombasis,
+            input_n_atombasis,
             activation_fn=activation_fn,
             device=device,
             dtype=dtype)
         
         # Dense layer for atomic feature vector for atom j
         self.dense_j = DenseLayer(
-            n_atombasis,
-            n_atombasis,
+            input_n_atombasis,
+            input_n_atombasis,
             activation_fn=activation_fn,
             device=device,
             dtype=dtype)
@@ -178,8 +178,7 @@ class InteractionLayer(torch.nn.Module):
         # the message vector
         self.residuals_ij = torch.nn.ModuleList([
             ResidualLayer(
-                n_atombasis,
-                n_atombasis,
+                input_n_atombasis,
                 activation_fn=activation_fn,
                 device=device,
                 dtype=dtype)
@@ -187,19 +186,21 @@ class InteractionLayer(torch.nn.Module):
 
         # Dense layer for message vector interaction
         self.dense_out = DenseLayer(
-            n_atombasis,
-            n_atombasis,
+            input_n_atombasis,
+            input_n_atombasis,
             device=device,
             dtype=dtype)
         
         # Scaling vector for mixing of initial atomic feature vector with
         # message vector
         self.scaling = torch.nn.Parameter(
-            torch.ones([n_atombasis], device=device, dtype=dtype))
+            torch.ones([input_n_atombasis], device=device, dtype=dtype))
         
         # Special case flag for variable assignment on CPU's
         if device.lower() == 'cpu':
             self.cpu = True
+        else:
+            self.cpu = False
 
         return
 
@@ -239,7 +240,7 @@ class InteractionLayer(torch.nn.Module):
 
         # Calculate contribution of central atom i and neighbor atoms j
         xi = self.dense_i(x)
-        if self.cpu
+        if self.cpu:
             gxj = g*self.dense_j(x)[idx_j]
         else:
             j = idx_j.view(-1, 1).expand(-1, features.shape[-1])
@@ -307,7 +308,6 @@ class OutputBlock(torch.nn.Module):
         # Residual layer for atomic feature modification
         self.residuals = torch.nn.ModuleList([
             ResidualLayer(
-                n_atombasis,
                 n_atombasis,
                 activation_fn=activation_fn,
                 device=device,

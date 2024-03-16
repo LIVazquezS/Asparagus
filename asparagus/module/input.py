@@ -25,7 +25,7 @@ def get_Input_PaiNN():
 #======================================
 
 input_module_available = {
-    'PhysNet'.lower(): get_Input_PhysNet(),
+    'PhysNet'.lower(): get_Input_PhysNet,
     'PhysNet_original'.lower(): get_Input_PhysNet_original,
     'PaiNN'.lower(): get_Input_PaiNN,
     }
@@ -57,8 +57,7 @@ def get_input_module(
     
     # Return requested input module
     if input_type.lower() in input_module_available:
-        return input_module_available[input_type.lower()](
-            input_type=input_type,
+        return input_module_available[input_type.lower()]()(
             **kwargs)
     else:
         raise ValueError(

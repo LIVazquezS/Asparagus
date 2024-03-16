@@ -39,7 +39,7 @@ class DenseLayer(torch.nn.Linear):
         self,
         n_input: int,
         n_output: int,
-        activation_fn: Optional[Callable, torch.nn.Module] = None,
+        activation_fn: Optional[Union[Callable, torch.nn.Module]] = None,
         bias: Optional[bool] = True,
         weight_init: Optional[Callable] = torch.nn.init.xavier_normal_,
         bias_init: Optional[Callable] = torch.nn.init.zeros_,
@@ -49,8 +49,6 @@ class DenseLayer(torch.nn.Linear):
         """
         Initialize dense layer.
         """
-        
-        super(DenseLayer, self).__init__()
 
         self.weight_init = weight_init
         self.bias_init = bias_init
@@ -115,7 +113,7 @@ class ResidualLayer(torch.nn.Module):
     def __init__(
         self,
         n_input: int,
-        activation_fn: Optional[Callable, torch.nn.Module] = None,
+        activation_fn: Optional[Union[Callable, torch.nn.Module]] = None,
         bias: Optional[bool] = True,
         weight_1_init: Optional[Callable] = torch.nn.init.orthogonal_,
         weight_2_init: Optional[Callable] = torch.nn.init.zeros_,
