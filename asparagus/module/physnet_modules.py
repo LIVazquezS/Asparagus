@@ -719,7 +719,7 @@ class Output_PhysNet(torch.nn.Module):
             if prop in self._property_derived:
                 continue
 
-            self.output_scaling[prop] = torch.nn.Parameters(
+            self.output_scaling[prop] = torch.nn.Parameter(
                 torch.tensor(
                     [[scale, shift] for _ in range(self.input_n_maxatom)],
                     device=self.device, 

@@ -17,6 +17,7 @@ flag_sampler_all = False
 flag_sampler_shell = False
 flag_sampler_slurm = False
 flag_model_physnet = True
+flag_train_physnet = True
 
 
 #==============================================================================
@@ -183,6 +184,10 @@ if flag_sampler_all:
         sample_data_file='test/smpl_nh3.db',
         sample_systems='data/nh3_c3v.xyz',
         sample_systems_format='xyz',
+        sample_calculator='XTB',
+        sample_calculator_args = {
+            'charge': 0,
+            'directory': 'test/xtb'},
         sample_num_threads=1,
         )
     sampler.run()
@@ -195,6 +200,10 @@ if flag_sampler_all:
         sample_data_file='test/smpl_nh3.db',
         sample_systems=['data/nh3_c3v.xyz', 'data/nh3_d3h.xyz'],
         sample_systems_format='xyz',
+        sample_calculator='XTB',
+        sample_calculator_args = {
+            'charge': 0,
+            'directory': 'test/xtb'},
         sample_num_threads=2,
         )
     sampler.run()
@@ -206,6 +215,10 @@ if flag_sampler_all:
         sample_directory='test',
         sample_data_file='test/smpl_nh3.db',
         sample_systems=['data/nh3_c3v.xyz', 'data/meta_nh3.traj'],
+        sample_calculator='XTB',
+        sample_calculator_args = {
+            'charge': 0,
+            'directory': 'test/xtb'},
         sample_num_threads=1,
         )
     sampler.run()
@@ -219,6 +232,10 @@ if flag_sampler_all:
         sample_systems='data/nms_nh3.db',
         sample_systems_format='db',
         sample_systems_indices=[0, 1, 2, 3, -4, -3, -2, -1],
+        sample_calculator='XTB',
+        sample_calculator_args = {
+            'charge': 0,
+            'directory': 'test/xtb'},
         sample_num_threads=1,
         )
     sampler.run()
@@ -743,18 +760,29 @@ if flag_sampler_slurm:
 # Test Asparagus Model Calculator - PhysNet
 #==============================================================================
 
+# Initialize PhysNet model calculator
 if flag_model_physnet:
     
     config_file = 'test/model.json'
-    
     model = asparagus.Asparagus(
         config_file=config_file,
         )
+    mcalc = model.get_model_calculator(
+        model_directory='test/physnet') # Default model type: 'PhysNet'
+    model.set_model_calculator(
+        model_directory='test/physnet')
+    model.set_model_calculator(
+        model_calculator=mcalc)
     
-    model.get_model_calculator()
-    #model.get_model_calculator(
-        #model_type='physnet',
-        #)
-
+# Initialize PhysNet model traniing
+if flag_train_physnet:
+    
+    config_file = 'test/train.json'
+    model = asparagus.Asparagus(
+        config_file=config_file,
+        data_file='data/nms_nh3.db',
+        model_directory='test/physnet',
+        )
+    model.train()
 
 

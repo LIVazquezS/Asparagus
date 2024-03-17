@@ -10,11 +10,15 @@ import torch
 from .. import utils
 
 def header(
-    device: str,
     config_file: str
 ) -> None:
     """
-    This function print the header of the program. 
+    Provide the Asparagus header. 
+
+    Parameters
+    ----------
+    config_file: str
+        Current configuration file path
 
     Returns
     -------
@@ -36,7 +40,7 @@ def header(
        '
        '                        Authors: K. Toepfer and L.I. Vazquez-Salazar
        '                        Date: {current_time:s}
-       '                        Running on: {host:s} with: {device:s}
+       '                        Running on: {host:s}
        '                        Details of this run are stored in: {config_file:s} 
        ' ---------------------------------------------------------------------------------------------     
        """)

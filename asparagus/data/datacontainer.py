@@ -109,7 +109,10 @@ class DataContainer():
             config, config_file, config_from=self, **kwargs)
 
         # If not to overwrite, get metadata from existing database
-        if data_overwrite or config.get('data_overwrite'):
+        if (
+            data_overwrite or config.get('data_overwrite') 
+            or data_file is None or config.get('data_file') is None
+        ):
             metadata = {}
         else:
             # Get database reference file path and format
@@ -504,6 +507,9 @@ class DataContainer():
         for prop in metadata.get('load_properties'):
             # List of property mean value and standard deviation
             property_scaling[prop] = [0.0, 0.0]
+            if prop in property_atom_scaled:
+                atom_prop = property_atom_scaled[prop]
+                property_scaling[atom_prop] = [0.0, 0.0]
 
         # Check property scaling status
         if (
@@ -516,7 +522,7 @@ class DataContainer():
         # Announce start of property statistics calculation
         logger.info(
             "INFO:\nStart computing training data property statistics. "
-            + "This might take a moment.")
+            + "This might take a moment.\n")
 
         # Iterate over training data properties and compute property mean
         Nsamples = 0.0
@@ -530,9 +536,9 @@ class DataContainer():
 
                 # Compute average
                 scalar = np.mean(vals)
-                property_scaling[prop][1] = (
-                    property_scaling[prop][1]
-                    + (scalar - property_scaling[prop][1])/(Nsamples + 1.0)
+                property_scaling[prop][0] = (
+                    property_scaling[prop][0]
+                    + (scalar - property_scaling[prop][0])/(Nsamples + 1.0)
                     ).item()
                 
                 # Scale by atom number if requested
@@ -595,19 +601,29 @@ class DataContainer():
                     property_scaling[atom_prop][1]/Nsamples).item()
 
         # Collect and print property statistics information
-        msg = f"  {'Property':<17s}|  {'Average':<17s}|  "
-        msg += f"{'Std. Deviation':<17s}\n"
-        msg += "-"*len(msg)
+        msg = f"  {'Property':<17s}|{'Average':>17s}  |"
+        msg += f"{'Std. Deviation':>17s}  |  {'Unit':<17s}\n"
+        msg += "-"*len(msg) + "\n"
         # Iterate over sample properties
         for prop in metadata.get('load_properties'):
             msg += f"  {prop:<17s}|  {property_scaling[prop][0]:>15.3e}  |  "
-            msg += f"{property_scaling[prop][1]:>15.3e}\n"
+            msg += f"{property_scaling[prop][1]:>15.3e}  |  "
+            if prop in self.data_unit_properties:
+                msg += f"{self.data_unit_properties[prop]:<15s}\n"
+            else:
+                msg += f"{'':<15s}\n"
             if prop in property_atom_scaled:
                 atom_prop = property_atom_scaled[prop]
-                msg += f"  {prop:<17s}|  "
+                msg += f"  {atom_prop:<17s}|  "
                 msg += f"{property_scaling[atom_prop][0]:>15.3e}  |  "
-                msg += f"{property_scaling[atom_prop][1]:>15.3e}\n"
-        logger.info("INFO:\n" + msg + "Done.\n")
+                msg += f"{property_scaling[atom_prop][1]:>15.3e}  |  "
+                if prop in self.data_unit_properties:
+                    msg += f"{self.data_unit_properties[prop]:<15s}\n"
+                elif atom_prop in self.data_unit_properties:
+                    msg += f"{self.data_unit_properties[atom_prop]:<15s}\n"
+                else:
+                    msg += f"{'':<15s}\n"
+        logger.info("INFO:\n" + msg + "\n")
 
         # Update property scaling
         if metadata.get('data_property_scaling') is None:

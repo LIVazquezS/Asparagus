@@ -121,7 +121,7 @@ class Configuration():
 
         # Check and set configuration dictionary and file path.
         # If both undefined: Set empty config at default config file path
-        if config_file is None and config is None:
+        if config is None and config_file is None:
             self.config_file = settings._default_args.get('config_file')
             self.config_dict = self.read(self.config_file)
         # Else if just config undefined: get config from config file path
@@ -159,11 +159,24 @@ class Configuration():
                 + "Input 'config' is not a dictionary containing a valid "
                 + "'config_file' input!")
 
-        # Save current configuration dictionary to file
+        # Set, eventually, new config file path to dictionary
+        if self.config_dict.get('config_file') is None:
+            self.config_dict['config_file'] = self.config_file
+            logger.info(
+                "INFO:\nConfiguration file path set to "
+                + f"'{self.config_file:s}'!\n")
+        else:
+            if self.config_dict.get('config_file') != self.config_file:
+                logger.info(
+                    "INFO:\nConfiguration file path will be changed from "
+                    + f"'{self.config_dict.get('config_file'):s}' to "
+                    + f"'{self.config_file:s}'!\n")
+                self.config['config_file'] = self.config_file
+
+        # Prepare, eventually, config file path
         config_dir = os.path.dirname(self.config_file)
         if not os.path.isdir(config_dir) and len(config_dir):
             os.makedirs(os.path.dirname(self.config_file))
-        self.dump()
 
         # Update configuration dictionary with keyword arguments
         if len(kwargs):
@@ -171,6 +184,9 @@ class Configuration():
                 kwargs,
                 config_from=config_from,
                 )
+        
+        # Save current configuration dictionary to file
+        self.dump()
 
         # Adopt default settings arguments and their valid dtypes
         self.default_args = settings._default_args

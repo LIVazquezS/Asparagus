@@ -29,7 +29,7 @@ class Model_PhysNet(torch.nn.Module):
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
-        Path to json file (str)
+        Path to config json file (str)
     model_properties: list(str), optional, default '['energy', 'forces']'
         Properties to predict by calculator model
     model_cutoff: float, optional, default 12.0
@@ -132,14 +132,13 @@ class Model_PhysNet(torch.nn.Module):
         config.update(config_update)
         
         # Assign module variable parameters from configuration
-
         self.device = config.get('device')
         self.dtype = config.get('dtype')
 
         ##########################################
         # # # Check PhysNet Model Properties # # #
         ##########################################
-        
+
         # Check model properties - Labels
         for prop in self.model_properties:
             if not utils.check_property_label(prop, return_modified=False):
@@ -187,7 +186,7 @@ class Model_PhysNet(torch.nn.Module):
         else:
             self.model_atomic_charges = False
             self.model_dipole = False
-        
+
         # Check lower cutoff switch-off range
         if self.model_cuton is None:
             if self.model_switch_range > self.model_cutoff:
@@ -207,7 +206,7 @@ class Model_PhysNet(torch.nn.Module):
                 + f"distance ({self.model_cutoff:.2f})!")
         else:
             self.model_switch_range = self.model_cutoff - self.model_cuton
-        
+
         #################################
         # # # PhysNet Modules Setup # # #
         #################################
@@ -390,11 +389,12 @@ class Model_PhysNet(torch.nn.Module):
         
         # Set property scaling factors and shift terms
         if scaling_parameter is not None:
-            self.output.set_property_scaling(scaling_parameter)
+            self.output_module.set_property_scaling(scaling_parameter)
 
         # Set atomic type energies shift
         if atomic_energies_shifts is not None:
-            self.output.set_atomic_energies_shift(atomic_energies_shifts)
+            self.output_module.set_atomic_energies_shift(
+                atomic_energies_shifts)
 
         return
 

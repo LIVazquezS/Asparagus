@@ -27,8 +27,8 @@ from .check_units import(
 )
 
 from .functions import(
-    segment_sum, softplus_inverse, gather_nd, printProgressBar, detach_tensor,
-    flatten_array_like
+    header, segment_sum, softplus_inverse, gather_nd, printProgressBar,
+    detach_tensor, flatten_array_like
 )
 
 from .filemanager import(
