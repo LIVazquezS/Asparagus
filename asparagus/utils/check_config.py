@@ -1,5 +1,6 @@
 import os
 import json
+import inspect
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 
@@ -176,6 +177,49 @@ def merge_dictionary_lists(
                 observed_items.append(itemB)
 
     return dictC
+
+# --------------- ** Get Function Input Arguments ** ---------------
+
+def get_input_args():
+    """
+    Get input arguments of the function from where this function is called:
+        inspect.stack()[0] <- this function
+        inspect.stack()[1] <- the function this one is called from
+        inspect.stack()[>1] <- previous functions
+        (see http://kbyanc.blogspot.com/2007/07/python-aggregating-function
+        -arguments.html)
+
+    Returns
+    -------
+    dict
+        Input argument and item dictionary of the function this function
+        is called from.
+    """
+
+    args_info, args_name, kwargs_name, args_dict = inspect.getargvalues(
+        inspect.stack()[1][0])
+
+    return args_dict
+
+def get_function_location(
+    module_name='asparagus'):
+    """
+    Get function location from inspect.stack.
+    
+    Returns
+    -------
+    str
+        Function location 
+    """
+    
+    func_files = inspect.stack()[1][0].f_code.co_filename.split('/')
+    func_module_files = func_files[-(func_files[::-1].index(module_name) + 1):]
+    func_path = "".join([file_i + "." for file_i in func_module_files])[:-3]
+    func_name = inspect.stack()[1][0].f_code.co_name + '()'
+
+    func_location = func_path + func_name
+    
+    return func_location
 
 # --------------- ** Combine Default Dictionaries ** ---------------
 

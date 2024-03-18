@@ -123,8 +123,7 @@ class Input_PhysNet(torch.nn.Module):
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
             check_default=utils.get_default_args(self, module),
             check_dtype=utils.get_dtype_args(self, module)
         )
@@ -336,8 +335,7 @@ class Graph_PhysNet(torch.nn.Module):
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
             check_default=utils.get_default_args(self, module),
             check_dtype=utils.get_dtype_args(self, module)
         )
@@ -522,8 +520,7 @@ class Output_PhysNet(torch.nn.Module):
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
             check_default=utils.get_default_args(self, module),
             check_dtype=utils.get_dtype_args(self, module)
         )

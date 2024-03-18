@@ -19,7 +19,9 @@ from .check_dtype import(
 
 from .check_config import(
     check_input_dtype, check_property_label, merge_dictionaries, 
-    merge_dictionary_lists, get_default_args, get_dtype_args
+    merge_dictionary_lists, 
+    get_input_args, get_function_location, 
+    get_default_args, get_dtype_args
 )
 
 from .check_units import(

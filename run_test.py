@@ -65,7 +65,7 @@ if flag_database_sql:
         )
 
     # Create new DataBase file
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/nms_nh3_test.db',
         data_source='data/nms_nh3.db',
@@ -73,7 +73,7 @@ if flag_database_sql:
     )
 
     # Add same source to DataBase file, should be skipped
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/nms_nh3_test.db',
         data_source='data/nms_nh3.db',
@@ -82,7 +82,7 @@ if flag_database_sql:
 
     # Create new DataBase file with itself as source, should return error
     try:
-        model.set_DataContainer(
+        model.set_data_container(
             config=config_file,
             data_file='test/nms_nh3_test.db',
             data_source='test/nms_nh3_test.db',
@@ -98,23 +98,30 @@ if flag_database_sql:
         data_file_format='sql',
         data_source='data/nms_nh3.db',
         )
-    data = model.get_DataContainer()
-    print("\nDatabase path: ", model.get_DataContainer(), "\n")
+    data = model.get_data_container()
+    print("\nDatabase path: ", model.get_data_container(), "\n")
     print("\nDatabase entry '0': ", data[0])
     print("\nDatabase Train entry '1': ", data.get_train(1))
     print("\nDatabase Valid entry '2': ", data.get_valid(2))
     print("\nDatabase Test entry  '3': ", data.get_test(3))
     
     # Load Numpy .npz files
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/h2co_test.db',
         data_source='data/h2co_B3LYP_cc-pVDZ_4001.npz',
         data_overwrite=True,
     )
+    data = model.get_data_container(data_file='test/h2co_test.db')
+    print("\nDatabase path: ", data, "\n")
+    print("\nDatabase entry '0': ", data[0])
+    print("\nDatabase Train entry '1': ", data.get_train(1))
+    print("\nDatabase Valid entry '2': ", data.get_valid(2))
+    print("\nDatabase Test entry  '3': ", data.get_test(3))
+
     
     # Load multiple source files files
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/nh3_h2co_test.db',
         data_source=['data/h2co_B3LYP_cc-pVDZ_4001.npz', 'data/nms_nh3.db'],
@@ -122,7 +129,7 @@ if flag_database_sql:
     )
     
     # Check if repeated data source is skipped
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/nh3_h2co_test.db',
         data_source=['data/nms_nh3.db'],
@@ -130,7 +137,7 @@ if flag_database_sql:
     )
     
     # Load ASE trajectory file
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/meta_nh3_test.db',
         data_source='data/meta_nh3.traj',
@@ -139,7 +146,7 @@ if flag_database_sql:
     
     ## TODO Check automatic unit conversion
     ## Load ASE trajectory file with different property units
-    #model.set_DataContainer(
+    #model.set_data_container(
         #config=config_file,
         #data_file='test/meta_nh3_test_unit.db',
         #data_source='data/meta_nh3.traj',
@@ -155,7 +162,7 @@ if flag_database_sql:
 if flag_database_hdf5:
 
     # Create new DataBase file
-    model.set_DataContainer(
+    model.set_data_container(
         config=config_file,
         data_file='test/nms_nh3_test.db',
         data_file_format='hdf5',
@@ -163,7 +170,7 @@ if flag_database_hdf5:
         data_source_format='sql',
         data_overwrite=True,
     )
-    data = model.get_DataContainer()
+    data = model.get_data_container()
 
 #==============================================================================
 # Test Asparagus Sampler Methods
@@ -766,7 +773,7 @@ if flag_model_physnet:
     config_file = 'test/model.json'
     model = asparagus.Asparagus(
         config_file=config_file,
-        )
+        model_type='physnet')
     mcalc = model.get_model_calculator(
         model_directory='test/physnet') # Default model type: 'PhysNet'
     model.set_model_calculator(
@@ -783,6 +790,7 @@ if flag_train_physnet:
         data_file='data/nms_nh3.db',
         model_directory='test/physnet',
         )
+    trainer = model.get_trainer()
     model.train()
 
 

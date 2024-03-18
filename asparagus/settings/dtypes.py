@@ -13,10 +13,8 @@ _dtypes_args = {
     # Model
     'model_calculator':             [utils.is_callable],
     'model_type':                   [utils.is_string, utils.is_None],
-    'model_directory':              [utils.is_string, utils.is_None],
     'model_path':                   [utils.is_string],
     'model_num_threads':            [utils.is_integer, utils.is_None],
-    'model_save_top_k':             [utils.is_integer],
     'model_device':                 [utils.is_string],
     'model_seed':                   [utils.is_integer],
     # Input module

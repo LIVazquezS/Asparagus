@@ -21,7 +21,6 @@ _default_args = {
     # Model
     'model_calculator':             None,
     'model_type':                   None,
-    'model_directory':              None,
     'model_num_threads':            None,
     'model_restart':                False,
     'model_path':                   'best_model',

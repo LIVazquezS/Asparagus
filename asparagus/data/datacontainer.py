@@ -135,8 +135,8 @@ class DataContainer():
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
+            argsskip=['metadata'],
             check_default=utils.get_default_args(self, data),
             check_dtype=utils.get_dtype_args(self, data)
         )
@@ -517,88 +517,92 @@ class DataContainer():
             and metadata['data_property_scaling_uptodate']
             and not overwrite
         ):
-            return metadata.get('data_property_scaling')
 
-        # Announce start of property statistics calculation
-        logger.info(
-            "INFO:\nStart computing training data property statistics. "
-            + "This might take a moment.\n")
-
-        # Iterate over training data properties and compute property mean
-        Nsamples = 0.0
-        for sample in self.train_set:
-
-            # Iterate over sample properties
-            for prop in metadata.get('load_properties'):
-
-                # Get property values
-                vals = sample.get(prop).numpy().reshape(-1)
-
-                # Compute average
-                scalar = np.mean(vals)
-                property_scaling[prop][0] = (
-                    property_scaling[prop][0]
-                    + (scalar - property_scaling[prop][0])/(Nsamples + 1.0)
-                    ).item()
-                
-                # Scale by atom number if requested
-                if prop in property_atom_scaled:
-                    
-                    # Compute atom scaled average
-                    atom_prop = property_atom_scaled[prop]
-                    Natoms = sample.get('atoms_number').numpy().reshape(-1)
-                    vals /= Natoms.astype(float)
-                    
-                    # Compute statistics normalized by atom numbers
-                    scalar = np.mean(vals)
-                    property_scaling[atom_prop][0] = (
-                        property_scaling[atom_prop][0]
-                        + (scalar - property_scaling[atom_prop][0])
-                        / (Nsamples + 1.0)
-                        ).item()
-
-            # Increment sample counter
-            Nsamples += 1.0
-
-        # Iterate over training data properties and compute standard deviation
-        for sample in self.train_set:
-
-            # Iterate over sample properties
-            for prop in metadata.get('load_properties'):
-
-                # Get property values
-                vals = sample.get(prop).numpy().reshape(-1)
-                Nvals = len(vals)
-
-                # Compute standard deviation contribution
-                for scalar in vals:
-                    property_scaling[prop][1] = (
-                        property_scaling[prop][1]
-                        + (scalar - property_scaling[prop][0])**2/Nvals)
-
-                # Scale by atom number if requested
-                if prop in property_atom_scaled:
-                    
-                    # Compute atom scaled standard deviation contribution
-                    atom_prop = property_atom_scaled[prop]
-                    Natoms = sample.get('atoms_number').numpy().reshape(-1)
-                    vals /= Natoms.astype(float)
-                    
-                    # Compute atom scaled standard deviation contribution
-                    for scalar in vals:
-                        property_scaling[atom_prop][1] = (
-                            property_scaling[atom_prop][1]
-                            + (scalar - property_scaling[atom_prop][0])**2
-                            / Nvals)
+            property_scaling = metadata.get('data_property_scaling')
         
-        # Iterate over sample properties to complete standard deviation
-        for prop in metadata.get('load_properties'):
-            property_scaling[prop][1] = np.sqrt(
-                property_scaling[prop][1]/Nsamples).item()
-            if prop in property_atom_scaled:
-                atom_prop = property_atom_scaled[prop]
-                property_scaling[atom_prop][1] = np.sqrt(
-                    property_scaling[atom_prop][1]/Nsamples).item()
+        else:
+
+            # Announce start of property statistics calculation
+            logger.info(
+                "INFO:\nStart computing training data property statistics. "
+                + "This might take a moment.\n")
+
+            # Iterate over training data properties and compute property mean
+            Nsamples = 0.0
+            for sample in self.train_set:
+
+                # Iterate over sample properties
+                for prop in metadata.get('load_properties'):
+
+                    # Get property values
+                    vals = sample.get(prop).numpy().reshape(-1)
+
+                    # Compute average
+                    scalar = np.mean(vals)
+                    property_scaling[prop][0] = (
+                        property_scaling[prop][0]
+                        + (scalar - property_scaling[prop][0])/(Nsamples + 1.0)
+                        ).item()
+                    
+                    # Scale by atom number if requested
+                    if prop in property_atom_scaled:
+                        
+                        # Compute atom scaled average
+                        atom_prop = property_atom_scaled[prop]
+                        Natoms = sample.get('atoms_number').numpy().reshape(-1)
+                        vals /= Natoms.astype(float)
+                        
+                        # Compute statistics normalized by atom numbers
+                        scalar = np.mean(vals)
+                        property_scaling[atom_prop][0] = (
+                            property_scaling[atom_prop][0]
+                            + (scalar - property_scaling[atom_prop][0])
+                            / (Nsamples + 1.0)
+                            ).item()
+
+                # Increment sample counter
+                Nsamples += 1.0
+
+            # Iterate over training data properties and compute standard 
+            # deviation
+            for sample in self.train_set:
+
+                # Iterate over sample properties
+                for prop in metadata.get('load_properties'):
+
+                    # Get property values
+                    vals = sample.get(prop).numpy().reshape(-1)
+                    Nvals = len(vals)
+
+                    # Compute standard deviation contribution
+                    for scalar in vals:
+                        property_scaling[prop][1] = (
+                            property_scaling[prop][1]
+                            + (scalar - property_scaling[prop][0])**2/Nvals)
+
+                    # Scale by atom number if requested
+                    if prop in property_atom_scaled:
+                        
+                        # Compute atom scaled standard deviation contribution
+                        atom_prop = property_atom_scaled[prop]
+                        Natoms = sample.get('atoms_number').numpy().reshape(-1)
+                        vals /= Natoms.astype(float)
+                        
+                        # Compute atom scaled standard deviation contribution
+                        for scalar in vals:
+                            property_scaling[atom_prop][1] = (
+                                property_scaling[atom_prop][1]
+                                + (scalar - property_scaling[atom_prop][0])**2
+                                / Nvals)
+            
+            # Iterate over sample properties to complete standard deviation
+            for prop in metadata.get('load_properties'):
+                property_scaling[prop][1] = np.sqrt(
+                    property_scaling[prop][1]/Nsamples).item()
+                if prop in property_atom_scaled:
+                    atom_prop = property_atom_scaled[prop]
+                    property_scaling[atom_prop][1] = np.sqrt(
+                        property_scaling[atom_prop][1]/Nsamples).item()
 
         # Collect and print property statistics information
         msg = f"  {'Property':<17s}|{'Average':>17s}  |"

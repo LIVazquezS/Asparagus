@@ -31,21 +31,33 @@ class FileManager():
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
         Path to config json file (str)
-    model_directory: str, optional, default config['model_directory']
+    model_directory: str, optional, default None
         Model directory that contains checkpoint and log files.
-    max_checkpoints: int, optional, default config['max_checkpoints']
+    model_max_checkpoints: int, optional, default 1
         Maximum number of checkpoint files.
     **kwargs: dict
         Additional keyword arguments for tensorboards 'SummaryWriter'
 
     """
+    
+    # Default arguments for graph module
+    _default_args = {
+        'model_directory':              None,
+        'model_max_checkpoints':        1,
+        }
+
+    # Expected data types of input variables
+    _dtypes_args = {
+        'model_directory':              [utils.is_string, utils.is_None],
+        'model_max_checkpoints':        [utils.is_integer],
+        }
 
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
         model_directory: Optional[str] = None,
-        max_checkpoints: Optional[int] = None,
+        model_max_checkpoints: Optional[int] = None,
         **kwargs
     ):
         """
@@ -53,32 +65,24 @@ class FileManager():
 
         """
 
-        ###################################
-        # # # Check FileManager Input # # #
-        ###################################
+        ####################################
+        # # # Check File Manager Input # # #
+        ####################################
 
         # Get configuration object
-        config = settings.get_config(
-            config, config_file, config_from=self)
+        config = settings.get_config(config, config_file, config_from=self)
 
-        # Get model directory from input or config dictionary
-        if model_directory is None:
-            self.model_directory = config.get('model_directory')
-        elif utils.is_string(model_directory):
-            self.model_directory = model_directory
-        else:
-            raise SyntaxError(
-                "Model directory input is not a valid directory path!")
-
-        # Get number of maximum checkpoints files from input or config dict.
-        if max_checkpoints is None:
-            self.max_checkpoints = None
-        elif utils.is_integer(max_checkpoints):
-            self.max_checkpoints = max_checkpoints
-        else:
-            raise ValueError(
-                "Maximum checkpoint files input is not a valid integer!")
-
+        # Check input parameter, set default values if necessary and
+        # update the configuration dictionary
+        config_update = config.set(
+            instance=self,
+            argitems=utils.get_input_args(),
+            check_default=utils.get_default_args(self, None),
+            check_dtype=utils.get_dtype_args(self, None))
+        
+        # Update global configuration dictionary
+        config.update(config_update)
+        
         ###################################
         # # # Prepare Model Directory # # #
         ###################################
@@ -212,29 +216,31 @@ class FileManager():
 
     def load_checkpoint(
         self,
-        best: Optional[bool] = True,
-        num_checkpoint: Optional[int] = None,
+        checkpoint_label: Union[str, int],
     ) -> Any:
         """
         Load model parameters and training state from checkpoint file.
 
         Parameters
         ----------
-        best: bool, optional, default False
-            If True, load best model checkpoint file. Else, load either the
-            latest checkpoint file (num_checkpoint=None) or of the defined
-            epoch number (num_checkpoint=epoch).
-        num_checkpoint: int, optional, default None
-            If None, load checkpoint file with highest index number, else
-            load the checkpoint file of the respective epoch number.
+        checkpoint_label: (str, int)
+            If None, load checkpoint file with best loss function value.
+            If string 'best' or 'last', load respectively the best checkpoint 
+            file (as with None) or the with the highest epoch number.
+            If integer, load the checkpoint file of the respective epoch 
+            number.
 
         Returns
         -------
         Any
-            Torch checkpoint file
+            Torch module checkpoint file
         """
 
-        if best:
+        if (
+            checkpoint_label is None
+            or utils.is_string(checkpoint_label)
+            and checkpoint_label.lower() == 'best'
+        ):
 
             ckpt_name = os.path.join(self.best_dir, 'best_model.pt')
 
@@ -245,7 +251,10 @@ class FileManager():
                     + f"{self.best_dir:s}.\n")
                 return None
 
-        elif num_checkpoint is None:
+        elif (
+            utils.is_string(checkpoint_label)
+            and checkpoint_label.lower() == 'last'
+        ):
 
             # Get highest index checkpoint file
             ckpt_max = -1
@@ -265,16 +274,22 @@ class FileManager():
                 ckpt_name = os.path.join(
                     self.ckpt_dir, f'model_{ckpt_max:d}.pt')
 
-        else:
+        elif utils.is_integer(checkpoint_label):
 
             ckpt_name = os.path.join(
-                self.ckpt_dir, f'model_{num_checkpoint:d}.pt')
+                self.ckpt_dir, f'model_{checkpoint_label:d}.pt')
 
             # Check existence
             if not os.path.exists(ckpt_name):
                 raise FileNotFoundError(
                     f"Checkpoint file '{ckpt_name}' of index "
-                    + f"{num_checkpoint:d} does not exist!")
+                    + f"{checkpoint_label:d} does not exist!")
+        
+        else:
+            
+            raise SyntaxError(
+                "Input for the model checkpoint label to load "
+                + "'checkpoint_label' is not valid type!")
 
         # Load checkpoint
         checkpoint = torch.load(ckpt_name)

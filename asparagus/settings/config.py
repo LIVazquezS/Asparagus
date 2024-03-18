@@ -192,6 +192,12 @@ class Configuration():
         self.default_args = settings._default_args
         self.dtypes_args = settings._dtypes_args
 
+    def __str__(self):
+        msg = f"Config file in '{self.config_file:s}':\n"
+        for arg, item in self.config_dict.items():
+            msg += f"  '{arg:s}': {str(item):s}\n"
+        return msg 
+
     def __getitem__(self, args):
         return self.config_dict.get(args)
 
@@ -265,6 +271,7 @@ class Configuration():
         verbose: bool, optional, default True
             For conflicting entries between 'config_new' and current
             configuration dictionary, return further information.
+
         """
 
         # Check config_new input
@@ -289,7 +296,7 @@ class Configuration():
         msg = (
             f"Parameter update in '{self.config_file}'\n")
         if config_from is not None:
-            msg += f"  (called from '{config_from}') "
+            msg += f"  (called from '{config_from}')\n"
         if overwrite:
             msg += "  (overwrite conflicts)\n"
         else:
@@ -475,15 +482,17 @@ class Configuration():
             config_dict_update = {}
         
         # Check arguments to skip
+        default_argsskip = [
+            'self', 'config', 'config_file', 'kwargs', '__class__']
         if argsskip is None:
-            argsskip = []
+            argsskip = default_argsskip
         else:
-            argsskip = list(argsskip)
+            argsskip = default_argsskip + list(argsskip)
         argsskip.append('default_args')
         
         # Iterate over arg, item pairs
-        for arg, item in argitems:
-            
+        for arg, item in argitems.items():
+
             # Skip exceptions
             if arg in argsskip:
                 continue

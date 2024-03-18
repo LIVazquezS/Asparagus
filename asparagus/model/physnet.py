@@ -32,6 +32,8 @@ class Model_PhysNet(torch.nn.Module):
         Path to config json file (str)
     model_properties: list(str), optional, default '['energy', 'forces']'
         Properties to predict by calculator model
+    model_unit_properties: dict
+        Unit labels of the predicted model properties
     model_cutoff: float, optional, default 12.0
         Upper atom interaction cutoff
     model_cuton: float, optional, default None
@@ -122,11 +124,9 @@ class Model_PhysNet(torch.nn.Module):
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
             check_default=utils.get_default_args(self, model),
-            check_dtype=utils.get_dtype_args(self, model)
-        )
+            check_dtype=utils.get_dtype_args(self, model))
 
         # Update global configuration dictionary
         config.update(config_update)
@@ -404,6 +404,12 @@ class Model_PhysNet(torch.nn.Module):
     ):
         """
         Set or change unit property parameter in respective model layers
+        
+        Parameter
+        ---------
+        model_unit_properties: dict
+            Unit labels of the predicted model properties
+
         """
 
         # Change unit properties for electrostatic and dispersion layers
@@ -420,9 +426,12 @@ class Model_PhysNet(torch.nn.Module):
                     "For electrostatic potential contribution either the"
                     + "model unit for the 'charge' or 'atomic_charges' must "
                     + "be defined!")
-            self.electrostatic_module.set_unit_properties(model_unit_properties)
+            self.electrostatic_module.set_unit_properties(
+                model_unit_properties)
         if self.model_dispersion:
             self.dispersion_module.set_unit_properties(model_unit_properties)
+
+        return
 
     def get_trainable_parameters(
         self,

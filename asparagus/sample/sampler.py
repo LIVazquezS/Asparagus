@@ -191,8 +191,7 @@ class Sampler:
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
             check_default=utils.get_default_args(self, sample),
             check_dtype=utils.get_dtype_args(self, sample)
         )

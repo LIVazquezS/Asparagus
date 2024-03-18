@@ -37,8 +37,11 @@ class Trainer:
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
         Path to config json file (str)
-    model_calculator: callable object, optional
-        NNP model calculator to train matching training and validation
+    data_container: data.DataContainer, optional, default None
+        Reference data container object providing training, validation and
+        test data for the model training.
+    model_calculator: torch.nn.Module, optional, default None
+        Model calculator to train matching training and validation
         data in the reference data set. If not provided, the model
         calculator will be initialized according to config input.
     trainer_restart: bool, optional, default False
@@ -142,8 +145,8 @@ class Trainer:
         self,
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
-        data_container: Optional[object] = None,
-        model_calculator: Optional[object] = None,
+        data_container: Optional[data.DataContainer] = None,
+        model_calculator: Optional[torch.nn.Module] = None,
         trainer_restart: Optional[int] = None,
         trainer_max_epochs: Optional[int] = None,
         trainer_properties_train: Optional[List[str]] = None,
@@ -181,8 +184,7 @@ class Trainer:
         # update the configuration dictionary
         config_update = config.set(
             instance=self,
-            argitems=locals().items(),
-            argsskip=['self', 'config', 'metadata', 'kwargs', '__class__'],
+            argitems=utils.get_input_args(),
             check_default=utils.get_default_args(self, train),
             check_dtype=utils.get_dtype_args(self, train)
         )
@@ -198,16 +200,11 @@ class Trainer:
         # # # Check Data Container # # #
         ################################
 
-        # Assign DataContainer
+        # Assign DataContainer if not done already
         if data_container is None:
-
             self.data_container = data.DataContainer(
                 config=config,
                 **kwargs)
-            
-        else:
-            
-            self.data_container = data_container
 
         # Assign training and validation data loader
         self.data_train = self.data_container.train_loader
@@ -216,21 +213,22 @@ class Trainer:
         # Get reference data properties
         self.data_properties = self.data_container.data_load_properties
         self.data_units = self.data_container.data_unit_properties
-        exit()
-        ################################
-        # # # Check NNP Calculator # # #
-        ################################
 
-        # Assign NNP calculator model
-        if model_calculator is None:
+        ##################################
+        # # # Check Model Calculator # # #
+        ##################################
 
-            self.model_calculator = model.get_calculator(
+        # Assign model calculator model if not done already
+        if self.model_calculator is None:
+            self.model_calculator, _ = model.get_calculator(
                 config=config,
                 **kwargs)
 
         # Get model properties
         self.model_properties = self.model_calculator.model_properties
         self.model_units = self.model_calculator.model_unit_properties
+
+        
 
         ######################################
         # # # Check Model and Data Units # # #
@@ -259,7 +257,8 @@ class Trainer:
         logger.info(message)
 
         # Assign potentially new property units to the model
-        self.model_calculator.set_unit_properties(self.model_units)
+        if hasattr(self.model_calculator, 'set_unit_properties'):
+            self.model_calculator.set_unit_properties(self.model_units)
 
         ######################################
         # # # Set Model Property Scaling # # #
@@ -279,7 +278,7 @@ class Trainer:
         # Set current model property scaling
         self.model_calculator.set_property_scaling(
             model_properties_scaling)
-
+        exit()
         ####################################
         # # # Check Trained Properties # # #
         ####################################
@@ -409,17 +408,21 @@ class Trainer:
     def check_model_units(
         self,
         model_units: Optional[Dict[str, str]] = None,
-    ):
+    ) -> Dict[str,str]:
         """
         Check the definition of the model units or assign units from the
         reference dataset
 
-        Parameters
-        ----------
-
+        Parameter
+        ---------
         model_units: dict, optional, default None
             Dictionary of model property units. If None, the property units
             from the reference dataset are assigned.
+
+        Returns
+        -------
+        dict(str, str)
+            Dictionary of model property units
 
         """
 
@@ -455,7 +458,7 @@ class Trainer:
 
         return model_units
 
-    def train(
+    def run(
         self,
         verbose=True,
         debug=False,
