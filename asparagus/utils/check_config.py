@@ -2,6 +2,7 @@ import os
 import json
 import inspect
 import logging
+import platform
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 from .. import utils
@@ -212,7 +213,12 @@ def get_function_location(
         Function location 
     """
     
-    func_files = inspect.stack()[1][0].f_code.co_filename.split('/')
+    # Detect OS to get split string
+    if 'windows' in platform.system().lower():
+        split_string = '\\'
+    else:
+        split_string = '/'
+    func_files = inspect.stack()[1][0].f_code.co_filename.split(split_string)
     func_module_files = func_files[-(func_files[::-1].index(module_name) + 1):]
     func_path = "".join([file_i + "." for file_i in func_module_files])[:-3]
     func_name = inspect.stack()[1][0].f_code.co_name + '()'
