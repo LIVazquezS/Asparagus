@@ -185,7 +185,7 @@ class DataLoader(torch.utils.data.DataLoader):
                 forces: (Natoms, 3) torch.Tensor
                 energy: (Natoms,) torch.Tensor
                 charge: (Natoms,) torch.Tensor
-                atoms_seg: (Natoms,) torch.Tensor
+                sys_i: (Natoms,) torch.Tensor
                 idx_i: (Npairs,) torch.Tensor
                 idx_j: (Npairs,) torch.Tensor
                 pbc_offset: (Npairs, 3) torch.Tensor
@@ -204,7 +204,7 @@ class DataLoader(torch.utils.data.DataLoader):
             [b['atoms_number'] for b in batch])
 
         # System segment index of atom i
-        coll_batch['atoms_seg'] = torch.repeat_interleave(
+        coll_batch['sys_i'] = torch.repeat_interleave(
             torch.arange(Nsys, dtype=torch.int64), 
             repeats=coll_batch['atoms_number'], dim=0)
 
@@ -224,7 +224,7 @@ class DataLoader(torch.utils.data.DataLoader):
         if batch[0].get('idx_i') is not None:
             atomic_numbers_cumsum = torch.cat(
                 [
-                    torch.zeros((1,), dtype=coll_batch['atoms_seg'].dtype),
+                    torch.zeros((1,), dtype=coll_batch['sys_i'].dtype),
                     torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
                 ],
                 dim=0)

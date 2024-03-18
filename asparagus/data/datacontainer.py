@@ -606,7 +606,7 @@ class DataContainer():
 
         # Collect and print property statistics information
         msg = f"  {'Property':<17s}|{'Average':>17s}  |"
-        msg += f"{'Std. Deviation':>17s}  |  {'Unit':<17s}\n"
+        msg += f"{'Std. Deviation':>17s}  |  {'Unit':<12}\n"
         msg += "-"*len(msg) + "\n"
         # Iterate over sample properties
         for prop in metadata.get('load_properties'):
@@ -622,12 +622,12 @@ class DataContainer():
                 msg += f"{property_scaling[atom_prop][0]:>15.3e}  |  "
                 msg += f"{property_scaling[atom_prop][1]:>15.3e}  |  "
                 if prop in self.data_unit_properties:
-                    msg += f"{self.data_unit_properties[prop]:<15s}\n"
+                    msg += f"{self.data_unit_properties[prop]:<10s}\n"
                 elif atom_prop in self.data_unit_properties:
-                    msg += f"{self.data_unit_properties[atom_prop]:<15s}\n"
+                    msg += f"{self.data_unit_properties[atom_prop]:<10}\n"
                 else:
                     msg += f"{'':<15s}\n"
-        logger.info("INFO:\n" + msg + "\n")
+        logger.info("INFO:\nProperty Statistics\n" + msg + "\n")
 
         # Update property scaling
         if metadata.get('data_property_scaling') is None:

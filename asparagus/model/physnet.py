@@ -32,8 +32,10 @@ class Model_PhysNet(torch.nn.Module):
         Path to config json file (str)
     model_properties: list(str), optional, default '['energy', 'forces']'
         Properties to predict by calculator model
-    model_unit_properties: dict
-        Unit labels of the predicted model properties
+    model_unit_properties: dict, optional, default {}
+        Unit labels of the predicted model properties. If not defined,
+        prediction results are assumed as ASE units but for during training the
+        units from the reference data container are adopted.
     model_cutoff: float, optional, default 12.0
         Upper atom interaction cutoff
     model_cuton: float, optional, default None
@@ -57,7 +59,7 @@ class Model_PhysNet(torch.nn.Module):
     # Default arguments for graph module
     _default_args = {
         'model_properties':             ['energy', 'forces'],
-        'model_unit_properties':        None,
+        'model_unit_properties':        {},
         'model_cutoff':                 12.0,
         'model_cuton':                  None,
         'model_switch_range':           2.0,
@@ -70,7 +72,7 @@ class Model_PhysNet(torch.nn.Module):
     # Expected data types of input variables
     _dtypes_args = {
         'model_properties':             [utils.is_string_array],
-        'model_unit_properties':        [utils.is_dictionary, utils.is_None],
+        'model_unit_properties':        [utils.is_dictionary],
         'model_cutoff':                 [utils.is_numeric],
         'model_cuton':                  [utils.is_numeric, utils.is_None],
         'model_switch_range':           [utils.is_numeric],
@@ -543,7 +545,7 @@ class Model_PhysNet(torch.nn.Module):
             positions.requires_grad_(True)
 
         # Run input model
-        features, distances, cutoffs, rbfs = self.input_model(
+        features, distances, cutoffs, rbfs = self.input_module(
             atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
 
         # Compute descriptors

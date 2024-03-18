@@ -53,23 +53,23 @@ class NeighborList(torch.nn.Module):
         cell = coll_batch['cell']
         pbc = coll_batch['pbc']
 
-        if coll_batch.get("atoms_seg") is None:
-            atoms_seg = torch.zeros_like(atomic_numbers)
+        if coll_batch.get("sys_i") is None:
+            sys_i = torch.zeros_like(atomic_numbers)
         else:
-            atoms_seg = coll_batch["atoms_seg"]
+            sys_i = coll_batch["sys_i"]
         if coll_batch["atoms_number"].shape:
             atomic_numbers_cumsum = torch.cat(
                 [
-                    torch.zeros((1,), dtype=atoms_seg.dtype),
+                    torch.zeros((1,), dtype=sys_i.dtype),
                     torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
                 ],
                 dim=0)
         else:
-            atomic_numbers_cumsum = torch.zeros((1,), dtype=atoms_seg.dtype)
+            atomic_numbers_cumsum = torch.zeros((1,), dtype=sys_i.dtype)
 
         idx_i, idx_j, pbc_offset, idx_seg = self._build_neighbor_list(
             atomic_numbers, positions, cell, pbc,
-            atoms_seg, atomic_numbers_cumsum,
+            sys_i, atomic_numbers_cumsum,
             self.cutoff)
 
         coll_batch['idx_i'] = idx_i.detach()
@@ -86,7 +86,7 @@ class NeighborList(torch.nn.Module):
         positions: torch.Tensor,
         cell: torch.Tensor,
         pbc: torch.Tensor,
-        atoms_seg: torch.Tensor,
+        sys_i: torch.Tensor,
         atomic_numbers_cumsum: torch.Tensor,
         cutoff: float,
     ):
@@ -105,7 +105,7 @@ class ASENeighborList(NeighborList):
         positions: torch.Tensor,
         cell: torch.Tensor,
         pbc: torch.Tensor,
-        atoms_seg: torch.Tensor,
+        sys_i: torch.Tensor,
         atomic_numbers_cumsum: torch.Tensor,
         cutoff: float,
     ) -> (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor):
@@ -127,7 +127,7 @@ class ASENeighborList(NeighborList):
         for iseg, idx_off in enumerate(atomic_numbers_cumsum):
 
             # Atom system selection
-            select = atoms_seg == iseg
+            select = sys_i == iseg
 
             # Generate ASE Atoms object
             seg_atoms = Atoms(
@@ -184,7 +184,7 @@ class TorchNeighborList(NeighborList):
         positions: torch.Tensor,
         cell: torch.Tensor,
         pbc: torch.Tensor,
-        atoms_seg: torch.Tensor,
+        sys_i: torch.Tensor,
         atomic_numbers_cumsum: torch.Tensor,
         cutoff: float,
     ) -> (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor):
@@ -195,7 +195,7 @@ class TorchNeighborList(NeighborList):
         for iseg, idx_off in enumerate(atomic_numbers_cumsum):
 
             # Atom system selection
-            select = atoms_seg == iseg
+            select = sys_i == iseg
 
             # Check if shifts are needed for periodic boundary conditions
             if torch.any(pbc[iseg]):

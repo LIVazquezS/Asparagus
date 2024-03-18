@@ -8,7 +8,6 @@ import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
-#from torch.utils.tensorboard import SummaryWriter
 
 from .. import settings
 from .. import utils
@@ -118,10 +117,6 @@ class FileManager():
 
         # Check existence of the directories
         self.create_model_directory()
-
-        ## Initialize training summary writer 
-        ## TODO Shift SummaryWriter to trainer class
-        #self.writer = SummaryWriter(log_dir=self.logs_dir)
 
         return
 

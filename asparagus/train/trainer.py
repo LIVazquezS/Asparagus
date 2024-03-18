@@ -48,11 +48,11 @@ class Trainer:
         Restart the model training from state in config['model_directory']
     trainer_max_epochs: int, optional, default 10000
         Maximum number of training epochs
-    trainer_properties_train: list, optional, default []
+    trainer_properties: list, optional, default None
         Properties contributing to the prediction quality value.
-        If the list is empty or None, all properties will be considered
-        both predicted by the model calculator and provided by the
-        reference data set.
+        If the list is empty or None, all properties which are both predicted
+        by the model calculator and available in the data container will be 
+        considered for the loss function.
     trainer_properties_metrics: dict, optional, default 'MSE' for all
         Quantification of the property prediction quality only for
         properties in the reference data set.
@@ -90,6 +90,8 @@ class Trainer:
     trainer_store_neighbor_list: bool, optional, default True
         Store neighbor list parameter in the database file instead of
         computing in situ.
+    trainer_summary_writer: bool, optional, default False
+        Write training process to a tensorboard summary writer instance
     trainer_print_progress_bar: bool, optional, default True
         Print progress bar to stout.
         
@@ -100,8 +102,8 @@ class Trainer:
     _default_args = {
         'trainer_restart':              False,
         'trainer_max_epochs':           10_000,
-        'trainer_properties_train':     [],
-        'trainer_properties_metrics':   {'else': 'MSE'},
+        'trainer_properties':           None,
+        'trainer_properties_metrics':   {'else': 'mse'},
         'trainer_properties_weights':   {
             'energy': 1., 'forces': 50., 'else': 1.},
         'trainer_optimizer':            'AMSgrad',
@@ -116,6 +118,7 @@ class Trainer:
         'trainer_evaluate_testset':     True,
         'trainer_max_checkpoints':      1,
         'trainer_store_neighbor_list':  False,
+        'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         }
 
@@ -123,7 +126,7 @@ class Trainer:
     _dtypes_args = {
         'trainer_restart':              [utils.is_bool],
         'trainer_max_epochs':           [utils.is_integer],
-        'trainer_properties_train':     [utils.is_string_array],
+        'trainer_properties':           [utils.is_string_array],
         'trainer_properties_metrics':   [utils.is_dictionary],
         'trainer_properties_weights':   [utils.is_dictionary],
         'trainer_optimizer':            [utils.is_string, utils.is_callable],
@@ -138,6 +141,7 @@ class Trainer:
         'trainer_evaluate_testset':     [utils.is_bool],
         'trainer_max_checkpoints':      [utils.is_integer],
         'trainer_store_neighbor_list':  [utils.is_bool],
+        'trainer_summary_writer':       [utils.is_bool],
         'trainer_print_progress_bar':   [utils.is_bool],
         }
 
@@ -149,7 +153,7 @@ class Trainer:
         model_calculator: Optional[torch.nn.Module] = None,
         trainer_restart: Optional[int] = None,
         trainer_max_epochs: Optional[int] = None,
-        trainer_properties_train: Optional[List[str]] = None,
+        trainer_properties: Optional[List[str]] = None,
         trainer_properties_metrics: Optional[Dict[str, str]] = None,
         trainer_properties_weights: Optional[Dict[str, float]] = None,
         trainer_optimizer: Optional[Union[str, object]] = None,
@@ -164,6 +168,7 @@ class Trainer:
         trainer_evaluate_testset: Optional[bool] = None,
         trainer_max_checkpoints: Optional[int] = None,
         trainer_store_neighbor_list: Optional[bool] = None,
+        trainer_summary_writer: Optional[bool] = None,
         trainer_print_progress_bar: Optional[bool] = None,
         **kwargs
     ):
@@ -228,33 +233,50 @@ class Trainer:
         self.model_properties = self.model_calculator.model_properties
         self.model_units = self.model_calculator.model_unit_properties
 
-        
+        ############################
+        # # # Check Properties # # #
+        ############################
 
-        ######################################
-        # # # Check Model and Data Units # # #
-        ######################################
+        # Check property definition for the loss function evaluation
+        self.trainer_properties = self.check_properties(
+            self.trainer_properties,
+            self.data_properties,
+            self.model_properties)
 
-        # Check model units
-        self.model_units = self.check_model_units()
+        # Check property metrics and weights for the loss function
+        self.trainer_properties_metrics, self.trainer_properties_weights = ( 
+            self.check_properties_metrics_weights(
+                self.trainer_properties,
+                self.trainer_properties_metrics,
+                self.trainer_properties_weights)
+            )
 
-        # Get Model to reference data property unit conversion factors
-        self.model2data_unit_conversion = {}
+        # Check model units and model to data unit conversion
+        self.model_units, self.data_units, self.model_conversion = (
+            self.check_model_units(
+                self.trainer_properties,
+                self.model_units,
+                self.data_units)
+            )
+
+        # Show assigned property units and 
+        msg = (
+              f"  {'Property ':<17s}|  {'Model Unit':<12s}|"
+            + f"  {'Data Unit':<12s}|  {'Conv. fact.':<12s}|"
+            + f"  {'Loss Metric':<12s}|  {'Loss Weight':<12s}\n")
+        msg += "-"*len(msg) + "\n"
         for prop, unit in self.model_units.items():
-            self.model2data_unit_conversion[prop], _ = utils.check_units(
-                unit, self.data_units.get(prop))
-
-        # Show assigned property units
-        message = (
-            "INFO:\nModel property units:\n"
-            + " Property Label | Model Unit     | Data Unit      |"
-            + " Conversion Fac.\n"
-            + "-"*17*4
-            + "\n")
-        for prop, unit in self.model_units.items():
-            message += (
-                f" {prop:<16s} {unit:<16s} {self.data_units[prop]:<16s}"
-                + f"{self.model2data_unit_conversion[prop]:11.9e}\n")
-        logger.info(message)
+            msg += f"  {prop:<16s} |  {unit:<11s} |"
+            msg += f"  {self.data_units.get(prop):<11s} |"
+            msg += f"  {self.model_conversion.get(prop):> 8.4e} |"
+            if prop in self.trainer_properties_metrics:
+                msg += f"  {self.trainer_properties_metrics[prop]:<11s} |"
+            else:
+                msg += f"  {'':<11s} |"
+            if prop in self.trainer_properties_weights:
+                msg += f"  {self.trainer_properties_weights[prop]:> 10.4f}"
+            msg += "\n"
+        logger.info("INFO:\nTraining Properties\n" + msg + "\n")
 
         # Assign potentially new property units to the model
         if hasattr(self.model_calculator, 'set_unit_properties'):
@@ -264,86 +286,18 @@ class Trainer:
         # # # Set Model Property Scaling # # #
         ######################################
 
-        # Get property scaling guess from reference data to link
-        # 'normalized' output to average reference data shift and
-        # distribution width.
-        model_properties_scaling = (
-            self.data_container.get_property_scaling())
+        # Initialize model property scaling dictionary
+        model_properties_scaling = {}
 
-        # Convert scaling from reference data units to model units (1/conv)
-        for prop, item in model_properties_scaling.items():
-            model_properties_scaling[prop] = (
-                np.array(item)/self.model2data_unit_conversion[prop])
+        # Get property scaling guess from reference data and convert from data
+        # to model units.
+        for prop, item in self.data_container.get_property_scaling().items():
+            if prop in self.model_properties:
+                model_properties_scaling[prop] = (
+                    np.array(item)/self.model_conversion[prop])
 
         # Set current model property scaling
-        self.model_calculator.set_property_scaling(
-            model_properties_scaling)
-        exit()
-        ####################################
-        # # # Check Trained Properties # # #
-        ####################################
-
-        # If training properties 'trainer_properties_train' is empty,
-        # consider all properties covered in reference data set and the
-        # model calculator.
-        if (not len(self.trainer_properties_train) or
-                self.trainer_properties_train is None):
-
-            # Reinitialize training properties list
-            self.trainer_properties_train = []
-
-            # Iterate over model properties, check for property in reference
-            # data set and eventually add to training properties.
-            for prop in self.model_properties:
-                if prop in self.data_properties:
-                    self.trainer_properties_train.append(prop)
-
-        # Else check training properties and eventually correct for
-        # not covered properties in the reference data set or the
-        # model calculator.
-        else:
-
-            # Iterate over training properties, check for property in reference
-            # data set and model calculator prediction and eventually remove
-            # training property.
-            for prop in self.trainer_properties_train:
-                if not (prop in self.data_properties and
-                        prop in self.model_properties):
-
-                    self.trainer_properties_train.remove(prop)
-                    logger.warning(
-                        f"WARNING:\nProperty '{prop}' in " +
-                        "'trainer_properties_train' is not stored in the " +
-                        "reference data set and/or predicted by the model " +
-                        "model calculator!\n" +
-                        f"Property '{prop}' is removed from training " +
-                        "property list.\n")
-
-        # Check for default property metric and weight
-        if self.trainer_properties_metrics.get('else') is None:
-            self.trainer_properties_metrics['else'] = 'MSE'
-        if self.trainer_properties_weights.get('else') is None:
-            self.trainer_properties_weights['else'] = 1.0
-
-        # Check training property metrics and weights by iterating over
-        # training properties and eventually complete values
-        for prop in self.trainer_properties_train:
-
-            if self.trainer_properties_metrics.get(prop) is None:
-                self.trainer_properties_metrics[prop] = (
-                    self.trainer_properties_metrics['else'])
-            if self.trainer_properties_weights.get(prop) is None:
-                self.trainer_properties_weights[prop] = (
-                    self.trainer_properties_weights['else'])
-
-        # Show current training property status
-        msg = "Property    Metric    Unit      Weight\n"
-        msg += "-"*len(msg) + "\n"
-        for prop in self.trainer_properties_train:
-            msg += f"{prop:10s}  {self.trainer_properties_metrics[prop]:8s}  "
-            msg += f"{self.model_units[prop]:8s}  "
-            msg += f"{self.trainer_properties_weights[prop]: 6.1f}\n"
-        logger.info("INFO:\n" + msg)
+        self.model_calculator.set_property_scaling(model_properties_scaling)
 
         #############################
         # # # Prepare Optimizer # # #
@@ -381,10 +335,15 @@ class Trainer:
         ################################
 
         # Initialize checkpoint file manager and summary writer
-        self.filemanager = utils.FileManager(
-            config,
+        self.filemanager = model.FileManager(
+            config=config,
             max_checkpoints=self.trainer_max_checkpoints)
-        self.summary_writer = self.filemanager.writer
+        
+        # Initialize training summary writer
+        if self.trainer_summary_writer:
+            from torch.utils.tensorboard import SummaryWriter
+            self.summary_writer = SummaryWriter(
+                log_dir=self.filemanager.logs_dir)
 
         ##########################
         # # # Prepare Tester # # #
@@ -405,9 +364,128 @@ class Trainer:
         # Save a copy of the current model configuration in the model directory
         self.filemanager.save_config(config)
 
+        return
+
+    def check_properties(
+        self,
+        trainer_properties: List[str],
+        data_properties: List[str],
+        model_properties: List[str],
+    ) -> List[str]:
+        """
+        Check properties for the contribution to the loss function between 
+        predicted model properties and available properties in the reference
+        data container.
+        
+        Parameter
+        ---------
+        trainer_properties: list(str)
+            Properties contributing to the loss function. If empty or None,
+            take all matching properties between model and data container.
+        data_properties: list(str)
+            Properties available in the reference data container
+        model_properties: list(str)
+            Properties predicted by the model calculator
+
+        Returns:
+        --------
+        list(str)
+            List of loss function property contributions.
+
+        """
+        
+        # Check matching data and model properties 
+        matching_properties = []
+        for prop in data_properties:
+            if prop in model_properties:
+                matching_properties.append(prop)
+
+        # Check training properties are empty, use all matching properties
+        if trainer_properties is None or not len(trainer_properties):
+            trainer_properties = matching_properties
+        else:
+            for prop in trainer_properties:
+                if prop not in matching_properties:
+                    if prop in data_properties:
+                        msg = "model calculator!"
+                    else:
+                        msg = "data container!"
+                    raise SyntaxError(
+                        f"Requested property '{prop:s}' as loss function "
+                        + "contribution is not available in " + msg)
+        
+        return trainer_properties
+
+    def check_properties_metrics_weights(
+        self,
+        trainer_properties: List[str],
+        trainer_properties_metrics: Dict[str, float],
+        trainer_properties_weights: Dict[str, float],
+        default_property_metrics: Optional[str] = 'mse',
+        default_property_weights: Optional[float] = 1.0,
+    ) -> (Dict[str, float], Dict[str, float]):
+        """
+        Prepare property loss metrics and weighting factors for the loss 
+        function contributions.
+        
+        Parameter
+        ---------
+        trainer_properties: list(str)
+            Properties contributing to the loss function
+        trainer_properties_metrics: dict(str, float)
+            Metrics functions for property contribution in the loss function
+        trainer_properties_weights: dict(str, float)
+            Weighting factors for property metrics in the loss function
+        default_property_metrics: str, optional, default 'mse'
+            Default option, if the property not in metrics dictionary and no 
+            other default value is defined by key 'else'. 
+            Default: mean scare error (mse) 
+            Alternative: mean absolute error (mae)
+        default_property_weights: str, optional, default 1.0
+            Default option, if the property not in weights dictionary and no 
+            other default value is defined by key 'else'.
+
+        Returns:
+        --------
+        dict(str, float)
+            Prepared property metrics dictionary
+        dict(str, float)
+            Prepared property weighting factors dictionary
+
+        """
+
+        # Check property metrics
+        for prop in trainer_properties:
+            if (
+                trainer_properties_metrics.get(prop) is None
+                and trainer_properties_metrics.get('else') is None
+            ):
+                trainer_properties_metrics[prop] = default_property_metrics
+            elif trainer_properties_metrics.get(prop) is None:
+                trainer_properties_metrics[prop] = (
+                    trainer_properties_metrics.get('else'))
+
+        # Check property weights
+        for prop in trainer_properties:
+            if (
+                trainer_properties_weights.get(prop) is None
+                and trainer_properties_weights.get('else') is None
+            ):
+                trainer_properties_weights[prop] = default_property_weights
+            elif trainer_properties_weights.get(prop) is None:
+                trainer_properties_weights[prop] = (
+                    trainer_properties_weights.get('else'))
+
+        return trainer_properties_metrics, trainer_properties_weights
+
     def check_model_units(
         self,
-        model_units: Optional[Dict[str, str]] = None,
+        trainer_properties: List[str],
+        model_units: Dict[str, str],
+        data_units: Dict[str, str],
+        related_properties: Dict[str, str] = {
+            'energy': 'atomic_energies',
+            'charge': 'atomic_charges'}
     ) -> Dict[str,str]:
         """
         Check the definition of the model units or assign units from the
@@ -415,48 +493,107 @@ class Trainer:
 
         Parameter
         ---------
-        model_units: dict, optional, default None
-            Dictionary of model property units. If None, the property units
-            from the reference dataset are assigned.
+        trainer_properties: list(str)
+            Properties contributing to the loss function
+        model_units: dict(str, str)
+            Dictionary of model property units.
+        data_units: dict(str, str)
+            Dictionary of data property units.
 
         Returns
         -------
         dict(str, str)
-            Dictionary of model property units
+            Dictionary of adopted model property units
+        dict(str, str)
+            Dictionary of adopted data property units
+        dict(str, float)
+            Dictionary of model to data property unit conversion factors
 
         """
 
-        if model_units is None:
-            model_units = self.model_units
+        # Initialize mode to data unit conversion dictionary
+        model_conversion = {}
+        
+        # Check basic properties - positions, charge
+        for prop in ['positions', 'charge']:
+            
+            # Check model property unit
+            if model_units.get(prop) is None:
+                model_units[prop] = data_units.get(prop)
+                model_conversion[prop] = 1.0
+            else:
+                model_conversion[prop], _ = utils.check_units(
+                    model_units[prop], data_units.get(prop))
 
-        # If model units are not defined, take property units from dataset
-        if model_units is None:
-            model_units = self.data_units
-            logger.info(
-                "INFO:\nModel property units are not defined!\n"
-                + "Property units from the reference dataset are assigned.\n")
-        # If model units are defined , check completeness
+            # Append related property units
+            if prop in related_properties:
+                related_prop = related_properties[prop]
+                model_units, data_units, model_conversion = (
+                    self._check_model_units_related(
+                        prop, 
+                        related_prop,
+                        model_units,
+                        data_units,
+                        model_conversion)
+                    )
+
+        # Iterate over training properties
+        for prop in trainer_properties:
+            
+            # Check model property unit
+            if model_units.get(prop) is None:
+                model_units[prop] = data_units.get(prop)
+                model_conversion[prop] = 1.0
+            else:
+                model_conversion[prop], _ = utils.check_units(
+                    model_units[prop], data_units.get(prop))
+
+            # Append related property units
+            if prop in related_properties:
+                related_prop = related_properties[prop]
+                model_units, data_units, model_conversion = (
+                    self._check_model_units_related(
+                        prop, 
+                        related_prop,
+                        model_units,
+                        data_units,
+                        model_conversion)
+                    )
+
+        return model_units, data_units, model_conversion
+
+    def _check_model_units_related(
+        self,
+        prop,
+        related_prop,
+        model_units,
+        data_units,
+        model_conversion
+    ):
+
+        # Add related property to lists and conversion dictionary
+        if (
+            related_prop in model_units
+            and related_prop in data_units
+        ):
+            model_conversion[related_prop], _ = utils.check_units(
+                model_units[related_prop], 
+                data_units.get(related_prop))
+        elif related_prop in data_units:
+            model_units[related_prop] = model_units[prop]
+            model_conversion[related_prop], _ = utils.check_units(
+                model_units[prop], data_units[related_prop])
+        elif related_prop in model_units:
+            data_units[related_prop] = model_units[related_prop]
+            model_conversion[related_prop], _ = utils.check_units(
+                model_units[related_prop], data_units[related_prop])
+            model_conversion[related_prop] = model_conversion[prop]
         else:
-            # Check positions unit
-            if 'positions' not in model_units:
-                model_units['positions'] = (
-                    self.data_units.get('positions'))
-                logger.warning(
-                    "WARNING:\nModel property unit for 'positions' is not "
-                    + "defined!\nPositions unit "
-                    + f"{self.data_units.get['positions']:s} from the "
-                    + "reference dataset is assigned.\n")
-            # Check model property units
-            for prop in self.model_properties:
-                if prop not in model_units:
-                    model_units[prop] = (
-                        self.data_units.get(prop))
-                    logger.warning(
-                        f"WARNING:\nModel property unit for '{prop:s}' is not "
-                        + f"is defined!\nUnit {self.data_units.get[prop]:s} "
-                        + "from the reference dataset is assigned.\n")
-
-        return model_units
+            model_units[related_prop] = model_units[prop]
+            data_units[related_prop] = model_units[prop]
+            model_conversion[related_prop] = model_conversion[prop]
+        
+        return model_units, data_units, model_conversion
 
     def run(
         self,
@@ -472,6 +609,7 @@ class Trainer:
             Show progress bar for the current epoch.
         debug: bool, optional, dafault False
             Enable torch autograd anomaly detection.
+
         """
 
         ####################################
@@ -480,7 +618,8 @@ class Trainer:
 
         # Load, if exists, latest model calculator and training state
         # checkpoint file
-        latest_checkpoint = self.filemanager.load_checkpoint(best=False)
+        latest_checkpoint = self.filemanager.load_checkpoint(
+            checkpoint_label='last')
 
         self.trainer_epoch_start = 1
         if latest_checkpoint is not None:
@@ -521,10 +660,10 @@ class Trainer:
 
         # Set maximum model cutoff for neighbor list calculation
         self.data_train.init_neighbor_list(
-            cutoff=self.model_calculator.model_interaction_cutoff,
+            cutoff=self.model_calculator.model_cutoff,
             store=self.trainer_store_neighbor_list)
         self.data_valid.init_neighbor_list(
-            cutoff=self.model_calculator.model_interaction_cutoff,
+            cutoff=self.model_calculator.model_cutoff,
             store=self.trainer_store_neighbor_list)
 
         ##########################
@@ -681,18 +820,19 @@ class Trainer:
                             test_plot_histogram=True,
                             test_plot_residual=True)
 
-                    # Write to training summary
-                    for prop, value in metrics_best.items():
-                        if utils.is_dictionary(value):
-                            for metric, val in value.items():
+                    # Add process to training summary writer
+                    if self.trainer_summary_writer:
+                        for prop, value in metrics_best.items():
+                            if utils.is_dictionary(value):
+                                for metric, val in value.items():
+                                    self.summary_writer.add_scalar(
+                                        prop + '_' + metric,
+                                        metrics_best[prop][metric],
+                                        global_step=epoch)
+                            else:
                                 self.summary_writer.add_scalar(
-                                    prop + '_' + metric,
-                                    metrics_best[prop][metric],
+                                    prop, metrics_best[prop],
                                     global_step=epoch)
-                        else:
-                            self.summary_writer.add_scalar(
-                                prop, metrics_best[prop],
-                                global_step=epoch)
 
                     # Update best total loss     value
                     self.best_loss = metrics_valid['loss']
@@ -762,7 +902,7 @@ class Trainer:
         metrics['Ndata'] = 0
 
         # Add training property metrics
-        for prop in self.trainer_properties_train:
+        for prop in self.trainer_properties:
             metrics[prop] = {
                 'loss': 0.0,
                 'mae': 0.0,
