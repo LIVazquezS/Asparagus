@@ -557,10 +557,10 @@ class Model_PhysNet(torch.nn.Module):
             idx_j = pbc_idx[pbc_idx_j]
 
         # Run graph model
-        features_list = self.graph_model(features, descriptors, idx_i, idx_j)
+        features_list = self.graph_module(features, descriptors, idx_i, idx_j)
 
         # Run output model
-        output = self.output_model(
+        output = self.output_module(
             features_list, 
             atomic_numbers=atomic_numbers)
         
