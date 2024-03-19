@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.interface.shell_ase &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.interface.shell_ase</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.interface.shell_ase</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ASE calculator class modifying and executing a template shell file(s) which</span>
+<span class="c1"># compute atoms properties and provide them as a .json or .npy file.</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">ase</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.calculator</span> <span class="kn">import</span> <span class="n">Calculator</span><span class="p">,</span> <span class="n">FileIOCalculator</span><span class="p">,</span> <span class="n">Parameters</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+
+
+<div class="viewcode-block" id="TagReplacement"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.TagReplacement">[docs]</a><span class="k">class</span> <span class="nc">TagReplacement</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for pre-defined functions that return input strings with</span>
+<span class="sd">    respect to the respective atoms object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">calculator</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">calculators</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">Calculator</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize class object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Assign calculator class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span> <span class="o">=</span> <span class="n">calculator</span>
+        
+        <span class="c1"># Initialize function library</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;$xyz&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_xyz</span><span class="p">,</span>
+            <span class="s1">&#39;$charge&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_charge</span><span class="p">,</span>
+            <span class="s1">&#39;$mult&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_multiplicity</span><span class="p">,</span>
+            <span class="s1">&#39;$multiplicity&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_multiplicity</span><span class="p">,</span>
+            <span class="s1">&#39;$spin2&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_spin_times_2</span><span class="p">,</span>
+            <span class="s1">&#39;$dir&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span>
+            <span class="s1">&#39;$directory&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">return</span>
+    
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">item</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get replacement function from function dictionary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TagReplacement.get_xyz"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.TagReplacement.get_xyz">[docs]</a>    <span class="k">def</span> <span class="nf">get_xyz</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return lines of atoms element symbols and its Cartesian coordinates</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">ia</span><span class="p">,</span> <span class="n">atom</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">atoms</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">ia</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">out</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">atom</span><span class="o">.</span><span class="n">symbol</span><span class="si">:</span><span class="s2">&lt;3s</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">atom</span><span class="o">.</span><span class="n">position</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">:</span><span class="s2"> 12.8f</span><span class="si">}</span><span class="s2"> &quot;</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="TagReplacement.get_charge"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.TagReplacement.get_charge">[docs]</a>    <span class="k">def</span> <span class="nf">get_charge</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return system charge as string of an integer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;charge&#39;</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="s1">&#39;charge&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="TagReplacement.get_multiplicity"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.TagReplacement.get_multiplicity">[docs]</a>    <span class="k">def</span> <span class="nf">get_multiplicity</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return system multiplicity as string of an integer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;multiplicity&#39;</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;multiplicity&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="s1">&#39;multiplicity&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;multiplicity&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="TagReplacement.get_spin_times_2"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.TagReplacement.get_spin_times_2">[docs]</a>    <span class="k">def</span> <span class="nf">get_spin_times_2</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return system multiplicity in form of 2*S = 2*(n*1/2) equal the number</span>
+<span class="sd">        of unpaired spins n as string of an integer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;multiplicity&#39;</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;multiplicity&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="s1">&#39;multiplicity&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;multiplicity&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="TagReplacement.get_directory"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.TagReplacement.get_directory">[docs]</a>    <span class="k">def</span> <span class="nf">get_directory</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return system charge as string of an integer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;directory&#39;</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;directory&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="s1">&#39;directory&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">directory</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+
+        <span class="k">return</span> <span class="n">out</span></div></div>
+    
+
+<div class="viewcode-block" id="ShellCalculator"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator">[docs]</a><span class="k">class</span> <span class="nc">ShellCalculator</span><span class="p">(</span><span class="n">FileIOCalculator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ASE Calculator class modifying and executing a template shell file which</span>
+<span class="sd">    computes atoms properties and provide the results as compatible ASE format.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    files: (str, list(str))</span>
+<span class="sd">        Template input files to copy into working directory and regarding for</span>
+<span class="sd">        tag replacement.</span>
+<span class="sd">    files_replace: dict(str, any) or list(dict(str, any))</span>
+<span class="sd">        Template file tag replacement commands in the form of a dictionary or</span>
+<span class="sd">        a list of dictionaries. The keys of the dictionary is the tag in the</span>
+<span class="sd">        template files which will be replaced by the respective item or</span>
+<span class="sd">        its output if the item is a callable function. </span>
+<span class="sd">        </span>
+<span class="sd">        If one dictionary is defined, the instructions are applied to all</span>
+<span class="sd">        template files and if a list of dictionaries is given, each dictionary</span>
+<span class="sd">        is applied on the template file of the same list index.</span>
+<span class="sd">        </span>
+<span class="sd">        The item of the dictionaries can be either a self defined callable</span>
+<span class="sd">        function in form of &#39;func(ase.Atoms, **kwargs)&#39; that returns a single</span>
+<span class="sd">        string, a fix string itself or one of the following strings that will</span>
+<span class="sd">        order the execution of one the pre-defined functions with the</span>
+<span class="sd">        respective outputs:</span>
+<span class="sd">            item        output</span>
+<span class="sd">            &#39;$xyz&#39;      Lines of element symbols and Cartesian coordinates</span>
+<span class="sd">            &#39;$charge&#39;   Integer of the ase.Atoms system charge</span>
+<span class="sd">            &#39;$dir&#39;      Path of the working directory</span>
+<span class="sd">            ...</span>
+<span class="sd">    execute_file: str, optional, default files[0]</span>
+<span class="sd">        Template file, which will be executed by the shell command.</span>
+<span class="sd">        If not defined, the (first) template file in &#39;files&#39; will be assumed</span>
+<span class="sd">        as executable.</span>
+<span class="sd">    result_properties: (str, list(str)), optional, default [&#39;energy&#39;]</span>
+<span class="sd">        List of system properties of the respective atoms object which are</span>
+<span class="sd">        expected to be stored in the result file.</span>
+<span class="sd">    result_file: str, optional, default &#39;result.json&#39;</span>
+<span class="sd">        Result file path where the calculation results are stored.</span>
+<span class="sd">    result_file_path: str, optional, default &#39;json&#39;</span>
+<span class="sd">        Result file format to define the way of reading the results.</span>
+<span class="sd">    atoms: ase.Atoms, optional, default None</span>
+<span class="sd">        Optional Atoms object to which the calculator will be</span>
+<span class="sd">        attached.  When restarting, atoms will get its positions and</span>
+<span class="sd">        unit-cell updated from file.</span>
+<span class="sd">    charge: int, optional, default 0</span>
+<span class="sd">        Default atoms charge</span>
+<span class="sd">    multiplicity: int, optional, default 1</span>
+<span class="sd">        Default system spin multiplicity (2*S + 1)</span>
+<span class="sd">    command: str, optional, default &#39;bash&#39;</span>
+<span class="sd">        Command to start the calculation.</span>
+<span class="sd">    label: str, optional, default &#39;shell&#39;</span>
+<span class="sd">        Name used for all files.  Not supported by all calculators.</span>
+<span class="sd">        May contain a directory, but please use the directory parameter</span>
+<span class="sd">        for that instead.</span>
+<span class="sd">        Asparagus: May be used as &#39;calculator_tag&#39;.</span>
+<span class="sd">    directory: str or PurePath</span>
+<span class="sd">        Working directory in which to read and write files and</span>
+<span class="sd">        perform calculations.</span>
+
+<span class="sd">    </span>
+<span class="sd">    Results</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Default parameters dictionary for initialization</span>
+    <span class="n">default_parameters</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="n">files</span><span class="o">=</span><span class="p">[],</span>
+        <span class="n">files_replace</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">execute_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">result_properties</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;energy&#39;</span><span class="p">],</span>
+        <span class="n">result_file</span><span class="o">=</span><span class="s1">&#39;results.json&#39;</span><span class="p">,</span>
+        <span class="n">result_file_format</span><span class="o">=</span><span class="s1">&#39;json&#39;</span><span class="p">,</span>
+        <span class="n">command</span><span class="o">=</span><span class="s1">&#39;bash&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Discard any results if parameters were changed</span>
+    <span class="n">discard_results_on_any_change</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">files_replace</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="n">execute_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">result_properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;energy&#39;</span><span class="p">],</span>
+        <span class="n">result_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;results.json&#39;</span><span class="p">,</span>
+        <span class="n">result_file_format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">charge</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">multiplicity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">command</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bash&#39;</span><span class="p">,</span>
+        <span class="n">restart</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;shell&#39;</span><span class="p">,</span>
+        <span class="n">directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;calc&#39;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize Shell Calculator class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Valid result file formats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_valid_result_file_format</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;npz&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_results_npz</span><span class="p">,</span>
+            <span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_results_json</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="c1"># Initialize parent class</span>
+        <span class="n">FileIOCalculator</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+            <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span>
+            <span class="n">restart</span><span class="o">=</span><span class="n">restart</span><span class="p">,</span>
+            <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Set calculator parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_shell</span><span class="p">(</span>
+            <span class="n">files</span><span class="p">,</span>
+            <span class="n">files_replace</span><span class="p">,</span>
+            <span class="n">execute_file</span><span class="p">,</span>
+            <span class="n">result_properties</span><span class="p">,</span>
+            <span class="n">result_file</span><span class="p">,</span>
+            <span class="n">result_file_format</span><span class="p">,</span>
+            <span class="n">charge</span><span class="p">,</span>
+            <span class="n">multiplicity</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Initialize implemented properties list</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">implemented_properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_properties</span>
+        
+        <span class="c1"># Initialize tag replacement class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tag_replacer</span> <span class="o">=</span> <span class="n">TagReplacement</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        
+        <span class="c1"># Initialize a point charge object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pcpot</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;ShellCalculator </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">execute_file</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<div class="viewcode-block" id="ShellCalculator.set_shell"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.set_shell">[docs]</a>    <span class="k">def</span> <span class="nf">set_shell</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">files_replace</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="n">execute_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">result_properties</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">result_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">result_file_format</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">charge</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">multiplicity</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check and set calculator parameters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check template files and executable file</span>
+        <span class="n">files</span><span class="p">,</span> <span class="n">files_replace</span><span class="p">,</span> <span class="n">execute_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_input_files</span><span class="p">(</span>
+            <span class="n">files</span><span class="p">,</span>
+            <span class="n">files_replace</span><span class="p">,</span> 
+            <span class="n">execute_file</span><span class="p">)</span>
+
+        <span class="c1"># Check result files and properties</span>
+        <span class="n">result_properties</span><span class="p">,</span> <span class="n">result_file</span><span class="p">,</span> <span class="n">result_file_format</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_result_files</span><span class="p">(</span>
+                <span class="n">result_properties</span><span class="p">,</span>
+                <span class="n">result_file</span><span class="p">,</span> 
+                <span class="n">result_file_format</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check default system properties</span>
+        <span class="n">charge</span><span class="p">,</span> <span class="n">multiplicity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_system_properties</span><span class="p">(</span>
+            <span class="n">charge</span><span class="p">,</span>
+            <span class="n">multiplicity</span><span class="p">)</span>
+        
+        <span class="c1"># Set parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="n">files</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files_replace</span> <span class="o">=</span> <span class="n">files_replace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_file</span> <span class="o">=</span> <span class="n">execute_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_properties</span> <span class="o">=</span> <span class="n">result_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_file</span> <span class="o">=</span> <span class="n">result_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_file_format</span> <span class="o">=</span> <span class="n">result_file_format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">charge</span> <span class="o">=</span> <span class="n">charge</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiplicity</span> <span class="o">=</span> <span class="n">multiplicity</span>
+        
+        <span class="c1"># Run parent file setup</span>
+        <span class="n">changed_parameters</span> <span class="o">=</span> <span class="n">FileIOCalculator</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> 
+            <span class="n">files</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">,</span>
+            <span class="n">files_replace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">files_replace</span><span class="p">,</span>
+            <span class="n">execute_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">execute_file</span><span class="p">,</span>
+            <span class="n">result_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">result_properties</span><span class="p">,</span>
+            <span class="n">result_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">result_file</span><span class="p">,</span>
+            <span class="n">result_file_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">result_file_format</span><span class="p">,</span>
+            <span class="n">charge</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">charge</span><span class="p">,</span>
+            <span class="n">multiplicity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">multiplicity</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">changed_parameters</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.set_input_files"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.set_input_files">[docs]</a>    <span class="k">def</span> <span class="nf">set_input_files</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">files_replace</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="n">execute_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check template files and executable file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check if template file exists</span>
+        <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+            <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">files</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_array_like</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;Template files is neither a valid file path (str) or &quot;</span>
+                <span class="s2">&quot;a list of file paths!&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file_i</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">file_i</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Template file path &#39;</span><span class="si">{</span><span class="n">file_i</span><span class="si">}</span><span class="s2">&#39; is not a valid file path!&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_i</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Template file &#39;</span><span class="si">{</span><span class="n">file_i</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; does not exists!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check for directory conflict</span>
+        <span class="k">for</span> <span class="n">file_i</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">)</span>
+                <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file_i</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Working directory &#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">)</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;for the calculation is the same path as for at least &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;one of the template files &quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">file_i</span><span class="p">)</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;!</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;Avoid such conflict and the potential overwriting of &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;any template file.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check executable file</span>
+        <span class="k">if</span> <span class="n">execute_file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">execute_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file_i</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">execute_file</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">execute_file</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span>
+                <span class="n">execute_file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file_i</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">file_i</span> <span class="ow">in</span> <span class="n">files</span><span class="p">])</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Executable file &#39;</span><span class="si">{</span><span class="n">execute_file</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; does not exists!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">execute_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">execute_file</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Executable file &#39;</span><span class="si">{</span><span class="n">execute_file</span><span class="si">}</span><span class="s2">&#39; is not a valid file path!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check if template file replacement input</span>
+        <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">(</span><span class="n">files_replace</span><span class="p">):</span>
+            <span class="n">files_replace</span> <span class="o">=</span> <span class="p">[</span><span class="n">files_replace</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_array_like</span><span class="p">(</span><span class="n">files_replace</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;Template file replacement input is not of type dictionary &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;or a list of dictionaries!&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">files_replace</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">files_replace</span> <span class="o">=</span> <span class="n">files_replace</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">files_replace</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;Mismatch between number of template file replacement &quot;</span> 
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot; dictionaries (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">files_replace</span><span class="p">)</span><span class="si">}</span><span class="s2">) and numer of &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;template files (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span><span class="si">}</span><span class="s2">)!&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">files_replace_i</span> <span class="ow">in</span> <span class="n">files_replace</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">(</span><span class="n">files_replace_i</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Template file replacement input &#39;</span><span class="si">{</span><span class="n">files_replace_i</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;is not of type dictionary!&quot;</span><span class="p">)</span>
+            
+        <span class="k">return</span> <span class="n">files</span><span class="p">,</span> <span class="n">files_replace</span><span class="p">,</span> <span class="n">execute_file</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.set_result_files"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.set_result_files">[docs]</a>    <span class="k">def</span> <span class="nf">set_result_files</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">result_properties</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">result_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">result_file_format</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check result files and properties.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check result properties</span>
+        <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">result_properties</span><span class="p">):</span>
+            <span class="n">result_properties</span> <span class="o">=</span> <span class="p">[</span><span class="n">result_properties</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_array_like</span><span class="p">(</span><span class="n">result_properties</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;System properties &#39;result_properties&#39; is neither a property &quot;</span>
+                <span class="s2">&quot;label (str) or a list of property labels!&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">prop_i</span> <span class="ow">in</span> <span class="n">result_properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">prop_i</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;System property &#39;</span><span class="si">{</span><span class="n">prop_i</span><span class="si">}</span><span class="s2">&#39; is not a valid property &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;label (str)!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check result file path and format</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">result_file</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Result file &#39;</span><span class="si">{</span><span class="n">result_file</span><span class="si">}</span><span class="s2">&#39; is not a valid file path!&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result_file_format</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;.&#39;</span><span class="p">:</span>
+            <span class="n">result_file_format</span> <span class="o">=</span> <span class="n">result_file_format</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="n">result_file_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valid_result_file_format</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Result file format &#39;</span><span class="si">{</span><span class="n">result_file_format</span><span class="si">}</span><span class="s2">&#39; is not a valid &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot; file format!</span><span class="se">\n</span><span class="s2">Valid options are:</span><span class="se">\n</span><span class="s2">  &quot;</span>
+                <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">result_file_format</span><span class="o">.</span><span class="n">keys</span><span class="p">())))</span>
+
+        <span class="k">return</span> <span class="n">result_properties</span><span class="p">,</span> <span class="n">result_file</span><span class="p">,</span> <span class="n">result_file_format</span></div>
+        
+<div class="viewcode-block" id="ShellCalculator.set_system_properties"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.set_system_properties">[docs]</a>    <span class="k">def</span> <span class="nf">set_system_properties</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">charge</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">multiplicity</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check system properties</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check charge</span>
+        <span class="k">if</span> <span class="n">charge</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">(</span><span class="n">charge</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;System charge input is not a numeric input!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check multiplicity</span>
+        <span class="k">if</span> <span class="n">multiplicity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;System spin multiplicity input is not a numeric input!&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">charge</span><span class="p">,</span> <span class="n">multiplicity</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.write_input"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.write_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_input</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+        <span class="n">system_changes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">charge</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">multiplicity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write input files by copying template files to the working directory</span>
+<span class="sd">        while applying the replacement tasks.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        atoms: ase.Atoms</span>
+<span class="sd">            Reference atoms object</span>
+<span class="sd">        properties: list(str), optional, default None</span>
+<span class="sd">            List of to computing system properties</span>
+<span class="sd">        system_changes: list(str), optional, default None</span>
+<span class="sd">            Detailed list of changed system parameters with regard to </span>
+<span class="sd">            previously computed system.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Execute parent class &#39;write_input&#39; function that checks and</span>
+        <span class="c1"># eventually create the working directory.</span>
+        <span class="n">FileIOCalculator</span><span class="o">.</span><span class="n">write_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">system_changes</span><span class="p">)</span>
+        
+        <span class="c1"># Get parameter set</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        
+        <span class="c1"># Set system charge and spin multiplicity</span>
+        <span class="k">if</span> <span class="n">charge</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">charge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_system_properties</span><span class="p">(</span><span class="n">charge</span><span class="p">,</span> <span class="n">multiplicity</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">charge</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s1">&#39;charge&#39;</span> <span class="ow">in</span> <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+            <span class="n">charge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_system_properties</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">],</span> <span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">charge</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">charge</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">charge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">charge</span>
+        <span class="k">if</span> <span class="n">multiplicity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">multiplicity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplicity</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplicity</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s1">&#39;multiplicity&#39;</span> <span class="ow">in</span> <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+            <span class="n">multiplicity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_system_properties</span><span class="p">(</span>
+                <span class="kc">None</span><span class="p">,</span> <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;multiplicity&#39;</span><span class="p">])[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplicity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">multiplicity</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">multiplicity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplicity</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">charge</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;multiplicity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiplicity</span>
+        
+        <span class="c1"># Write calculator options to file</span>
+        <span class="n">parameters</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">+</span> <span class="s1">&#39;.ase&#39;</span><span class="p">)</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span>
+        
+        <span class="c1"># Prepare and write input files</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_shell_input</span><span class="p">(</span>
+            <span class="n">atoms</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">files_replace</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.write_shell_input"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.write_shell_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_shell_input</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> 
+        <span class="n">files_replace</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prepare and write shell input files</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+    
+        <span class="c1"># Iterate over template files</span>
+        <span class="k">for</span> <span class="n">ifile</span><span class="p">,</span> <span class="n">file_i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+            
+            <span class="c1"># Get tag replacement instructions</span>
+            <span class="n">file_replace</span> <span class="o">=</span> <span class="n">files_replace</span><span class="p">[</span><span class="n">ifile</span><span class="p">]</span>
+            
+            <span class="c1"># Read template file</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_i</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">flines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            
+            <span class="c1"># Replace tags</span>
+            <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">file_replace</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Check replacement</span>
+                <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag_replacer</span><span class="o">.</span><span class="n">functions</span><span class="p">:</span>
+                        <span class="n">item_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag_replacer</span><span class="p">[</span><span class="n">item</span><span class="p">](</span>
+                            <span class="n">atoms</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">item_str</span> <span class="o">=</span> <span class="n">item</span>                    
+                <span class="k">elif</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+                    <span class="n">item_str</span> <span class="o">=</span> <span class="n">item</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Template file replacement item for label &#39;</span><span class="si">{</span><span class="n">tag</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                        <span class="o">+</span> <span class="s2">&quot;is neither a string nor a callable function!&quot;</span><span class="p">)</span>
+                <span class="c1"># Replace label tag with item string</span>
+                <span class="n">flines</span> <span class="o">=</span> <span class="n">flines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="n">tag</span><span class="p">,</span> 
+                    <span class="n">item_str</span><span class="p">)</span>
+
+            <span class="c1"># Write working file</span>
+            <span class="n">wfile_i</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file_i</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">wfile_i</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">flines</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.calculate"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.calculate">[docs]</a>    <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atoms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;energy&#39;</span><span class="p">],</span>
+        <span class="n">system_changes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute calculation and read results</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Prepare calculation by execution parent class function</span>
+        <span class="n">Calculator</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">system_changes</span><span class="p">)</span>
+        
+        <span class="c1"># Write input files</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_input</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span> 
+            <span class="n">properties</span><span class="p">,</span> 
+            <span class="n">system_changes</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Check shell command </span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">command</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s1">&#39;bash&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">command</span>
+
+        <span class="c1"># Check executable file</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">execute_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">execute_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_file</span>
+
+        <span class="c1"># Execute command with executable file</span>
+        <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">([</span><span class="n">command</span><span class="p">,</span> <span class="n">execute_file</span><span class="p">],</span> <span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">)</span>
+        <span class="n">errorcode</span> <span class="o">=</span> <span class="n">proc</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">errorcode</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Calculator &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; failed with command &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">command</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">execute_file</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; failed in &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="si">:}</span><span class="s2">&#39; with error code &#39;</span><span class="si">{</span><span class="n">errorcode</span><span class="si">}</span><span class="s2">&#39;!&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_results</span><span class="p">()</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.read_results"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.read_results">[docs]</a>    <span class="k">def</span> <span class="nf">read_results</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read results from the defined result file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Read results from file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_valid_result_file_format</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">result_file_format</span><span class="p">](</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_file</span><span class="p">))</span>
+        
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.load_results_npz"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.load_results_npz">[docs]</a>    <span class="k">def</span> <span class="nf">load_results_npz</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="ShellCalculator.load_results_json"><a class="viewcode-back" href="../../../api/asparagus.interface.html#asparagus.interface.shell_ase.ShellCalculator.load_results_json">[docs]</a>    <span class="k">def</span> <span class="nf">load_results_json</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">result_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+        
+        <span class="c1"># Open result file</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">result_file</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">result_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Convert lists to np.ndarrays</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">prop_i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="n">prop_i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="k">return</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.tools package &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="asparagus.train package" href="asparagus.train.html" />
+    <link rel="prev" title="asparagus.settings package" href="asparagus.settings.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contribute.html">Contributing</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../api.html#contents">Contents</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="modules.html">asparagus</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="asparagus.html">asparagus package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API</a></li>
+          <li class="breadcrumb-item"><a href="modules.html">asparagus</a></li>
+          <li class="breadcrumb-item"><a href="asparagus.html">asparagus package</a></li>
+      <li class="breadcrumb-item active">asparagus.tools package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/asparagus.tools.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="asparagus-tools-package">
+<h1>asparagus.tools package<a class="headerlink" href="#asparagus-tools-package" title="Permalink to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading"></a></h2>
+</section>
+<section id="module-asparagus.tools.DMC">
+<span id="asparagus-tools-dmc-module"></span><h2>asparagus.tools.DMC module<a class="headerlink" href="#module-asparagus.tools.DMC" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asparagus.tools.DMC.</span></span><span class="sig-name descname"><span class="pre">DMC</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">natoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nwalker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepsize</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsteps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eqsteps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_charge</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implemented_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>This code adapt the diffusion Monte Carlo code from <a class="reference external" href="https://github.com/MMunibas/dmc_gpu_PhysNet/tree/main">https://github.com/MMunibas/dmc_gpu_PhysNet/tree/main</a>
+to the asparagus framework.</p>
+<p><strong>NOTE</strong>: As a difference with the original implementation, this code reads the initial coordinates and the
+equilibrium coordinates from the atoms object in ASE.</p>
+<p><strong>Original Message</strong>
+DMC code for the calculation of zero-point energies using PhysNet based PESs on GPUs/CPUs. The calculation
+is performed in Cartesian coordinates.
+See e.g. American Journal of Physics 64, 633 (1996); <a class="reference external" href="https://doi.org/10.1119/1.18168">https://doi.org/10.1119/1.18168</a> for DMC implementation
+and <a class="reference external" href="https://scholarblogs.emory.edu/bowman/diffusion-monte-carlo/">https://scholarblogs.emory.edu/bowman/diffusion-monte-carlo/</a> for Fortran 90 implementation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>natoms</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of atoms of the system</p></li>
+<li><p><strong>nwalker</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of walkers for the DMC</p></li>
+<li><p><strong>stepsize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Step size for the DMC in imaginary time</p></li>
+<li><p><strong>nsteps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of steps for the DMC</p></li>
+<li><p><strong>eqsteps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of equilibration steps for the DMC</p></li>
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Alpha parameter for the DMC: Feed-back parameter, usually propotional to 1/stepsize</p></li>
+<li><p><strong>max_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Size of the batch</p></li>
+<li><p><strong>initial_coord</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><em>array</em>) – Initial coordinates for the DMC</p></li>
+<li><p><strong>atoms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em> or </em><em>ase.Atoms</em>) – Atoms object</p></li>
+<li><p><strong>total_charge</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Total charge of the system</p></li>
+<li><p><strong>config</strong> (<em>dct</em>) – Parameters for the model</p></li>
+<li><p><strong>config_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Configuration file for asparagus</p></li>
+<li><p><strong>model_checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Checkpoint for the model</p></li>
+<li><p><strong>implemented_properties</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a>) – List of implemented properties</p></li>
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – Name of the file where the results are going to be saved. <strong>NOTE</strong>: The code create 4 files with the same name
+but different extensions: .pot, .log, .xyz and .xyz. The first two are the files where the potential energy
+and the log of the simulation are saved. The last two are the files where the last 10 steps of the simulation
+and the defective geometries are saved respectively.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.branch">
+<span class="sig-name descname"><span class="pre">branch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">refx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vmin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psips</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psips_f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_tot</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.branch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.branch" title="Permalink to this definition"></a></dt>
+<dd><p>The birth-death (branching) process, which follows the diffusion step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>refx</strong> (<em>array</em>) – reference positions of atoms</p></li>
+<li><p><strong>mass</strong> (<em>array</em>) – atomic masses</p></li>
+<li><p><strong>symb</strong> (<em>array</em>) – atomic symbols</p></li>
+<li><p><strong>vmin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – minimum energy</p></li>
+<li><p><strong>psips</strong> (<em>array</em>) – coordinates of the walkers</p></li>
+<li><p><strong>psips_f</strong> (<em>array</em>) – flag to know which walkers are alive</p></li>
+<li><p><strong>v_ref</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – reference energy</p></li>
+<li><p><strong>v_tot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – total energy</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.create_batch">
+<span class="sig-name descname"><span class="pre">create_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.create_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.create_batch" title="Permalink to this definition"></a></dt>
+<dd><p>It creates the batch to be passed to the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>coor</strong> (<em>array</em><em> of </em><em>shape</em><em> (</em><em>natoms</em><em>,</em><em>3</em><em>)</em>) – </p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – </p></li>
+<li><p><strong>max_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – If True, it creates a batch with the specified batch size. If False, it creates a batch with the size
+of the max_batch.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.gbranch">
+<span class="sig-name descname"><span class="pre">gbranch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">refx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vmin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psips</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psips_f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_tot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nalive</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.gbranch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.gbranch" title="Permalink to this definition"></a></dt>
+<dd><p>The birth-death criteria for the ground state energy. Note that psips is of shape
+(3*nwalker, 3*natm) as only the progressed coordinates (i.e. psips[:,i,1]) are
+given to gbranch</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>refx</strong> (<em>array</em>) – reference positions of atoms</p></li>
+<li><p><strong>mass</strong> (<em>array</em>) – atomic masses</p></li>
+<li><p><strong>symb</strong> (<em>array</em>) – atomic symbols</p></li>
+<li><p><strong>vmin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – minimum energy</p></li>
+<li><p><strong>psips</strong> (<em>array</em>) – coordinates of the walkers</p></li>
+<li><p><strong>psips_f</strong> (<em>array</em>) – flag to know which walkers are alive</p></li>
+<li><p><strong>v_ref</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – reference energy</p></li>
+<li><p><strong>v_tot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – total energy</p></li>
+<li><p><strong>nalive</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – number of alive walkers</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.get_batch_energy">
+<span class="sig-name descname"><span class="pre">get_batch_energy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.get_batch_energy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.get_batch_energy" title="Permalink to this definition"></a></dt>
+<dd><p>Function to predict energies given the coordinates of the molecule. Depending on the max_batch and nwalkers,
+the energy prediction are done all at once or in multiple iterations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>coor</strong> (<em>array</em><em> of </em><em>shape</em><em> (</em><em>natoms</em><em>,</em><em>3</em><em>)</em>) – </p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.init_dmc">
+<span class="sig-name descname"><span class="pre">init_dmc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vmin</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.init_dmc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.init_dmc" title="Permalink to this definition"></a></dt>
+<dd><p>Initialize the DMC simulation. It creates the psips and psips_f arrays, which are the coordinates of the walkers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v0</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – initial energy</p></li>
+<li><p><strong>vmin</strong> – minimum energy</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.look_up_table">
+<span class="sig-name descname"><span class="pre">look_up_table</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.look_up_table"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.look_up_table" title="Permalink to this definition"></a></dt>
+<dd><p>Create “look up table” for the needed inputs. This is needed because the
+batch size is not always constant (walkers die).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.run" title="Permalink to this definition"></a></dt>
+<dd><p>Run the difussion montecarlo simulation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.DMC.walk">
+<span class="sig-name descname"><span class="pre">walk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psips</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#DMC.walk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.DMC.walk" title="Permalink to this definition"></a></dt>
+<dd><p>Walk routine performs the diffusion process of the replicas by adding to the
+coordinates of the alive replicas sqrt(deltatau)rho, rho is random number
+from Gaussian distr</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>psips</strong> (<em>array</em>) – coordinates of the walkers</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asparagus.tools.DMC.</span></span><span class="sig-name descname"><span class="pre">Logger_DMC</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Class to write the log files of the DMC simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – The name of the file where the results are going to be saved. <strong>NOTE</strong>: The code create 4 files with the same name
+but different extensions: .pot, .log, .xyz and .xyz. The first two are the files where the potential energy
+and the log of the simulation are saved. The last two are the files where the last 10 steps of the simulation
+and the defective geometries are saved respectively.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.close_files">
+<span class="sig-name descname"><span class="pre">close_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.close_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.close_files" title="Permalink to this definition"></a></dt>
+<dd><p>Subroutine to close all files</p>
+</dd></dl>
+
+<hr class="docutils" />
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.log_begin">
+<span class="sig-name descname"><span class="pre">log_begin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nwalker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eqstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepsize</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.log_begin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.log_begin" title="Permalink to this definition"></a></dt>
+<dd><p>Subroutine to write header of log file
+logging all job details and the initial parameters of the DMC simulation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nwalker</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of walkers for the DMC</p></li>
+<li><p><strong>nstep</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of steps for the DMC</p></li>
+<li><p><strong>eqstep</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of equilibration steps for the DMC</p></li>
+<li><p><strong>stepsize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Step size for the DMC in imaginary time</p></li>
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Alpha parameter for the DMC: Feed-back parameter, usually propotional to 1/stepsize</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.log_end">
+<span class="sig-name descname"><span class="pre">log_end</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.log_end"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.log_end" title="Permalink to this definition"></a></dt>
+<dd><p>Function to write footer of logfile</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.write_error">
+<span class="sig-name descname"><span class="pre">write_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">refx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.write_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.write_error" title="Permalink to this definition"></a></dt>
+<dd><p>Subroutine to write xyz file of defective configurations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>refx</strong> (<em>array</em>) – reference positions of atoms</p></li>
+<li><p><strong>mass</strong> (<em>array</em>) – atomic masses</p></li>
+<li><p><strong>symb</strong> (<em>array</em>) – atomic symbols</p></li>
+<li><p><strong>errq</strong> (<em>array</em>) – error in positions</p></li>
+<li><p><strong>v</strong> (<em>array</em>) – potential energy</p></li>
+<li><p><strong>idx</strong> (<em>array</em>) – index of defective configurations</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.write_last">
+<span class="sig-name descname"><span class="pre">write_last</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psips_f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psips</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">natm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symb</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.write_last"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.write_last" title="Permalink to this definition"></a></dt>
+<dd><p>Subroutine to write xyz file of last 10 steps of DMC simulation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psips_f</strong> (<em>array</em>) – flag to know which walkers are alive</p></li>
+<li><p><strong>psips</strong> (<em>array</em>) – coordinates of the walkers</p></li>
+<li><p><strong>natm</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – number of atoms</p></li>
+<li><p><strong>symb</strong> – atomic symbols</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.write_log">
+<span class="sig-name descname"><span class="pre">write_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v_ave</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.write_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.write_log" title="Permalink to this definition"></a></dt>
+<dd><p>subroutine to write average log file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v_ave</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – </p></li>
+<li><p><strong>trajectory</strong> (<em>Average energy</em><em> of </em><em>the</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.DMC.Logger_DMC.write_pot">
+<span class="sig-name descname"><span class="pre">write_pot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psips_f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/DMC.html#Logger_DMC.write_pot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.DMC.Logger_DMC.write_pot" title="Permalink to this definition"></a></dt>
+<dd><p>subroutine to write potential file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psips_f</strong> – </p></li>
+<li><p><strong>v_ref</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-asparagus.tools.MDP">
+<span id="asparagus-tools-mdp-module"></span><h2>asparagus.tools.MDP module<a class="headerlink" href="#module-asparagus.tools.MDP" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="asparagus.tools.MDP.MDP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asparagus.tools.MDP.</span></span><span class="sig-name descname"><span class="pre">MDP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atoms_charge</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implemented_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_neighbor_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mdp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">langevin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">friction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.02</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temperature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mdp.traj'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/MDP.html#MDP"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.MDP.MDP" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>This class calculates the Minimum Dynamic Path (MDP) [J. Chem. Phys. 150, 074107 (2019)]
+for a given molecule starting from the Transition state.</p>
+<section id="parameters">
+<h3>Parameters:<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>atoms: ase.Atoms</dt><dd><p>Transition state geometry</p>
+</dd>
+<dt>atoms_charge: opt(list)</dt><dd><p>Charge of each atom in the system</p>
+</dd>
+<dt>config: opt(dict)</dt><dd><p>Configuration dictionary for asparagus</p>
+</dd>
+<dt>config_file: opt(str)</dt><dd><p>Configuration file for asparagus</p>
+</dd>
+<dt>model_checkpoint: opt(int)</dt><dd><p>Checkpoint file to load the model</p>
+</dd>
+<dt>implemented_properties: opt(list)</dt><dd><p>Properties to be calculated by the model</p>
+</dd>
+<dt>use_neighbor_list: opt(bool)</dt><dd><p>Use neighbor list to calculate the forces</p>
+</dd>
+<dt>forward: opt(bool)</dt><dd><p>Direction of the MDP if True forward, if False backward</p>
+</dd>
+<dt>label: opt(str)</dt><dd><p>Label for the ASE calculator</p>
+</dd>
+<dt>time_step: opt(float)</dt><dd><p>Time step for the MD simulation</p>
+</dd>
+<dt>langevin: opt(bool)</dt><dd><p>If True use Langevin dynamics, if False use Velocity Verlet</p>
+</dd>
+<dt>friction: opt(float)</dt><dd><p>Friction coefficient for Langevin dynamics only if langevin=True</p>
+</dd>
+<dt>temperature: opt(float)</dt><dd><p>Temperature for Langevin dynamics only if langevin=True</p>
+</dd>
+<dt>eps: opt(float)</dt><dd><p>Initial displacement for the MDP</p>
+</dd>
+<dt>number_of_steps: opt(int)</dt><dd><p>Number of steps for the MDP</p>
+</dd>
+<dt>output: opt(str)</dt><dd><p>Output file name for the trajectory</p>
+</dd>
+<dt>output_file: opt(str)</dt><dd><p>Output file name for the log file of energies</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.MDP.MDP.run_mdp">
+<span class="sig-name descname"><span class="pre">run_mdp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">forward</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/MDP.html#MDP.run_mdp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.MDP.MDP.run_mdp" title="Permalink to this definition"></a></dt>
+<dd><p>This function runs the MDP calculation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>forward</strong> (<em>opt</em><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a><em>) </em><em>If True forward</em><em>, </em><em>if False backward. This defines the direction</em><em> of </em><em>the momentum</em><em> of </em><em>the system.</em>) – Default is None because it is defined in the __init__ function.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.MDP.MDP.write_trajectory">
+<span class="sig-name descname"><span class="pre">write_trajectory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">system</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/MDP.html#MDP.write_trajectory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.MDP.MDP.write_trajectory" title="Permalink to this definition"></a></dt>
+<dd><p>Write current image to trajectory file but without constraints</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+<section id="module-asparagus.tools.MEP">
+<span id="asparagus-tools-mep-module"></span><h2>asparagus.tools.MEP module<a class="headerlink" href="#module-asparagus.tools.MEP" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="asparagus.tools.MEP.MEP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asparagus.tools.MEP.</span></span><span class="sig-name descname"><span class="pre">MEP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atoms_charge</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implemented_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_neighbor_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mep'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mep.traj'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/MEP.html#MEP"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.MEP.MEP" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>This class calculates the minimum energy path from the transtion state to the most favorable part of the PES.</p>
+<p>It follows the gradient of the vector of the Transition state, therefore it is necessary to calculate the hessian of the transition state.</p>
+<section id="id1">
+<h3>Parameters:<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h3>
+<dl class="simple">
+<dt>atoms: ase.Atoms object</dt><dd><p>It is the transition state geometry.</p>
+</dd>
+<dt>atoms_charge: list (optional)</dt><dd><p>List of charges of the atoms.</p>
+</dd>
+<dt>config: dict (optional)</dt><dd><p>Dictionary with the configuration of the model.</p>
+</dd>
+<dt>config_file: str (optional)</dt><dd><p>Name of the configuration file.</p>
+</dd>
+<dt>model_checkpoint: int (optional)</dt><dd><p>Number of the checkpoint file to load.</p>
+</dd>
+<dt>implemented_properties: list (optional)</dt><dd><p>List of the implemented properties.</p>
+</dd>
+<dt>use_neighbor_list: bool (optional)</dt><dd><p>Use neighbor list to calculate the forces.</p>
+</dd>
+<dt>label: str (optional)</dt><dd><p>Label of the calculator.</p>
+</dd>
+<dt>eps: float (optional)</dt><dd><p>Step size to follow the gradient.</p>
+</dd>
+<dt>number_of_steps: int (optional)</dt><dd><p>Number of steps to follow the gradient.</p>
+</dd>
+<dt>output: str (optional)</dt><dd><p>Name of the output trajectory if not defined it is equal to mep.traj.</p>
+</dd>
+<dt>output_file: str (optional)</dt><dd><p>Name of the output file with the energy and steps of the MEP.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.MEP.MEP.get_MEP">
+<span class="sig-name descname"><span class="pre">get_MEP</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/MEP.html#MEP.get_MEP"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.MEP.MEP.get_MEP" title="Permalink to this definition"></a></dt>
+<dd><p>This function calculates the minimum energy path from the transition state to the most favorable part of the PES.</p>
+<p>It saves the trajectory in a trajectory file and the energy and steps in a txt file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asparagus.tools.MEP.MEP.write_trajectory">
+<span class="sig-name descname"><span class="pre">write_trajectory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">system</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/MEP.html#MEP.write_trajectory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.MEP.MEP.write_trajectory" title="Permalink to this definition"></a></dt>
+<dd><p>Write current image to trajectory file but without constraints</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+<section id="module-asparagus.tools.spectroscopy">
+<span id="asparagus-tools-spectroscopy-module"></span><h2>asparagus.tools.spectroscopy module<a class="headerlink" href="#module-asparagus.tools.spectroscopy" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="asparagus.tools.spectroscopy.get_harmonic_freqs">
+<span class="sig-prename descclassname"><span class="pre">asparagus.tools.spectroscopy.</span></span><span class="sig-name descname"><span class="pre">get_harmonic_freqs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_calculator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><span class="pre">object</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_geometry</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tolerance_opt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tolerance_freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.001</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asparagus/tools/spectroscopy.html#get_harmonic_freqs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asparagus.tools.spectroscopy.get_harmonic_freqs" title="Permalink to this definition"></a></dt>
+<dd><p>This function calculates harmonic frequencies with ASE.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_calculator</strong> – </p></li>
+<li><p><strong>initial_geometry</strong> (<em>An .xyz</em><em> or </em><em>any way to initialize the geometry</em><em> of </em><em>the molecule</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-asparagus.tools">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-asparagus.tools" title="Permalink to this heading"></a></h2>
+<p>Tools for Asparagus</p>
+<p>Implemented:
+- Minimum Energy Path (MEP)
+- Minimum Dynamic Path (MDP)
+- Diffusion Monte Carlo (DMC)
+- Basic spectroscopy tools (Harmonic frequencies)</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="asparagus.settings.html" class="btn btn-neutral float-left" title="asparagus.settings package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="asparagus.train.html" class="btn btn-neutral float-right" title="asparagus.train package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

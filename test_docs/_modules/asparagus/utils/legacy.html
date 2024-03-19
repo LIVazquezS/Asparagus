@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.utils.legacy &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.utils.legacy</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.utils.legacy</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="c1"># import tensorflow as tf</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+
+<span class="c1"># from ... import Asparagus</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="convert_from_tensorflow"><a class="viewcode-back" href="../../../api/asparagus.utils.html#asparagus.utils.legacy.convert_from_tensorflow">[docs]</a><span class="k">def</span> <span class="nf">convert_from_tensorflow</span><span class="p">(</span>
+    <span class="n">checkpoint</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">,</span>
+    <span class="n">v1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">model_directory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">model_dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert tensorflow checkpoint files into torch checkpoint files</span>
+
+<span class="sd">    **Note**: This function is not yet fully implemented. Check other options in folder `convert_tf_to_torch`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1">#tf.compat.v1.disable_eager_execution()</span>
+    <span class="c1">#tf.compat.v1.reset_default_graph()</span>
+    
+    <span class="c1"># Check input</span>
+    <span class="k">if</span> <span class="n">model_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">head</span><span class="p">,</span> <span class="n">tail</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+        <span class="n">model_directory</span> <span class="o">=</span> <span class="n">tail</span>
+    <span class="k">if</span> <span class="n">model_dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">model_dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span>
+    
+    <span class="c1"># Load Tensorflow checkpoint file</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">Load checkpoint &#39;</span><span class="si">{</span><span class="n">checkpoint</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">chkpt</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+    <span class="n">shape_from_key</span> <span class="o">=</span> <span class="n">chkpt</span><span class="o">.</span><span class="n">get_variable_to_shape_map</span><span class="p">()</span>
+    <span class="n">dtype_from_key</span> <span class="o">=</span> <span class="n">chkpt</span><span class="o">.</span><span class="n">get_variable_to_dtype_map</span><span class="p">()</span>
+
+    <span class="c1"># Read additional information from config file</span>
+    <span class="n">config_data</span> <span class="o">=</span> <span class="n">get_tf_config</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    
+    <span class="c1"># Check PhysNet version</span>
+    <span class="k">if</span> <span class="n">v1</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;model/_embeddings/.ATTRIBUTES/VARIABLE_VALUE&#39;</span> <span class="ow">in</span> <span class="n">shape_from_key</span><span class="p">:</span>
+            <span class="n">v1</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">v1</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">v1</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;physnet_tensorflow_v1_asparagus.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">dct_conversion</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;physnet_tensorflow_v2_asparagus.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">dct_conversion</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="c1"># Prepare torch model state</span>
+    <span class="n">model_state</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">tf_name</span><span class="p">,</span> <span class="n">shape</span> <span class="ow">in</span> <span class="n">shape_from_key</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+        <span class="c1"># Find related torch parameter</span>
+        <span class="n">torch_key_match</span> <span class="o">=</span> <span class="p">[</span><span class="n">tf_name</span> <span class="ow">in</span> <span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">dct_conversion</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+        <span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="n">torch_key_match</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Tensorflow key &#39;</span><span class="si">{</span><span class="n">tf_name</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; was found multiple times!&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">sum</span><span class="p">(</span><span class="n">torch_key_match</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;WARNING:</span><span class="se">\n</span><span class="s2">Checkpoint parameter &#39;</span><span class="si">{</span><span class="n">tf_name</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; not assigned!&quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">torch_name</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="nb">list</span><span class="p">(</span><span class="n">dct_conversion</span><span class="o">.</span><span class="n">values</span><span class="p">()))[</span><span class="n">torch_key_match</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Get Tensorflow tensor and convert to Torch tensor</span>
+        <span class="n">tf_tensor</span> <span class="o">=</span> <span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="n">tf_name</span><span class="p">)</span>
+        <span class="n">torch_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">tf_tensor</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+
+        <span class="c1"># Add to model state dictionary</span>
+        <span class="n">model_state</span><span class="p">[</span><span class="n">torch_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch_tensor</span>
+
+    <span class="c1"># Cutoff radii</span>
+    <span class="n">cutoff</span> <span class="o">=</span> <span class="n">config_data</span><span class="o">.</span><span class="n">cutoff</span>
+    <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;input_model.input_cutoff_fn.cutoff&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cutoff</span>
+    <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;input_model.input_descriptor_fn.rbf_cutoff_fn.cutoff&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">cutoff</span><span class="p">)</span>
+    <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;electrostatic_model.switch_fn.cutoff&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cutoff</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">Cutoff radii assigned!&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Energy and charge scaling</span>
+    <span class="k">if</span> <span class="n">v1</span><span class="p">:</span>
+        <span class="n">escale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;Escale:0&#39;</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+        <span class="n">eshift</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;Eshift:0&#39;</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+        <span class="n">qscale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;Qscale:0&#39;</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+        <span class="n">qshift</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;Qshift:0&#39;</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">escale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+            <span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;model/_Escale/.ATTRIBUTES/VARIABLE_VALUE&#39;</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+        <span class="n">eshift</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+            <span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;model/_Eshift/.ATTRIBUTES/VARIABLE_VALUE&#39;</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+        <span class="n">qscale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+            <span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;model/_Qscale/.ATTRIBUTES/VARIABLE_VALUE&#39;</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+        <span class="n">qshift</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+            <span class="n">chkpt</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s1">&#39;model/_Qshift/.ATTRIBUTES/VARIABLE_VALUE&#39;</span><span class="p">),</span> 
+            <span class="n">dtype</span><span class="o">=</span><span class="n">model_dtype</span><span class="p">)</span>
+    <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;atomic_energies_scaling&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">escale</span><span class="p">,</span> <span class="n">eshift</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;atomic_charges_scaling&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">qscale</span><span class="p">,</span> <span class="n">qshift</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">Energy and charge scaling assigned!&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Unit conversion parameter</span>
+    <span class="k">if</span> <span class="n">config_data</span><span class="o">.</span><span class="n">use_electrostatic</span><span class="p">:</span>
+        <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;electrostatic_model.kehalf&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">7.199822675975274</span>
+    <span class="k">if</span> <span class="n">config_data</span><span class="o">.</span><span class="n">use_dispersion</span><span class="p">:</span>
+        <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;dispersion_model.distances_model2Bohr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="mf">0.52917726</span>
+        <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;dispersion_model.energies_Hatree2model&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">27.21138505</span>
+
+    <span class="c1"># Get Asparagus config dictionary</span>
+    <span class="n">config_legacy</span> <span class="o">=</span> <span class="n">get_torch_config</span><span class="p">(</span><span class="n">config_data</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Asparagus</span><span class="p">(</span><span class="n">config_legacy</span><span class="p">)</span>
+    <span class="n">model_calc</span> <span class="o">=</span> <span class="n">Asparagus</span><span class="p">(</span><span class="n">config_legacy</span><span class="p">)</span><span class="o">.</span><span class="n">_get_Calculator</span><span class="p">(</span><span class="n">config_legacy</span><span class="p">)</span>
+    <span class="n">model_calc</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">model_state</span><span class="p">)</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">model_calc</span><span class="p">)</span>
+    
+    <span class="n">exit</span><span class="p">()</span>
+    
+    <span class="c1"># Initialize Filemanager</span>
+    <span class="n">filemanager</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FileManager</span><span class="p">(</span>
+        <span class="n">model_directory</span><span class="o">=</span><span class="n">model_directory</span><span class="p">)</span></div>
+
+    
+
+    <span class="c1">## Load one asparagus model</span>
+    <span class="c1">#model_param = torch.load(&quot;formaldehyde_best_model.pt&quot;)</span>
+    <span class="c1">#for key, param in model_param.items():</span>
+        <span class="c1">#print()</span>
+        <span class="c1">#print(key)</span>
+        <span class="c1">#print(&quot;------------------------&quot;)</span>
+        <span class="c1">##print(param)</span>
+        <span class="c1">#if key == &#39;epoch&#39;:</span>
+            <span class="c1">#print(param, sys.getsizeof(param))</span>
+        <span class="c1">#else:</span>
+            <span class="c1">#for key2, param2 in param.items():</span>
+                <span class="c1">#print(key2, param2.shape, sys.getsizeof(param2))</span>
+                <span class="c1">##print(param2)</span>
+
+
+<div class="viewcode-block" id="get_torch_config"><a class="viewcode-back" href="../../../api/asparagus.utils.html#asparagus.utils.legacy.get_torch_config">[docs]</a><span class="k">def</span> <span class="nf">get_torch_config</span><span class="p">(</span><span class="n">config_data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Prepare an Asparagus config dictionary compatible with Tensorflow PhysNet.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Initialize Asparagus config dictionary</span>
+    <span class="n">config_legacy</span> <span class="o">=</span> <span class="p">{}</span>
+    
+    <span class="c1"># Calculator Model</span>
+    <span class="n">config_legacy</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;PhysNet_original&#39;</span>
+    
+    <span class="k">return</span> <span class="n">config_legacy</span></div>
+    
+
+<div class="viewcode-block" id="get_tf_config"><a class="viewcode-back" href="../../../api/asparagus.utils.html#asparagus.utils.legacy.get_tf_config">[docs]</a><span class="k">def</span> <span class="nf">get_tf_config</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read config file information</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Initiate parser</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">fromfile_prefix_chars</span><span class="o">=</span><span class="s1">&#39;@&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Add arguments</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--restart&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Restart training from a specific folder&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_features&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Dimensionality of feature vectors&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_basis&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of radial basis functions&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_blocks&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of interaction blocks&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_residual_atomic&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of residual layers for atomic refinements&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_residual_interaction&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of residual layers for the message phase&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_residual_output&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of residual layers for the output blocks&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--cutoff&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Cutoff distance for short range interactions&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--use_electrostatic&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Use electrostatics in energy prediction (0/1)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--use_dispersion&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Use dispersion in energy prediction (0/1)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--grimme_s6&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Grimme s6 dispersion coefficient&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--grimme_s8&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Grimme s8 dispersion coefficient&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--grimme_a1&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Grimme a1 dispersion coefficient&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--grimme_a2&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Grimme a2 dispersion coefficient&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--dataset&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;File path to dataset&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_train&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of training samples&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--num_valid&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of validation samples&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--batch_size&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Batch size used per training step&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--valid_batch_size&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Batch size used for going through validation_set&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--seed&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1000000</span><span class="p">),</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Seed for splitting dataset into training/validation/test&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--max_steps&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum number of training steps&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--learning_rate&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Learning rate used by the optimizer&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--decay_steps&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Decay the learning rate every N steps by decay_rate&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--decay_rate&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;Factor with which the learning rate gets multiplied by every &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;decay_steps steps&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--keep_prob&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;One minus dropout rate&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--max_norm&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">1000.0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Max norm for gradient clipping&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--ema_decay&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.999</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Exponential moving average decay used by the trainer&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--rate&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Rate probability for dropout regularization of rbf layer&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--l2lambda&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Lambda multiplier for l2 loss (regularization)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--nhlambda&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Lambda multiplier for non-hierarchicality loss (regularization)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--force_weight&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">52.91772105638412</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;This defines the force contribution to the loss function &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;relative to the energy contribution (to take into account the &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;different numerical range)&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--charge_weight&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">14.399645351950548</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;This defines the charge contribution to the loss function &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;relative to the energy contribution (to take into account the &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;different numerical range)&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--dipole_weight&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">27.211386024367243</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;This defines the dipole contribution to the loss function &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;relative to the energy contribution (to take into account the &quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;different numerical range)&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--summary_interval&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Write a summary every N steps&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--validation_interval&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Check performance on validation set every N steps&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--show_progress&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show progress of the epoch&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--save_interval&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Save progress every N steps&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--record_run_metadata&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> 
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Records metadata like memory consumption etc.&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Read config file</span>
+    <span class="k">return</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s2">&quot;@&quot;</span> <span class="o">+</span> <span class="n">config</span><span class="p">])</span></div>
+    
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

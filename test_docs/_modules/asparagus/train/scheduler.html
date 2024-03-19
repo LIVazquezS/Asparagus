@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.train.scheduler &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.train.scheduler</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.train.scheduler</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">settings</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;get_scheduler&#39;</span><span class="p">]</span>
+
+<span class="c1">#======================================</span>
+<span class="c1"># Optimizer assignment  </span>
+<span class="c1">#======================================</span>
+
+<span class="n">scheduler_avaiable</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;ExponentialLR&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">ExponentialLR</span><span class="p">,</span>
+    <span class="s1">&#39;LinearLR&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">LinearLR</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="n">scheduler_argumens</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;ExponentialLR&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="p">{},</span>
+    <span class="s1">&#39;LinearLR&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="p">{},</span> 
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="get_scheduler"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.scheduler.get_scheduler">[docs]</a><span class="k">def</span> <span class="nf">get_scheduler</span><span class="p">(</span>
+    <span class="n">trainer_scheduler</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+    <span class="n">trainer_optimizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">trainer_scheduler_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Scheduler selection</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        </span>
+<span class="sd">    trainer_scheduler: (str, object)</span>
+<span class="sd">        If name is a str than it checks for the corresponding scheduler</span>
+<span class="sd">        and return the function object.</span>
+<span class="sd">        The input will be given if it is already a callable object.</span>
+<span class="sd">    trainer_optimizer: object</span>
+<span class="sd">        Torch optimizer class object for the NNP training.</span>
+<span class="sd">    trainer_scheduler_args: dict, optional</span>
+<span class="sd">        Additional scheduler parameter</span>
+<span class="sd">        Optional if &#39;trainer_scheduler&#39; is already a torch optimizer object</span>
+<span class="sd">            </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    object</span>
+<span class="sd">        Scheduler function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Select calculator model</span>
+    <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">trainer_scheduler</span><span class="p">):</span>
+        
+        <span class="c1"># Check required input for this case</span>
+        <span class="k">if</span> <span class="n">trainer_optimizer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;In case of defining &#39;trainer_scheduler&#39; as string, the &quot;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s2">&quot;optional &#39;trainer_optimizer&#39; must be defined!&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">trainer_scheduler</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">scheduler_avaiable</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+
+            <span class="k">if</span> <span class="n">trainer_scheduler</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">scheduler_argumens</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">trainer_scheduler_args</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="n">scheduler_argumens</span><span class="p">[</span><span class="n">trainer_scheduler</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span>
+            
+            <span class="k">try</span><span class="p">:</span>
+                
+                <span class="c1">#TODO Why again???</span>
+                <span class="c1">#trainer_scheduler_args[&#39;gamma&#39;] = np.power(</span>
+                    <span class="c1">#trainer_scheduler_args[&#39;gamma&#39;],</span>
+                    <span class="c1">#1./trainer_scheduler_args[&#39;decay_steps&#39;])</span>
+                
+                <span class="c1">## Delete decay_steps</span>
+                <span class="c1">## TODO maybe a more elegant way to do this is needed</span>
+                <span class="c1">#del trainer_scheduler_args[&#39;decay_steps&#39;] </span>
+                
+                <span class="k">return</span> <span class="n">scheduler_avaiable</span><span class="p">[</span><span class="n">trainer_scheduler</span><span class="o">.</span><span class="n">lower</span><span class="p">()](</span>
+                    <span class="n">optimizer</span><span class="o">=</span><span class="n">trainer_optimizer</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">trainer_scheduler_args</span><span class="p">)</span>
+            
+            <span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Scheduler &#39;</span><span class="si">{</span><span class="n">trainer_scheduler</span><span class="si">}</span><span class="s2">&#39; does not accept &quot;</span> <span class="o">+</span>
+                    <span class="sa">f</span><span class="s2">&quot;arguments in &#39;trainer_scheduler_args&#39;&quot;</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Scheduler class &#39;</span><span class="si">{</span><span class="n">trainer_scheduler</span><span class="si">}</span><span class="s2">&#39; is not valid!&quot;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s2">&quot;Choose from:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">scheduler_avaiable</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="k">return</span> <span class="n">trainer_scheduler</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

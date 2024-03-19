@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuration File Structure &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Main file" href="main.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration File Structure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general">General</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sampling">Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#trainer">Trainer</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Configuration File Structure</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/config_file.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="configuration-file-structure">
+<h1>Configuration File Structure<a class="headerlink" href="#configuration-file-structure" title="Permalink to this heading"></a></h1>
+<p>The heart of asparagus is the configuration file. It saves the details of what asparagus did and what is going to do.
+You do not need to generate it by hand, asparagus will do it for you, we take care of that. 😉
+Nevertheless, it is useful to know how it is structured.</p>
+<p>The config file is a JSON file, that usually look like this:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>{
+    &quot;config_file&quot;: &quot;nh3_config_nms.json&quot;,
+    &quot;sample_data_file&quot;: &quot;sampling_nh3_nms/nms_nh3.db&quot;,
+    &quot;sample_directory&quot;: &quot;sampling_nh3_nms&quot;,
+    &quot;sample_systems&quot;: [
+        &quot;data/nh3_c3v.xyz&quot;
+    ],
+    &quot;sample_systems_format&quot;: &quot;xyz&quot;,
+    &quot;sample_calculator&quot;: &quot;XTB&quot;,
+    &quot;sample_calculator_args&quot;: {},
+    &quot;sample_properties&quot;: [
+        &quot;energy&quot;,
+        &quot;forces&quot;,
+        &quot;dipole&quot;
+    ],
+    &quot;sample_systems_optimize&quot;: true,
+    &quot;sample_systems_optimize_fmax&quot;: 0.001,
+    &quot;sample_data_overwrite&quot;: false,
+    &quot;sample_tag&quot;: &quot;nmscan&quot;,
+    &quot;nms_harmonic_energy_step&quot;: 0.03,
+    &quot;nms_energy_limits&quot;: 1.0,
+    &quot;nms_number_of_coupling&quot;: 2,
+    &quot;nms_limit_of_steps&quot;: 10,
+    &quot;nms_limit_com_shift&quot;: 0.1,
+    &quot;sampler_schedule&quot;: {
+        &quot;1_nmscan&quot;: {
+            &quot;sample_data_file&quot;: &quot;sampling_nh3_nms/nms_nh3.db&quot;,
+            &quot;sample_directory&quot;: &quot;sampling_nh3_nms&quot;,
+            &quot;sample_systems&quot;: [
+                &quot;data/nh3_c3v.xyz&quot;
+            ],
+            &quot;sample_systems_format&quot;: [
+                &quot;xyz&quot;
+            ],
+            &quot;sample_calculator&quot;: &quot;XTB&quot;,
+            &quot;sample_calculator_args&quot;: {},
+            &quot;sample_properties&quot;: [
+                &quot;energy&quot;,
+                &quot;forces&quot;,
+                &quot;dipole&quot;
+            ],
+            &quot;sample_systems_optimize&quot;: true,
+            &quot;sample_systems_optimize_fmax&quot;: 0.001,
+            &quot;sample_data_overwrite&quot;: false,
+            &quot;nms_harmonic_energy_step&quot;: 0.03,
+            &quot;nms_energy_limits&quot;: [
+                -1.0,
+                1.0
+            ],
+            &quot;nms_number_of_coupling&quot;: 2,
+            &quot;nms_limit_com_shift&quot;: 0.1,
+            &quot;nms_limit_of_steps&quot;: 10
+        },
+        &quot;sample_systems_idx&quot;: null,
+        &quot;2_nmscan&quot;: {
+            &quot;sample_data_file&quot;: &quot;sampling_nh3_nms/nms_nh3.db&quot;,
+            &quot;sample_directory&quot;: &quot;sampling_nh3_nms&quot;,
+            &quot;sample_systems&quot;: [
+                &quot;data/nh3_c3v.xyz&quot;
+            ],
+            &quot;sample_systems_format&quot;: [
+                &quot;xyz&quot;
+            ],
+            &quot;sample_calculator&quot;: &quot;XTB&quot;,
+            &quot;sample_calculator_args&quot;: {},
+            &quot;sample_properties&quot;: [
+                &quot;energy&quot;,
+                &quot;forces&quot;,
+                &quot;dipole&quot;
+            ],
+            &quot;sample_systems_optimize&quot;: true,
+            &quot;sample_systems_optimize_fmax&quot;: 0.001,
+            &quot;sample_data_overwrite&quot;: false,
+            &quot;nms_harmonic_energy_step&quot;: 0.03,
+            &quot;nms_energy_limits&quot;: [
+                -1.0,
+                1.0
+            ],
+            &quot;nms_number_of_coupling&quot;: 2,
+            &quot;nms_limit_com_shift&quot;: 0.1,
+            &quot;nms_limit_of_steps&quot;: 10
+        }
+    },
+    &quot;sample_counter&quot;: 2,
+    &quot;data_file&quot;: &quot;sampling_nh3_nms/nms_nh3.db&quot;,
+    &quot;model_directory&quot;: &quot;sampling_nh3_nms&quot;,
+    &quot;model_properties&quot;: [
+        &quot;energy&quot;,
+        &quot;forces&quot;,
+        &quot;dipole&quot;,
+        &quot;atomic_charges&quot;
+    ],
+    &quot;model_interaction_cutoff&quot;: 8.0,
+    &quot;trainer_properties_weights&quot;: {
+        &quot;energy&quot;: 1.0,
+        &quot;forces&quot;: 50.0,
+        &quot;dipole&quot;: 25.0,
+        &quot;else&quot;: 1.0
+    },
+    &quot;trainer_max_epochs&quot;: 1000,
+    &quot;data_source&quot;: [],
+    &quot;data_format&quot;: [],
+    &quot;data_alt_property_labels&quot;: {},
+    &quot;data_unit_positions&quot;: &quot;Ang&quot;,
+    &quot;data_load_properties&quot;: [
+        &quot;energy&quot;,
+        &quot;forces&quot;,
+        &quot;dipole&quot;
+    ],
+    &quot;data_unit_properties&quot;: {
+        &quot;energy&quot;: &quot;eV&quot;,
+        &quot;forces&quot;: &quot;eV/Ang&quot;,
+        &quot;dipole&quot;: &quot;eAng&quot;,
+        &quot;charge&quot;: &quot;e&quot;,
+        &quot;positions&quot;: &quot;Ang&quot;,
+        &quot;atomic_charges&quot;: &quot;e&quot;
+    },
+    &quot;data_num_train&quot;: 888,
+    &quot;data_num_valid&quot;: 111,
+    &quot;data_num_test&quot;: 112,
+    &quot;data_train_batch_size&quot;: 128,
+    &quot;data_valid_batch_size&quot;: 128,
+    &quot;data_test_batch_size&quot;: 128,
+    &quot;data_num_workers&quot;: 1,
+    &quot;data_workdir&quot;: &quot;.&quot;,
+    &quot;data_overwrite&quot;: false,
+    &quot;data_seed&quot;: 664521,
+    &quot;model_properties_scaling&quot;: {
+        &quot;energy&quot;: [
+            0.09574281780168606,
+            -29.932318049978853
+        ],
+        &quot;forces&quot;: [
+            2.5735118188374284,
+            -1.6977695174545036e-18
+        ],
+        &quot;dipole&quot;: [
+            0.17839811105704,
+            -0.10566497769812809
+        ]
+    },
+    &quot;model_type&quot;: &quot;PhysNet&quot;,
+    &quot;model_unit_properties&quot;: {
+        &quot;energy&quot;: &quot;eV&quot;,
+        &quot;forces&quot;: &quot;eV/Ang&quot;,
+        &quot;dipole&quot;: &quot;eAng&quot;,
+        &quot;charge&quot;: &quot;e&quot;,
+        &quot;positions&quot;: &quot;Ang&quot;,
+        &quot;atomic_charges&quot;: &quot;e&quot;
+    },
+    &quot;model_cutoff_width&quot;: 2.0,
+    &quot;model_repulsion&quot;: false,
+    &quot;model_electrostatic&quot;: true,
+    &quot;model_dispersion&quot;: true,
+    &quot;model_dispersion_trainable&quot;: true,
+    &quot;input_type&quot;: &quot;PhysNetRBF&quot;,
+    &quot;input_n_atombasis&quot;: 128,
+    &quot;input_n_radialbasis&quot;: 64,
+    &quot;input_cutoff_descriptor&quot;: 8.0,
+    &quot;input_cutoff_fn&quot;: &quot;Poly6&quot;,
+    &quot;input_rbf_center_start&quot;: 1.0,
+    &quot;input_rbf_trainable&quot;: true,
+    &quot;input_n_maxatom&quot;: 94,
+    &quot;input_atom_features_range&quot;: 1.7320508075688772,
+    &quot;graph_type&quot;: &quot;PhysNetMP&quot;,
+    &quot;graph_n_blocks&quot;: 5,
+    &quot;graph_n_residual_interaction&quot;: 3,
+    &quot;graph_n_residual_atomic&quot;: 2,
+    &quot;output_type&quot;: &quot;PhysNetOut&quot;,
+    &quot;output_n_residual&quot;: 1,
+    &quot;output_properties&quot;: [
+        &quot;energy&quot;,
+        &quot;forces&quot;,
+        &quot;dipole&quot;,
+        &quot;atomic_charges&quot;
+    ],
+    &quot;trainer_restart&quot;: false,
+    &quot;trainer_properties_train&quot;: [],
+    &quot;trainer_properties_metrics&quot;: {
+        &quot;else&quot;: &quot;MSE&quot;,
+        &quot;energy&quot;: &quot;MSE&quot;,
+        &quot;forces&quot;: &quot;MSE&quot;,
+        &quot;dipole&quot;: &quot;MSE&quot;
+    },
+    &quot;trainer_optimizer&quot;: &quot;AMSgrad&quot;,
+    &quot;trainer_optimizer_args&quot;: {
+        &quot;lr&quot;: 0.001,
+        &quot;weight_decay&quot;: 1e-05,
+        &quot;amsgrad&quot;: true
+    },
+    &quot;trainer_scheduler&quot;: &quot;ExponentialLR&quot;,
+    &quot;trainer_scheduler_args&quot;: {
+        &quot;gamma&quot;: 0.999
+    },
+    &quot;trainer_ema&quot;: true,
+    &quot;trainer_ema_decay&quot;: 0.99,
+    &quot;trainer_max_gradient_norm&quot;: 1000.0,
+    &quot;trainer_save_interval&quot;: 5,
+    &quot;trainer_validation_interval&quot;: 5,
+    &quot;trainer_evaluate_testset&quot;: true,
+    &quot;trainer_max_checkpoints&quot;: 1,
+    &quot;trainer_store_neighbor_list&quot;: false,
+    &quot;test_datasets&quot;: &quot;all&quot;,
+    &quot;test_store_neighbor_list&quot;: false
+}
+</pre></div>
+</div>
+<p>It looks overwhelming, but it is not. Let’s go through it step by step.</p>
+<section id="general">
+<h2>General<a class="headerlink" href="#general" title="Permalink to this heading"></a></h2>
+<p>The first part of the config file is the general part. It contains the following keys:</p>
+<ul class="simple">
+<li><p><cite>config_file</cite>: The name of the config file.</p></li>
+<li><p><cite>sample_data_file</cite>: The name of the sample data file. This is where the data is saved and loaded from. Usually, a database file.</p></li>
+<li><p><cite>sample_directory</cite>: The name of the sample directory. This is where the sample data is saved if you do sampling of a molecular structure.</p></li>
+<li><p><cite>sample_systems</cite>: A list of molecular structures that are used for sampling.</p></li>
+<li><p><cite>sample_systems_format</cite>: The format of the molecular structures.</p></li>
+<li><p><cite>sample_calculator</cite>: The calculator that is used for sampling. This usually is a calculator that can calculate the energy and forces of a molecular structure from <em>ab initio</em>.</p></li>
+<li><p><cite>sample_calculator_args</cite>: The arguments that are passed to the calculator. This is a dictionary of keywords that might be needed by the electronic structure code.</p></li>
+<li><p><cite>sample_properties</cite>: The properties that are calculated by the calculator. This is a list of strings.</p></li>
+<li><p><cite>sample_systems_optimize</cite>: If the molecular structures should be optimized before sampling.</p></li>
+<li><p><cite>sample_systems_optimize_fmax</cite>: The maximum force that is allowed during optimization.</p></li>
+<li><p><cite>sample_data_overwrite</cite>: If the sample data should be overwritten.</p></li>
+<li><p><cite>sample_tag</cite>: A tag that is added to the sample data file name.</p></li>
+</ul>
+</section>
+<section id="sampling">
+<h2>Sampling<a class="headerlink" href="#sampling" title="Permalink to this heading"></a></h2>
+<p>The next part of the config file is the sampling part. It is specific to the method that is used for sampling. In this
+example, it is the NMS method. For more information about the options of the sampling methods, please refer to the
+documentation of the sampling methods.</p>
+<p><strong>Note</strong>: By default, asparagus used XTB for sampling. If you want to use another calculator, you need to specify it.</p>
+</section>
+<section id="model">
+<h2>Model<a class="headerlink" href="#model" title="Permalink to this heading"></a></h2>
+<p>The next part of the config file is the model part. It setup the model that will be trained. It contains the following
+keys:</p>
+<ul class="simple">
+<li><p><cite>data_unit_properties</cite>: The units of the properties in the data file. By default, the units are the same as in ASE.</p></li>
+<li><p><cite>data_num_train</cite>: The number of training samples. Asparagus automatically splits the data into training, validation, and test set (80%, 10%, 10%).</p></li>
+<li><p><cite>data_num_valid</cite>: The number of validation samples.</p></li>
+<li><p><cite>data_num_test</cite>: The number of test samples.</p></li>
+<li><p><cite>data_train_batch_size</cite>: The batch size for training.</p></li>
+<li><p><cite>data_valid_batch_size</cite>: The batch size for validation.</p></li>
+<li><p><cite>data_test_batch_size</cite>: The batch size for testing.</p></li>
+<li><p><cite>data_num_workers</cite>: The number of workers that are used for loading the data. Note for large databases, you should increase this number.</p></li>
+<li><p><cite>data_workdir</cite>: The working directory for the data. It is the folder where asparagus will look for the data.</p></li>
+<li><p><cite>data_overwrite</cite>: If the data should be overwritten.</p></li>
+<li><p><cite>data_seed</cite>: The seed for the random number generator. This is important for reproducibility because of the random spliting of the data performed by asparagus.</p></li>
+<li><p><cite>model_properties_scaling</cite>: The scaling of the properties. The properties are normalized by taking the mean and standard deviation of the training set. This models are learn by asparagus and saved in this dictionary.</p></li>
+<li><p><cite>model_type</cite>: The type of the model. For the moment, only PhysNet is supported.</p></li>
+<li><p><cite>model_unit_properties</cite>: The units of the properties in the model. By default, the units are the same as in ASE.</p></li>
+<li><p><cite>model_cutoff_width</cite>: The width of the cutoff function for the descriptor.</p></li>
+<li><p><cite>model_repulsion</cite>: If the repulsion term is used.</p></li>
+<li><p><cite>model_electrostatic</cite>: If the electrostatic corrections are used.</p></li>
+<li><p><cite>model_dispersion</cite>: If the dispersion corrections are used. For the moment, only the D3 dispersion correction is supported.</p></li>
+<li><p><cite>model_dispersion_trainable</cite>: If the dispersion correction is trainable. Otherwise, the parameters are fixed.</p></li>
+<li><p><cite>input_type</cite>: The type of the input layer. This is the layer that transforms the molecular structure into a descriptor. For the moment, only RBF are supported.</p></li>
+<li><p><cite>input_n_atombasis</cite>: Size of the feature vector.</p></li>
+<li><p><cite>input_n_radialbasis</cite>: Number of radial basis functions.</p></li>
+<li><p><cite>input_cutoff_descriptor</cite>: The cutoff for the descriptor at short distances.</p></li>
+<li><p><cite>input_cutoff_fn</cite>: The cutoff function for the descriptor.</p></li>
+<li><p><cite>input_rbf_center_start</cite>: The starting point for the radial basis functions.</p></li>
+<li><p><cite>input_rbf_trainable</cite>: If the radial basis functions are trainable.</p></li>
+<li><p><cite>input_n_maxatom</cite>: The maximum number of atoms in the molecular structure.</p></li>
+<li><p><cite>input_atom_features_range</cite>: The range of the atom features. This is used to normalize the atom features.</p></li>
+<li><p><cite>graph_type</cite>: The type of the graph layer. This is the layer that transforms the descriptor into a graph. For the moment, only Physnet Message Passing is supported.</p></li>
+<li><p><cite>graph_n_blocks</cite>: The number of blocks in the graph layer. This is the number of blocks used by the network.</p></li>
+<li><p><cite>graph_n_residual_interaction</cite>: The number of residual interactions in the graph layer.</p></li>
+<li><p><cite>graph_n_residual_atomic</cite>: The number of residual atomic in the graph layer.</p></li>
+<li><p><cite>output_type</cite>: The type of the output layer. This is the layer that transforms the graph into the properties. For the moment, only PhysNet Output is supported.</p></li>
+<li><p><cite>output_n_residual</cite>: The number of residual layers in the output layer.</p></li>
+<li><p><cite>output_properties</cite>: The properties that are predicted by the model.</p></li>
+</ul>
+</section>
+<section id="trainer">
+<h2>Trainer<a class="headerlink" href="#trainer" title="Permalink to this heading"></a></h2>
+<p>The next part of the config file is the trainer part. It contains the following keys:</p>
+<ul class="simple">
+<li><p><cite>trainer_restart</cite>: If the training should be restarted from the last checkpoint.</p></li>
+<li><p><cite>trainer_properties_train</cite>: The properties that are trained. If empty, all properties are trained (Energy, Forces, dipole, charges).</p></li>
+<li><p><cite>trainer_properties_metrics</cite>: The metrics that are used for the properties.</p></li>
+<li><p><cite>trainer_optimizer</cite>: The optimizer that is used for training.</p></li>
+<li><p><cite>trainer_optimizer_args</cite>: The arguments that are passed to the optimizer. Here you can set the learning rate, weight decay, or other parameters of the optimizer.</p></li>
+<li><p><cite>trainer_scheduler</cite>: The scheduler that is used for training.</p></li>
+<li><p><cite>trainer_scheduler_args</cite>: The arguments that are passed to the scheduler. Here you can set the learning rate decay.</p></li>
+<li><p><cite>trainer_ema</cite>: If the exponential moving average is used.</p></li>
+<li><p><cite>trainer_ema_decay</cite>: The decay of the exponential moving average.</p></li>
+<li><p><cite>trainer_max_gradient_norm</cite>: The maximum gradient norm. This is used to clip the gradients.</p></li>
+<li><p><cite>trainer_save_interval</cite>: The interval at which the model is saved.</p></li>
+<li><p><cite>trainer_validation_interval</cite>: The interval at which the model is validated.</p></li>
+<li><p><cite>trainer_evaluate_testset</cite>: If the test set is evaluated during training.</p></li>
+<li><p><cite>trainer_max_checkpoints</cite>: The maximum number of checkpoints that are saved.</p></li>
+<li><p><cite>trainer_store_neighbor_list</cite>: If the neighbor list is stored during training.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="main.html" class="btn btn-neutral float-right" title="Main file" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

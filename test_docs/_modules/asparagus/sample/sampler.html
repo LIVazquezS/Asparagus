@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.sample.sampler &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.sample.sampler</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.sample.sampler</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">queue</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">ase</span>
+<span class="kn">from</span> <span class="nn">ase</span> <span class="kn">import</span> <span class="n">optimize</span>
+<span class="kn">from</span> <span class="nn">ase.parallel</span> <span class="kn">import</span> <span class="n">world</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">sample</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">data</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">interface</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Sampler&#39;</span><span class="p">]</span>
+
+
+<span class="c1"># ======================================</span>
+<span class="c1"># General Conformation Sampler Class</span>
+<span class="c1"># ======================================</span>
+
+<div class="viewcode-block" id="Sampler"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler">[docs]</a><span class="k">class</span> <span class="nc">Sampler</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Conformation Sampler main class for generation of reference structures.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    config: (str, dict, object)</span>
+<span class="sd">        Either the path to json file (str), dictionary (dict) or</span>
+<span class="sd">        settings.config class object of Asparagus parameters</span>
+<span class="sd">    config_file: str, optional, default see settings.default[&#39;config_file&#39;]</span>
+<span class="sd">        Path to json file (str)</span>
+<span class="sd">    sample_data_file: str, optional, default None</span>
+<span class="sd">        Database file name to store a selected set of systems with</span>
+<span class="sd">        computed reference data. If None, data file name is the respective</span>
+<span class="sd">        sample method tag.</span>
+<span class="sd">    sample_data_file_format: str, optional, default None</span>
+<span class="sd">        Database file format. If None, data file prefix is taken as file</span>
+<span class="sd">        format tag.</span>
+<span class="sd">    sample_directory: str, optional, default None</span>
+<span class="sd">        Working directory where to store eventually temporary ASE</span>
+<span class="sd">        calculator files, ASE trajectory files and/or model calculator</span>
+<span class="sd">        files. If None, files will be stored in parent directory.</span>
+<span class="sd">    sample_system_queue: queue.Queue, optional, default None</span>
+<span class="sd">        Queue object including sample systems or where &#39;sample_systems&#39; input</span>
+<span class="sd">        will be added. If not defined, an empty queue will be assigned.</span>
+<span class="sd">    sample_systems: (str, list, object), optional, default &#39;&#39;</span>
+<span class="sd">        System coordinate file or a list of system coordinate files or</span>
+<span class="sd">        ASE atoms objects that are considered as initial conformations for</span>
+<span class="sd">        reference structure sampling.</span>
+<span class="sd">    sample_systems_format: (str, list), optional, default &#39;&#39;</span>
+<span class="sd">        System coordinate file format string (e.g. &#39;xyz&#39;) for the</span>
+<span class="sd">        definition in &#39;sample_systems&#39; in case of file paths.</span>
+<span class="sd">    sample_systems_indices: (int, list), optional, default None</span>
+<span class="sd">        List of sample number indices for specific selection of systems</span>
+<span class="sd">        in the sample system files.</span>
+<span class="sd">    sample_calculator: (str, callable object), optional, default &#39;XTB&#39;</span>
+<span class="sd">        Definition of the ASE calculator type for reference data</span>
+<span class="sd">        computation. The input can be either directly a ASE calculator</span>
+<span class="sd">        class object or a string with available ASE calculator classes.</span>
+<span class="sd">    sample_calculator_args: dict, optional, default {}</span>
+<span class="sd">        In case of string type input for &#39;sample_calculator&#39;, this</span>
+<span class="sd">        dictionary is passed as keyword arguments at the initialization</span>
+<span class="sd">        of the ASE calculator.</span>
+<span class="sd">    sample_save_trajectory: bool, optional, default False</span>
+<span class="sd">        If True, add sampled systems added to the database file also to an</span>
+<span class="sd">        ASE trajectory file.</span>
+<span class="sd">    sample_num_threads: int, optional, default 1</span>
+<span class="sd">        Number of parallel threads of property calculation using the sample</span>
+<span class="sd">        calculator. Default is 1 (serial computation). Parallel computation</span>
+<span class="sd">        is not possible for all sampling methods but for:</span>
+<span class="sd">            Sampler, NMSampler, NMScanner</span>
+<span class="sd">    sample_properties: List[str], optional, default None</span>
+<span class="sd">        List of system properties which are computed by the ASE</span>
+<span class="sd">        calculator class. Requested properties will be checked with the</span>
+<span class="sd">        calculator available property list and return an error when one</span>
+<span class="sd">        requested property is unavailable. By default all available</span>
+<span class="sd">        properties will be stored.</span>
+<span class="sd">    sample_systems_optimize: bool, optional, default False</span>
+<span class="sd">        Instruction flag if the system coordinates shall be</span>
+<span class="sd">        optimized using the ASE calculator defined by &#39;sample_calculator&#39;.</span>
+<span class="sd">    sample_systems_optimize_fmax: float, optional, default 0.01</span>
+<span class="sd">        Instruction flag, if the system coordinates shall be</span>
+<span class="sd">        optimized using the ASE calculator defined by &#39;sample_calculator&#39;.</span>
+<span class="sd">    sample_data_overwrite: bool, optional, default False</span>
+<span class="sd">        If False, add new sampling data to an eventually existing data</span>
+<span class="sd">        file. If True, overwrite an existing one.</span>
+<span class="sd">    sample_tag: str, optional, default &#39;sample&#39;</span>
+<span class="sd">        Sampling method tag of the specific sampling methods for</span>
+<span class="sd">        log and ASE trajectory files or the data file name if not defined.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    callable object</span>
+<span class="sd">        Sampler class object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Default arguments for sample module</span>
+    <span class="n">_default_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;sample_directory&#39;</span><span class="p">:</span>             <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_data_file&#39;</span><span class="p">:</span>             <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_data_file_format&#39;</span><span class="p">:</span>      <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_systems_queue&#39;</span><span class="p">:</span>         <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_systems&#39;</span><span class="p">:</span>               <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_systems_format&#39;</span><span class="p">:</span>        <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_calculator&#39;</span><span class="p">:</span>            <span class="s1">&#39;XTB&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;sample_calculator_args&#39;</span><span class="p">:</span>       <span class="p">{},</span>
+        <span class="s1">&#39;sample_save_trajectory&#39;</span><span class="p">:</span>       <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;sample_num_threads&#39;</span><span class="p">:</span>           <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;sample_properties&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="s1">&#39;energy&#39;</span><span class="p">,</span> <span class="s1">&#39;forces&#39;</span><span class="p">,</span> <span class="s1">&#39;dipole&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;sample_systems_optimize&#39;</span><span class="p">:</span>      <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;sample_systems_optimize_fmax&#39;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span>
+        <span class="s1">&#39;sample_systems_indices&#39;</span><span class="p">:</span>       <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;sample_data_overwrite&#39;</span><span class="p">:</span>        <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;sample_tag&#39;</span><span class="p">:</span>                   <span class="s1">&#39;sample&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Expected data types of input variables</span>
+    <span class="n">_dtypes_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;sample_directory&#39;</span><span class="p">:</span>             <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">],</span>
+        <span class="s1">&#39;sample_data_file&#39;</span><span class="p">:</span>             <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">],</span>
+        <span class="s1">&#39;sample_data_file_format&#39;</span><span class="p">:</span>      <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">],</span>
+        <span class="s1">&#39;sample_systems&#39;</span><span class="p">:</span>               <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">,</span>
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span>
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_string_array</span><span class="p">,</span>
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_ase_atoms</span><span class="p">,</span>
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_ase_atoms_array</span><span class="p">],</span>
+        <span class="s1">&#39;sample_systems_format&#39;</span><span class="p">:</span>        <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">,</span>
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> 
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_string_array</span><span class="p">],</span>
+        <span class="s1">&#39;sample_systems_indices&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">,</span> 
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_integer_array</span><span class="p">],</span>
+        <span class="s1">&#39;sample_calculator&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> 
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_object</span><span class="p">],</span>
+        <span class="s1">&#39;sample_calculator_args&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">],</span>
+        <span class="s1">&#39;sample_save_trajectory&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;sample_num_threads&#39;</span><span class="p">:</span>           <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;sample_properties&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> 
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_string_array</span><span class="p">],</span>
+        <span class="s1">&#39;sample_systems_optimize&#39;</span><span class="p">:</span>      <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">,</span> 
+                                         <span class="n">utils</span><span class="o">.</span><span class="n">is_boolean_array</span><span class="p">],</span>
+        <span class="s1">&#39;sample_systems_optimize_fmax&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">],</span>
+        <span class="s1">&#39;sample_data_overwrite&#39;</span><span class="p">:</span>        <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;sample_tag&#39;</span><span class="p">:</span>                   <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+        <span class="n">sample_data_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_data_file_format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_calculator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_calculator_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_save_trajectory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_num_threads</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_optimize</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_optimize_fmax</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_data_overwrite</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_tag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize Sampler class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">#####################################</span>
+        <span class="c1"># # # Check Sampler Class Input # # #</span>
+        <span class="c1">#####################################</span>
+
+        <span class="c1"># Get configuration object</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span>
+            <span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">config_from</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Check input parameter, set default values if necessary and</span>
+        <span class="c1"># update the configuration dictionary</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">argitems</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">(),</span>
+            <span class="n">check_default</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_default_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">),</span>
+            <span class="n">check_dtype</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_dtype_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Set global configuration as class parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+
+        <span class="c1"># Check system input</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_queue</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;WARNING:</span><span class="se">\n</span><span class="s2">No input in &#39;sample_systems&#39; is given!</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;Please provide either a chemical structure file or &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;an ASE Atoms object as initial sample structure.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1">############################</span>
+        <span class="c1"># # # Prepare Sampling # # #</span>
+        <span class="c1">############################</span>
+
+        <span class="c1"># Initialize sampling counter</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sample_counter&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sample_counter&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Generate working directory</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">)</span>
+
+        <span class="c1"># Check sample data file</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">.db&#39;</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Sample data file &#39;sample_data_file&#39; must be a string &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;of a valid file path but is of type &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file_format</span> <span class="o">=</span> <span class="n">sample_data_file_format</span>
+
+        <span class="c1"># Define sample log file path and trajectory file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">_</span><span class="se">{{</span><span class="s1">:d</span><span class="se">}}</span><span class="s1">.log&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_trajectory_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span> 
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">_</span><span class="se">{{</span><span class="s1">:d</span><span class="se">}}</span><span class="s1">.traj&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize the multithreading lock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+        <span class="c1">#####################################</span>
+        <span class="c1"># # # Prepare Sample Calculator # # #</span>
+        <span class="c1">#####################################</span>
+
+        <span class="c1"># Get ASE calculator</span>
+        <span class="n">ase_calculator</span><span class="p">,</span> <span class="n">ase_calculator_tag</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">interface</span><span class="o">.</span><span class="n">get_ase_calculator</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator_args</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check requested system properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_properties</span><span class="p">(</span><span class="n">ase_calculator</span><span class="p">)</span>
+
+        <span class="c1"># Store calculator tag name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator_tag</span> <span class="o">=</span> <span class="n">ase_calculator_tag</span>
+        
+        <span class="c1"># Check number of calculation threads</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_num_threads</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Number of sample threads &#39;sample_num_threads&#39; must be &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;larger or equal 1, but &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_num_threads</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&#39; is given!&quot;</span><span class="p">)</span>
+
+        <span class="c1">#############################</span>
+        <span class="c1"># # # Prepare Optimizer # # #</span>
+        <span class="c1">#############################</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_optimize</span><span class="p">:</span>
+
+            <span class="c1"># Assign ASE optimizer</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span> <span class="o">=</span> <span class="s2">&quot;bfgs&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ase_optimizer</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">BFGS</span>
+
+        <span class="c1">#####################################</span>
+        <span class="c1"># # # Initialize Sample DataSet # # #</span>
+        <span class="c1">#####################################</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_dataset</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">DataSet</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span><span class="p">,</span>
+            <span class="n">data_file_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file_format</span><span class="p">,</span>
+            <span class="n">data_load_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">,</span>
+            <span class="n">data_unit_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_unit_properties</span><span class="p">,</span>
+            <span class="n">data_overwrite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_data_overwrite</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return class descriptor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;Sampler class&quot;</span>
+
+<div class="viewcode-block" id="Sampler.read_systems"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.read_systems">[docs]</a>    <span class="k">def</span> <span class="nf">read_systems</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_systems_queue</span><span class="p">,</span>
+        <span class="n">sample_systems</span><span class="p">,</span>
+        <span class="n">sample_systems_format</span><span class="p">,</span>
+        <span class="n">sample_systems_indices</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterator to read next sample system and return as ASE atoms object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check system and format input</span>
+        <span class="k">if</span> <span class="n">sample_systems</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">sample_systems_queue</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;Queue&#39;</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_array_like</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">):</span>
+            <span class="n">sample_systems</span> <span class="o">=</span> <span class="p">[</span><span class="n">sample_systems</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="n">sample_systems_format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_systems_format</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">system</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">system</span> <span class="ow">in</span> <span class="n">sample_systems</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">sample_systems_format</span><span class="p">):</span>
+            <span class="n">sample_systems_format</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">[</span><span class="n">sample_systems_format</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_systems_format</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Sample system input &#39;sample_systems&#39; and &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;&#39;sample_systems_format&#39; have different input size of &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">)</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2"> and &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sample_systems_format</span><span class="p">)</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">, respectively.&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Check system index selection</span>
+        <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">(</span><span class="n">sample_systems_indices</span><span class="p">):</span>
+            <span class="n">sample_systems_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">sample_systems_indices</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> 
+            <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_systems_indices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="p">):</span>
+            <span class="n">sample_systems_indices</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># If number of samples sources is larger 1, prepare system index </span>
+        <span class="c1"># selection for sample sources</span>
+        <span class="n">Nsamples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">Nsamples</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">sample_systems_indices</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sample_systems_indices</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="n">Nsamples</span> <span class="ow">or</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="n">Nsamples</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                        <span class="s2">&quot;System index selection &#39;sample_systems_indices&#39; &quot;</span>
+                        <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;contains index (</span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">) which is outside of &quot;</span>
+                        <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;the sample number range of (</span><span class="si">{</span><span class="n">Nsamples</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">)!&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">indices</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">Nsamples</span> <span class="o">+</span> <span class="n">idx</span>
+
+        <span class="c1"># Iterate over system input and eventually read file to store as</span>
+        <span class="c1"># (ASE Atoms object, index, sample source)</span>
+        <span class="k">for</span> <span class="n">isample</span><span class="p">,</span> <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">source_format</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+            <span class="nb">zip</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">,</span> <span class="n">sample_systems_format</span><span class="p">)</span>
+        <span class="p">):</span>
+            
+            <span class="c1"># If sample index not in indices list in case of multiple sources</span>
+            <span class="k">if</span> <span class="n">Nsamples</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">isample</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Check for ASE Atoms object or read system file</span>
+            <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_ase_atoms</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+                <span class="n">sample_systems_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">source</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+            
+            <span class="c1"># Check for an Asparagus dataset</span>
+            <span class="k">elif</span> <span class="n">source_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;db&#39;</span><span class="p">:</span>
+                
+                <span class="c1"># Open dataset</span>
+                <span class="n">dataset</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">DataSet</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+                
+                <span class="c1"># Prepare system index selection in case of just one sample </span>
+                <span class="c1"># source</span>
+                <span class="k">if</span> <span class="n">Nsamples</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">Ndata</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+                    <span class="n">indices</span> <span class="o">=</span> <span class="n">sample_systems_indices</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sample_systems_indices</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="n">Ndata</span> <span class="ow">or</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="n">Ndata</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                                <span class="s2">&quot;System index selection &quot;</span>
+                                <span class="o">+</span> <span class="s2">&quot;&#39;sample_systems_indices&#39; contains index &quot;</span>
+                                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">) which is outside of the data &quot;</span>
+                                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;number range of (</span><span class="si">{</span><span class="n">Ndata</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">) in sample &quot;</span>
+                                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;file &#39;</span><span class="si">{</span><span class="n">source</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;!&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">indices</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">Ndata</span> <span class="o">+</span> <span class="n">idx</span>
+
+                <span class="c1"># Iterate over dataset</span>
+                <span class="k">for</span> <span class="n">isys</span><span class="p">,</span> <span class="n">data_i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
+
+                    <span class="c1"># Skip if system index not in indices list </span>
+                    <span class="k">if</span> <span class="n">Nsamples</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">isys</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+                            <span class="k">continue</span>
+
+                    <span class="c1"># Create and append atoms object to sample queue</span>
+                    <span class="n">system</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">(</span>
+                        <span class="n">data_i</span><span class="p">[</span><span class="s1">&#39;atomic_numbers&#39;</span><span class="p">],</span>
+                        <span class="n">positions</span><span class="o">=</span><span class="n">data_i</span><span class="p">[</span><span class="s1">&#39;positions&#39;</span><span class="p">],</span>
+                        <span class="n">pbc</span><span class="o">=</span><span class="n">data_i</span><span class="p">[</span><span class="s1">&#39;pbc&#39;</span><span class="p">],</span>
+                        <span class="n">cell</span><span class="o">=</span><span class="n">data_i</span><span class="p">[</span><span class="s1">&#39;cell&#39;</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="s1">&#39;charge&#39;</span> <span class="ow">in</span> <span class="n">data_i</span><span class="p">:</span>
+                        <span class="n">system</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                            <span class="n">data_i</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">sample_systems_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">system</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">isys</span><span class="p">))</span>
+            
+            <span class="c1"># Else, use ase.read function with respective format</span>
+            <span class="k">else</span><span class="p">:</span>
+                
+                <span class="n">counter</span><span class="o">=</span><span class="mi">0</span>
+                <span class="n">complete</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">while</span> <span class="ow">not</span> <span class="n">complete</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="p">(</span>
+                            <span class="n">Nsamples</span> <span class="o">==</span> <span class="mi">1</span> 
+                            <span class="ow">and</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                        <span class="p">):</span>
+                            <span class="n">isys</span> <span class="o">=</span> <span class="n">sample_systems_indices</span><span class="p">[</span><span class="n">counter</span><span class="p">]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">isys</span> <span class="o">=</span> <span class="n">counter</span>
+                        
+                        <span class="n">system</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+                            <span class="n">source</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">isys</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">source_format</span><span class="p">)</span>
+                        <span class="n">sample_systems_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
+                            <span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">isys</span><span class="p">))</span>
+                    
+                    <span class="k">except</span> <span class="p">(</span><span class="ne">StopIteration</span><span class="p">,</span> <span class="ne">AssertionError</span><span class="p">):</span>
+                        <span class="n">complete</span> <span class="o">=</span> <span class="kc">True</span>
+                    
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="p">(</span>
+                            <span class="n">Nsamples</span> <span class="o">==</span> <span class="mi">1</span> 
+                            <span class="ow">and</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                            <span class="ow">and</span> <span class="n">counter</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_systems_indices</span><span class="p">)</span>
+                        <span class="p">):</span>
+                            <span class="n">complete</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">sample_systems_queue</span><span class="p">,</span> <span class="n">sample_systems</span></div>
+
+<div class="viewcode-block" id="Sampler.assign_calculator"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.assign_calculator">[docs]</a>    <span class="k">def</span> <span class="nf">assign_calculator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_system</span><span class="p">:</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">,</span>
+        <span class="n">sample_calculator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_calculator_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ithread</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assign calculator to a list of sample ASE Atoms objects</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_system : ase.Atoms</span>
+<span class="sd">            ASE Atoms object to assign the calculator</span>
+<span class="sd">        sample_calculator : (str, object), optional, default None</span>
+<span class="sd">            ASE calculator object or string of an ASE calculator class</span>
+<span class="sd">            name to assign to the sample systems</span>
+<span class="sd">        sample_calculator_args : dict, optional, default None</span>
+<span class="sd">            Dictionary of keyword arguments to initialize the ASE</span>
+<span class="sd">            calculator</span>
+<span class="sd">        ithread: int, optional, default None</span>
+<span class="sd">            Thread number to avoid conflict between files written by the</span>
+<span class="sd">            calculator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check calculator input</span>
+        <span class="k">if</span> <span class="n">sample_calculator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_calculator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator</span>
+        <span class="k">if</span> <span class="n">sample_calculator_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_calculator_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator_args</span>
+
+        <span class="c1"># Get ASE calculator</span>
+        <span class="n">ase_calculator</span><span class="p">,</span> <span class="n">ase_calculator_tag</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">interface</span><span class="o">.</span><span class="n">get_ase_calculator</span><span class="p">(</span>
+                <span class="n">sample_calculator</span><span class="p">,</span>
+                <span class="n">sample_calculator_args</span><span class="p">,</span>
+                <span class="n">ithread</span><span class="o">=</span><span class="n">ithread</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check requested system properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_properties</span><span class="p">(</span><span class="n">ase_calculator</span><span class="p">)</span>
+
+        <span class="c1"># Assign ASE calculator</span>
+        <span class="n">sample_system</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">ase_calculator</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sample_system</span></div>
+
+<div class="viewcode-block" id="Sampler.check_properties"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.check_properties">[docs]</a>    <span class="k">def</span> <span class="nf">check_properties</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">sample_calculator</span><span class="p">:</span> <span class="nb">object</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check requested sample properties and units with implemented properties</span>
+<span class="sd">        of the calculator</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_calculator: object</span>
+<span class="sd">            ASE Calculator to compare requested and available properties</span>
+<span class="sd">            from the calculator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check requested system properties</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">:</span>
+            <span class="c1"># TODO Special calculator properties list for special properties</span>
+            <span class="c1"># not supported by ASE such as, e.g., charge, hessian, etc.</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sample_calculator</span><span class="o">.</span><span class="n">implemented_properties</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Requested property &#39;</span><span class="si">{</span><span class="n">prop</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; is not implemented &quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;in the ASE calculator &#39;</span><span class="si">{</span><span class="n">sample_calculator</span><span class="si">}</span><span class="s2">&#39;! &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;Available ASE calculator properties are:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sample_calculator</span><span class="o">.</span><span class="n">implemented_properties</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Define positions and property units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_unit_properties</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">prop</span><span class="p">:</span> <span class="n">interface</span><span class="o">.</span><span class="n">ase_calculator_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">}</span>
+        <span class="k">if</span> <span class="s1">&#39;positions&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_unit_properties</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_unit_properties</span><span class="p">[</span><span class="s1">&#39;positions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Ang&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_unit_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_unit_properties</span><span class="p">[</span><span class="s1">&#39;positions&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Sampler.get_info"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.get_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dummy function for sampling parameter dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>            
+            <span class="s1">&#39;sample_data_file&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span><span class="p">,</span>
+            <span class="s1">&#39;sample_directory&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+            <span class="s1">&#39;sample_systems&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems</span><span class="p">,</span>
+            <span class="s1">&#39;sample_systems_format&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_format</span><span class="p">,</span>
+            <span class="s1">&#39;sample_calculator&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator_tag</span><span class="p">,</span>
+            <span class="s1">&#39;sample_calculator_args&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_calculator_args</span><span class="p">,</span>
+            <span class="s1">&#39;sample_properties&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">,</span>
+            <span class="s1">&#39;sample_systems_optimize&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_optimize</span><span class="p">,</span>
+            <span class="s1">&#39;sample_systems_optimize_fmax&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_optimize_fmax</span><span class="p">,</span>
+            <span class="s1">&#39;sample_data_overwrite&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_data_overwrite</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+<div class="viewcode-block" id="Sampler.run"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_systems_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform sampling of all sample systems or a selection of them.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">################################</span>
+        <span class="c1"># # # Check Sampling Input # # #</span>
+        <span class="c1">################################</span>
+        
+        <span class="c1"># Check input</span>
+        <span class="k">if</span> <span class="n">sample_systems_queue</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_systems_queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_queue</span>
+        <span class="k">if</span> <span class="n">sample_systems</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_systems</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems</span>
+        <span class="k">if</span> <span class="n">sample_systems_format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_systems_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_format</span>
+        <span class="k">if</span> <span class="n">sample_systems_indices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_systems_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_indices</span>
+
+        <span class="c1"># Collect sampling parameters</span>
+        <span class="n">config_sample_tag</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">config_sample</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">config_sample_tag</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_info</span><span class="p">()</span>
+            <span class="p">}</span>
+        
+        <span class="c1"># Read sample systems into queue</span>
+        <span class="k">if</span> <span class="n">sample_systems_queue</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_systems_queue</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="n">sample_systems_queue</span><span class="p">,</span> <span class="n">sample_systems</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_systems</span><span class="p">(</span>
+            <span class="n">sample_systems_queue</span><span class="p">,</span>
+            <span class="n">sample_systems</span><span class="p">,</span>
+            <span class="n">sample_systems_format</span><span class="p">,</span>
+            <span class="n">sample_systems_indices</span><span class="p">)</span>
+
+        <span class="c1"># Update configuration file with sampling parameters</span>
+        <span class="k">if</span> <span class="s1">&#39;sampler_schedule&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">:</span>
+            <span class="n">config_sample</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;sampler_schedule&#39;</span><span class="p">],</span>
+                <span class="o">**</span><span class="n">config_sample</span><span class="p">,</span>
+                <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="s1">&#39;sampler_schedule&#39;</span><span class="p">:</span> <span class="n">config_sample</span><span class="p">,</span>
+            <span class="s1">&#39;sample_counter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span>
+            <span class="p">})</span>
+
+        <span class="c1"># Print sampling overview</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Perform sampling method &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; on systems:</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">isys</span><span class="p">,</span> <span class="n">system</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sample_systems</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">isys</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">:</span><span class="s2">3d</span><span class="si">}</span><span class="s2">. &#39;</span><span class="si">{</span><span class="n">system</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="si">{</span><span class="n">msg</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1">##########################</span>
+        <span class="c1"># # # Start Sampling # # #</span>
+        <span class="c1">##########################</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_systems</span><span class="p">(</span>
+            <span class="n">sample_systems_queue</span><span class="o">=</span><span class="n">sample_systems_queue</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Increment sample counter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="Sampler.run_systems"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.run_systems">[docs]</a>    <span class="k">def</span> <span class="nf">run_systems</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_systems_queue</span><span class="p">:</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply sample calculation on sample systems.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_systems_queue: queue.Queue, optional, default None</span>
+<span class="sd">            Queue object including sample systems or to which &#39;sample_systems&#39; </span>
+<span class="sd">            input will be added. If not defined, an empty queue will be </span>
+<span class="sd">            assigned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialize thread continuation flag</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread_keep_going</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="kc">True</span> <span class="k">for</span> <span class="n">ithread</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_num_threads</span><span class="p">)],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span>
+            <span class="p">)</span>
+        
+        <span class="c1"># Add stop flag</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_num_threads</span><span class="p">):</span>
+            <span class="n">sample_systems_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s1">&#39;stop&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Run sampling over sample systems</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_num_threads</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_system</span><span class="p">(</span><span class="n">sample_systems_queue</span><span class="p">)</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="c1"># Create threads</span>
+            <span class="n">threads</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+                    <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">run_system</span><span class="p">,</span> 
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">sample_systems_queue</span><span class="p">,</span> <span class="p">),</span>
+                    <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;ithread&#39;</span><span class="p">:</span> <span class="n">ithread</span><span class="p">}</span>
+                    <span class="p">)</span>
+                <span class="k">for</span> <span class="n">ithread</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_num_threads</span><span class="p">)]</span>
+
+            <span class="c1"># Start threads</span>
+            <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="n">threads</span><span class="p">:</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+            <span class="c1"># Wait for threads to finish</span>
+            <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="n">threads</span><span class="p">:</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div>
+        
+<div class="viewcode-block" id="Sampler.run_system"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.run_system">[docs]</a>    <span class="k">def</span> <span class="nf">run_system</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">sample_systems_queue</span><span class="p">:</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">,</span>
+        <span class="n">ithread</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply sample calculator on system input and write properties to </span>
+<span class="sd">        database.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_systems_queue: queue.Queue</span>
+<span class="sd">            Queue of sample system information providing tuples of ase Atoms</span>
+<span class="sd">            objects, index number and respective sample source and the total</span>
+<span class="sd">            sample index.</span>
+<span class="sd">        ithread: int, optional, default None</span>
+<span class="sd">            Thread number</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Initialize stored sample counter</span>
+        <span class="n">Nsample</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_going</span><span class="p">(</span><span class="n">ithread</span><span class="p">):</span>
+            
+            <span class="c1"># Get sample parameters or wait</span>
+            <span class="n">sample</span> <span class="o">=</span> <span class="n">sample_systems_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            
+            <span class="c1"># Check for stop flag</span>
+            <span class="k">if</span> <span class="n">sample</span> <span class="o">==</span> <span class="s1">&#39;stop&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">thread_keep_going</span><span class="p">[</span><span class="n">ithread</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">continue</span>
+            
+            <span class="c1"># Extract sample system to optimize</span>
+            <span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span> <span class="o">=</span> <span class="n">sample</span>
+
+            <span class="c1"># Assign calculator</span>
+            <span class="n">system</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assign_calculator</span><span class="p">(</span>
+                <span class="n">system</span><span class="p">,</span> 
+                <span class="n">ithread</span><span class="o">=</span><span class="n">ithread</span><span class="p">)</span>
+
+            <span class="c1"># If requested, perform structure optimization</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_optimize</span><span class="p">:</span>
+
+                <span class="c1"># Perform structure optimization</span>
+                <span class="n">system</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_optimization</span><span class="p">(</span>
+                    <span class="n">sample_system</span><span class="o">=</span><span class="n">system</span><span class="p">,</span>
+                    <span class="n">sample_index</span><span class="o">=</span><span class="n">isample</span><span class="p">)</span>
+
+            <span class="c1"># Compute system properties</span>
+            <span class="n">system</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
+                <span class="n">system</span><span class="p">,</span>
+                <span class="n">properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">)</span>
+            
+            <span class="c1"># Store results</span>
+            <span class="n">Nsample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_properties</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">Nsample</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_save_trajectory</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">write_trajectory</span><span class="p">(</span>
+                    <span class="n">system</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_trajectory_file</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">isample</span><span class="p">))</span>
+
+        <span class="c1"># Print sampling info</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Sampling method &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; complete for system &quot;</span>
+        <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;from &#39;</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">!&#39;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">Nsample</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;No samples written to &quot;</span>
+        <span class="k">if</span> <span class="n">Nsample</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Nsample</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2"> sample written to &quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Nsample</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2"> samples written to &quot;</span>
+        <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_data_file</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="si">{</span><span class="n">msg</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Sampler.run_optimization"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.run_optimization">[docs]</a>    <span class="k">def</span> <span class="nf">run_optimization</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_system</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_index</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_systems_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_optimzed_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ithread</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform structure optimization on sample system</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_system: ase.Atoms, optional, default None</span>
+<span class="sd">            ASE Atoms object which will be optimized using the optimizer </span>
+<span class="sd">            defined in self.ase_optimizer.</span>
+<span class="sd">        sample_index: int, optional, default None</span>
+<span class="sd">            Sample index number of the ASE atoms object to optimize.</span>
+<span class="sd">        sample_systems_queue: queue.Queue, optional, default None</span>
+<span class="sd">            Sample system queue cotaining ASE Atoms object which will be </span>
+<span class="sd">            optimized using the optimizer defined in self.ase_optimizer.</span>
+<span class="sd">            If sample_system is not None, this queue will be ignored.</span>
+<span class="sd">        sample_optimzed_queue: queue.Queue, optional, default None</span>
+<span class="sd">            If defined, the optimized sample system will be put into the</span>
+<span class="sd">            queue.</span>
+<span class="sd">        ithread: int, optional, default None</span>
+<span class="sd">            Thread number</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ase.Atoms</span>
+<span class="sd">            Optimized ASE atoms object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check sample system input</span>
+        <span class="k">if</span> <span class="n">sample_system</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sample_systems_queue</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="c1"># Optimize sample system</span>
+        <span class="k">if</span> <span class="n">sample_system</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            
+            <span class="c1"># Prepare optimization log and trajectory file name</span>
+            <span class="k">if</span> <span class="n">sample_index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">ase_optimizer_log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">.log&#39;</span><span class="p">)</span>
+                <span class="n">ase_optimizer_trajectory_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">.traj&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ase_optimizer_log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">sample_index</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.log&#39;</span><span class="p">)</span>
+                <span class="n">ase_optimizer_trajectory_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">sample_index</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.traj&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Assign calculator</span>
+            <span class="n">system</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assign_calculator</span><span class="p">(</span>
+                <span class="n">sample_system</span><span class="p">,</span>
+                <span class="n">ithread</span><span class="o">=</span><span class="n">ithread</span><span class="p">)</span>
+
+            <span class="c1"># Perform structure optimization</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ase_optimizer</span><span class="p">(</span>
+                <span class="n">system</span><span class="p">,</span>
+                <span class="n">logfile</span><span class="o">=</span><span class="n">ase_optimizer_log_file</span><span class="p">,</span>
+                <span class="n">trajectory</span><span class="o">=</span><span class="n">ase_optimizer_trajectory_file</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+                    <span class="n">fmax</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_optimize_fmax</span><span class="p">)</span>
+
+            <span class="c1"># Add optimized ASE atoms object to the queue if defined</span>
+            <span class="k">if</span> <span class="n">sample_optimzed_queue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">sample_optimzed_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">system</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">system</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">system</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_going</span><span class="p">(</span><span class="n">ithread</span><span class="p">):</span>
+                
+                <span class="c1"># Get sample parameters or wait</span>
+                <span class="n">sample</span> <span class="o">=</span> <span class="n">sample_systems_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                
+                <span class="c1"># Check for stop flag</span>
+                <span class="k">if</span> <span class="n">sample</span> <span class="o">==</span> <span class="s1">&#39;stop&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">thread_keep_going</span><span class="p">[</span><span class="n">ithread</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">continue</span>
+                
+                <span class="c1"># Extract sample system to optimize</span>
+                <span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span> <span class="o">=</span> <span class="n">sample</span>
+
+                <span class="c1"># Prepare optimization log and trajectory file name</span>
+                <span class="n">ase_optimizer_log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">isample</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.log&#39;</span><span class="p">)</span>
+                <span class="n">ase_optimizer_trajectory_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_counter</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_tag</span><span class="si">:</span><span class="s1">s</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">isample</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.traj&#39;</span><span class="p">)</span>
+
+                <span class="c1"># Assign calculator</span>
+                <span class="n">system</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assign_calculator</span><span class="p">(</span>
+                    <span class="n">system</span><span class="p">,</span>
+                    <span class="n">ithread</span><span class="o">=</span><span class="n">ithread</span><span class="p">)</span>
+
+                <span class="c1"># Perform structure optimization</span>
+                <span class="k">try</span><span class="p">:</span>
+
+                    <span class="n">ase_optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ase_optimizer</span><span class="p">(</span>
+                        <span class="n">system</span><span class="p">,</span>
+                        <span class="n">logfile</span><span class="o">=</span><span class="n">ase_optimizer_log_file</span><span class="p">,</span>
+                        <span class="n">trajectory</span><span class="o">=</span><span class="n">ase_optimizer_trajectory_file</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="n">ase_optimizer</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">fmax</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_systems_optimize_fmax</span><span class="p">)</span>
+                
+                <span class="k">except</span> <span class="n">ase</span><span class="o">.</span><span class="n">calculators</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">CalculationFailed</span><span class="p">:</span>
+
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;ERROR:</span><span class="se">\n</span><span class="s2">Single point calculation of the system &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;from &#39;</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">&#39; of index </span><span class="si">{</span><span class="n">index</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;is not converged &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;during structure optimization for sampling method &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_tag</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;(see log file &#39;</span><span class="si">{</span><span class="n">ase_optimizer_log_file</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;)!</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="k">if</span> <span class="n">sample_optimzed_queue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;System will be skipped for further sampling.</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                    
+                <span class="k">else</span><span class="p">:</span>
+
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">Optimization of system &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;from &#39;</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">&#39; of index </span><span class="si">{</span><span class="n">index</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;is converged &quot;</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;(see log file &#39;</span><span class="si">{</span><span class="n">ase_optimizer_log_file</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39;).</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+                <span class="c1"># Add optimized ASE atoms object to the queue if defined</span>
+                <span class="k">if</span> <span class="n">sample_optimzed_queue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">sample_optimzed_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">system</span><span class="p">,</span> <span class="n">isample</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">index</span><span class="p">))</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Sampler.keep_going"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.keep_going">[docs]</a>    <span class="k">def</span> <span class="nf">keep_going</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ithread</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return thread continuation flag</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ithread: int</span>
+<span class="sd">            Thread number.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ithread</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_keep_going</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;thread_keep_going&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_keep_going</span><span class="p">[</span><span class="n">ithread</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Sampler.get_properties"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.get_properties">[docs]</a>    <span class="k">def</span> <span class="nf">get_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect system properties and calculator results</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">interface</span><span class="o">.</span><span class="n">get_ase_properties</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sampler.save_properties"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.save_properties">[docs]</a>    <span class="k">def</span> <span class="nf">save_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">,</span> <span class="n">Nsample</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save system properties</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">system_properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_properties</span><span class="p">(</span><span class="n">system</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_dataset</span><span class="o">.</span><span class="n">add_atoms</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">system_properties</span><span class="p">)</span>
+        <span class="n">Nsample</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">Nsample</span></div>
+
+<div class="viewcode-block" id="Sampler.write_trajectory"><a class="viewcode-back" href="../../../api/asparagus.sample.html#asparagus.sample.sampler.Sampler.write_trajectory">[docs]</a>    <span class="k">def</span> <span class="nf">write_trajectory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">,</span> <span class="n">trajectory_file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write current image to trajectory file but without constraints</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check trajectory file</span>
+        <span class="k">if</span> <span class="n">trajectory_file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="c1"># Save system without constraint to the trajectory file</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="n">trajectory</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Trajectory</span><span class="p">(</span>
+                    <span class="n">trajectory_file</span><span class="p">,</span> <span class="n">atoms</span><span class="o">=</span><span class="n">system</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_properties</span><span class="p">)</span>
+            <span class="n">system_noconstraint</span> <span class="o">=</span> <span class="n">system</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">system_noconstraint</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">system</span><span class="o">.</span><span class="n">calc</span>
+            <span class="n">system_noconstraint</span><span class="o">.</span><span class="n">set_constraint</span><span class="p">()</span>
+            <span class="n">trajectory</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">system_noconstraint</span><span class="p">)</span>
+            <span class="n">trajectory</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">return</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

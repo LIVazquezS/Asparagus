@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.module.physnet_modules &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.module.physnet_modules</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.module.physnet_modules</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">module</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">layer</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+
+<span class="kn">from</span> <span class="nn">..layer</span> <span class="kn">import</span> <span class="n">physnet_layers</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Input_PhysNet&#39;</span><span class="p">,</span> <span class="s1">&#39;Graph_PhysNet&#39;</span><span class="p">,</span> <span class="s1">&#39;Output_PhysNet&#39;</span><span class="p">]</span>
+
+<span class="c1">#======================================</span>
+<span class="c1"># Input Module</span>
+<span class="c1">#======================================</span>
+
+<div class="viewcode-block" id="Input_PhysNet"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Input_PhysNet">[docs]</a><span class="k">class</span> <span class="nc">Input_PhysNet</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    PhysNet input module class</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    config: (str, dict, object), optional, default None</span>
+<span class="sd">        Either the path to json file (str), dictionary (dict) or</span>
+<span class="sd">        settings.config class object of Asparagus parameters</span>
+<span class="sd">    config_file: str, optional, default see settings.default[&#39;config_file&#39;]</span>
+<span class="sd">        Path to json file (str)</span>
+<span class="sd">    input_n_atombasis: int, optional, default 128</span>
+<span class="sd">        Number of atomic features (length of the atomic feature vector)</span>
+<span class="sd">    input_radialbasis_fn: (str, callable), optional, default &#39;GaussianRBF&#39;</span>
+<span class="sd">        Type of the radial basis function.</span>
+<span class="sd">    input_n_radialbasis: int, optional, default 64</span>
+<span class="sd">        Number of input radial basis centers</span>
+<span class="sd">    input_cutoff_fn: (str, callable), optional, default &#39;Poly6&#39;</span>
+<span class="sd">        Cutoff function type for radial basis function scaling</span>
+<span class="sd">    input_radial_cutoff: float, optional, default 8.0</span>
+<span class="sd">        Cutoff distance radial basis function</span>
+<span class="sd">    input_rbf_center_start: float, optional, default 1.0</span>
+<span class="sd">        Lowest radial basis center distance.</span>
+<span class="sd">    input_rbf_center_end: float, optional, default None (input_radial_cutoff)</span>
+<span class="sd">        Highest radial basis center distance. If None, radial basis cutoff</span>
+<span class="sd">        distance is used.</span>
+<span class="sd">    input_rbf_trainable: bool, optional, default True</span>
+<span class="sd">        If True, radial basis function parameter are optimized during training.</span>
+<span class="sd">        If False, radial basis function parameter are fixed.</span>
+<span class="sd">    input_n_maxatom: int, optional, default 94 (Plutonium)</span>
+<span class="sd">        Highest atom order number to initialize atom feature vector library.</span>
+<span class="sd">    input_atom_features_range: float, optional, default sqrt(3)</span>
+<span class="sd">        Range for uniform distribution randomizer for initial atom feature</span>
+<span class="sd">        vector.</span>
+<span class="sd">    **kwargs: dict, optional</span>
+<span class="sd">        Additional arguments for parameter initialization</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Default arguments for input module</span>
+    <span class="n">_default_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_n_atombasis&#39;</span><span class="p">:</span>            <span class="mi">128</span><span class="p">,</span>
+        <span class="s1">&#39;input_radial_fn&#39;</span><span class="p">:</span>              <span class="s1">&#39;GaussianRBF&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;input_n_radialbasis&#39;</span><span class="p">:</span>          <span class="mi">64</span><span class="p">,</span>
+        <span class="s1">&#39;input_cutoff_fn&#39;</span><span class="p">:</span>              <span class="s1">&#39;Poly6&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;input_radial_cutoff&#39;</span><span class="p">:</span>          <span class="mf">8.0</span><span class="p">,</span>
+        <span class="s1">&#39;input_rbf_center_start&#39;</span><span class="p">:</span>       <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s1">&#39;input_rbf_center_end&#39;</span><span class="p">:</span>         <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;input_rbf_trainable&#39;</span><span class="p">:</span>          <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;input_n_maxatom&#39;</span><span class="p">:</span>              <span class="mi">94</span><span class="p">,</span>
+        <span class="c1">#&#39;input_atom_features_range&#39;:    np.sqrt(3),</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Expected data types of input variables</span>
+    <span class="n">_dtypes_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_n_atombasis&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;input_radial_fn&#39;</span><span class="p">:</span>              <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">],</span>
+        <span class="s1">&#39;input_n_radialbasis&#39;</span><span class="p">:</span>          <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;input_cutoff_fn&#39;</span><span class="p">:</span>              <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">],</span>
+        <span class="s1">&#39;input_radial_cutoff&#39;</span><span class="p">:</span>          <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">],</span>
+        <span class="s1">&#39;input_rbf_center_start&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">],</span>
+        <span class="s1">&#39;input_rbf_center_end&#39;</span><span class="p">:</span>         <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">],</span>
+        <span class="s1">&#39;input_rbf_trainable&#39;</span><span class="p">:</span>          <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;input_n_maxatom&#39;</span><span class="p">:</span>              <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="c1">#&#39;input_atom_features_range&#39;:    [utils.is_numeric],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_n_atombasis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_radial_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_n_radialbasis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_cutoff_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_radial_cutoff</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_rbf_center_start</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_rbf_center_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_rbf_trainable</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_n_maxatom</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="c1">#input_atom_features_range: Optional[float] = None,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize PhysNet input module.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Input_PhysNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">input_type</span> <span class="o">=</span> <span class="s1">&#39;PhysNet&#39;</span>
+
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Check Module Class Input # # #</span>
+        <span class="c1">####################################</span>
+        
+        <span class="c1"># Get configuration object</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span>
+            <span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">config_from</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Check input parameter, set default values if necessary and</span>
+        <span class="c1"># update the configuration dictionary</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">argitems</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">(),</span>
+            <span class="n">check_default</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_default_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">),</span>
+            <span class="n">check_dtype</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_dtype_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+        <span class="p">)</span>
+            
+        <span class="c1"># Update global configuration dictionary</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_update</span><span class="p">)</span>
+        
+        <span class="c1"># Assign module variable parameters from configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Check general model cutoff with radial basis cutoff</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;model_cutoff&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No general model interaction cutoff &#39;model_cutoff&#39; is yet &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;defined for the model calculator!&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_cutoff&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_radial_cutoff</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The model interaction cutoff distance &#39;model_cutoff&#39; &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_cutoff</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">) must be larger or equal &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;the descriptor range &#39;input_radial_cutoff&#39; &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;input_radial_cutoff&#39;</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">)!&quot;</span><span class="p">)</span>
+        
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Input Module Class Setup # # #</span>
+        <span class="c1">####################################</span>
+        
+        <span class="c1"># Initialize atomic feature vectors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atom_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_n_maxatom</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_n_atombasis</span><span class="p">,</span> 
+            <span class="n">padding_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> 
+            <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        
+        <span class="c1"># Initialize radial cutoff function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">get_cutoff_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_cutoff_fn</span><span class="p">)(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_radial_cutoff</span><span class="p">)</span>
+        
+        <span class="c1"># Get upper RBF center range</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_rbf_center_end</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_rbf_center_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_radial_cutoff</span>
+        
+        <span class="c1"># Initialize Radial basis function</span>
+        <span class="n">radial_fn</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">get_radial_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_radial_fn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">radial_fn</span> <span class="o">=</span> <span class="n">radial_fn</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_n_radialbasis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_rbf_center_start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_rbf_center_end</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_rbf_trainable</span><span class="p">,</span> 
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span>
+
+<div class="viewcode-block" id="Input_PhysNet.get_info"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Input_PhysNet.get_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return class information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;input_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span><span class="p">,</span>
+            <span class="s1">&#39;input_n_atombasis&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_n_atombasis</span><span class="p">,</span>
+            <span class="s1">&#39;input_radial_fn&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_radial_fn</span><span class="p">),</span>
+            <span class="s1">&#39;input_n_radialbasis&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_n_radialbasis</span><span class="p">,</span>
+            <span class="s1">&#39;input_radial_cutoff&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_radial_cutoff</span><span class="p">,</span>
+            <span class="s1">&#39;input_cutoff_fn&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_cutoff_fn</span><span class="p">),</span>
+            <span class="s1">&#39;input_rbf_trainable&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_rbf_trainable</span><span class="p">,</span>
+            <span class="s1">&#39;input_n_maxatom&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_n_maxatom</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+<div class="viewcode-block" id="Input_PhysNet.forward"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Input_PhysNet.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">atomic_numbers</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">positions</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">idx_i</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">idx_j</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">pbc_offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Forward pass of the input module.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        atomic_numbers : torch.Tensor(N_atoms)</span>
+<span class="sd">            Atomic numbers of the system</span>
+<span class="sd">        positions : torch.Tensor(N_atoms, 3)</span>
+<span class="sd">            Atomic positions of the system</span>
+<span class="sd">        idx_i : torch.Tensor(N_pairs)</span>
+<span class="sd">            Atom i pair index</span>
+<span class="sd">        idx_j : torch.Tensor(N_pairs)</span>
+<span class="sd">            Atom j pair index</span>
+<span class="sd">        pbc_offset : torch.Tensor(N_pairs, 3), optional, default None</span>
+<span class="sd">            Position offset from periodic boundary condition</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        features: torch.tensor(N_atoms, n_atombasis)</span>
+<span class="sd">            Atomic feature vectors</span>
+<span class="sd">        distances: torch.tensor(N_pairs)</span>
+<span class="sd">            Atom pair distances</span>
+<span class="sd">        cutoffs: torch.tensor(N_pairs)</span>
+<span class="sd">            Atom pair distance cutoffs</span>
+<span class="sd">        rbfs: torch.tensor(N_pairs, n_radialbasis)</span>
+<span class="sd">            Atom pair radial basis functions</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Collect atom feature vectors</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_features</span><span class="p">(</span><span class="n">atomic_numbers</span><span class="p">)</span>
+
+        <span class="c1"># Compute atom pair distances</span>
+        <span class="k">if</span> <span class="n">pbc_offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">distances</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                <span class="n">positions</span><span class="p">[</span><span class="n">idx_j</span><span class="p">]</span> <span class="o">-</span> <span class="n">positions</span><span class="p">[</span><span class="n">idx_i</span><span class="p">],</span>
+                <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">distances</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                <span class="n">positions</span><span class="p">[</span><span class="n">idx_j</span><span class="p">]</span> <span class="o">-</span> <span class="n">positions</span><span class="p">[</span><span class="n">idx_i</span><span class="p">]</span> <span class="o">+</span> <span class="n">pbc_offset</span><span class="p">,</span>
+                <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Compute distance cutoff values</span>
+        <span class="n">cutoffs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">(</span><span class="n">distances</span><span class="p">)</span>
+
+        <span class="c1"># Compute radial basis functions</span>
+        <span class="n">rbfs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">radial_fn</span><span class="p">(</span><span class="n">distances</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">features</span><span class="p">,</span> <span class="n">distances</span><span class="p">,</span> <span class="n">cutoffs</span><span class="p">,</span> <span class="n">rbfs</span></div></div>
+
+
+<span class="c1">#======================================</span>
+<span class="c1"># Graph Module</span>
+<span class="c1">#======================================</span>
+
+<div class="viewcode-block" id="Graph_PhysNet"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Graph_PhysNet">[docs]</a><span class="k">class</span> <span class="nc">Graph_PhysNet</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span> 
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    PhysNet message passing module class</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    config: (str, dict, object), optional, default None</span>
+<span class="sd">        Either the path to json file (str), dictionary (dict) or</span>
+<span class="sd">        settings.config class object of Asparagus parameters</span>
+<span class="sd">    config_file: str, optional, default see settings.default[&#39;config_file&#39;]</span>
+<span class="sd">        Path to json file (str)</span>
+<span class="sd">    graph_n_blocks: int, optional, default 5</span>
+<span class="sd">        Number of information processing cycles</span>
+<span class="sd">    graph_n_residual_interaction: int, optional, default 3</span>
+<span class="sd">        Number of residual layers for atomic feature and radial basis vector</span>
+<span class="sd">        interaction.</span>
+<span class="sd">    graph_n_residual_features: int, optional, default 2</span>
+<span class="sd">        Number of residual layers for atomic feature interactions.</span>
+<span class="sd">    graph_activation_fn: (str, object), optional, default &#39;shifted_softplus&#39;</span>
+<span class="sd">        Residual layer activation function.</span>
+<span class="sd">    **kwargs: dict, optional</span>
+<span class="sd">        Additional arguments</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Default arguments for graph module</span>
+    <span class="n">_default_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;graph_n_blocks&#39;</span><span class="p">:</span>               <span class="mi">5</span><span class="p">,</span>
+        <span class="s1">&#39;graph_n_residual_interaction&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s1">&#39;graph_n_residual_features&#39;</span><span class="p">:</span>    <span class="mi">2</span><span class="p">,</span>
+        <span class="s1">&#39;graph_activation_fn&#39;</span><span class="p">:</span>          <span class="s1">&#39;shifted_softplus&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Expected data types of input variables</span>
+    <span class="n">_dtypes_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;graph_n_blocks&#39;</span><span class="p">:</span>               <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;graph_n_residual_interaction&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;graph_n_residual_features&#39;</span><span class="p">:</span>    <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;graph_activation_fn&#39;</span><span class="p">:</span>          <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">graph_n_blocks</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">graph_n_residual_interaction</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">graph_n_residual_features</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">graph_activation_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize PhysNet message passing module.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="nb">super</span><span class="p">(</span><span class="n">Graph_PhysNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">graph_type</span> <span class="o">=</span> <span class="s1">&#39;PhysNet&#39;</span>
+        
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Check Module Class Input # # #</span>
+        <span class="c1">####################################</span>
+        
+        <span class="c1"># Get configuration object</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span>
+            <span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">config_from</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Check input parameter, set default values if necessary and</span>
+        <span class="c1"># update the configuration dictionary</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">argitems</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">(),</span>
+            <span class="n">check_default</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_default_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">),</span>
+            <span class="n">check_dtype</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_dtype_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Update global configuration dictionary</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_update</span><span class="p">)</span>
+
+        <span class="c1"># Assign module variable parameters from configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Get input to graph module interface parameters </span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_n_atombasis</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;input_n_atombasis&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_n_radialbasis</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;input_n_radialbasis&#39;</span><span class="p">)</span>
+        
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Graph Module Class Setup # # #</span>
+        <span class="c1">####################################</span>
+        
+        <span class="c1"># Initialize activation function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">graph_activation_fn</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">get_activation_fn</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">graph_activation_fn</span><span class="p">)</span>
+
+        <span class="c1"># Initialize message passing blocks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interaction_blocks</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([</span>
+            <span class="n">physnet_layers</span><span class="o">.</span><span class="n">InteractionBlock</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">input_n_atombasis</span><span class="p">,</span> 
+                <span class="bp">self</span><span class="o">.</span><span class="n">input_n_radialbasis</span><span class="p">,</span> 
+                <span class="bp">self</span><span class="o">.</span><span class="n">graph_n_residual_interaction</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">graph_n_residual_features</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">graph_activation_fn</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">graph_n_blocks</span><span class="p">)</span>
+            <span class="p">])</span>
+
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_type</span>
+
+<div class="viewcode-block" id="Graph_PhysNet.get_info"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Graph_PhysNet.get_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return class information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;graph_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_type</span><span class="p">,</span>
+            <span class="s1">&#39;graph_n_blocks&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_n_blocks</span><span class="p">,</span>
+            <span class="s1">&#39;graph_n_residual_interaction&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_n_residual_interaction</span><span class="p">,</span>
+            <span class="s1">&#39;graph_n_residual_features&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_n_residual_features</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+<div class="viewcode-block" id="Graph_PhysNet.forward"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Graph_PhysNet.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">features</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">distances</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">cutoffs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">rbfs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> 
+        <span class="n">idx_i</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> 
+        <span class="n">idx_j</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Forward pass of the graph module.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        features: torch.tensor(N_atoms, n_atombasis)</span>
+<span class="sd">            Atomic feature vectors</span>
+<span class="sd">        distances: torch.tensor(N_pairs)</span>
+<span class="sd">            Atom pair distances</span>
+<span class="sd">        cutoffs: torch.tensor(N_pairs)</span>
+<span class="sd">            Atom pair distance cutoffs</span>
+<span class="sd">        rbfs: torch.tensor(N_pairs, n_radialbasis)</span>
+<span class="sd">            Atom pair radial basis functions</span>
+<span class="sd">        idx_i : torch.Tensor(N_pairs)</span>
+<span class="sd">            Atom i pair index</span>
+<span class="sd">        idx_j : torch.Tensor(N_pairs)</span>
+<span class="sd">            Atom j pair index</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        features_list: [torch.tensor(N_atoms, n_atombasis)]*n_blocks</span>
+<span class="sd">            List of modified atomic feature vectors</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Compute descriptor vectors</span>
+        <span class="n">descriptors</span> <span class="o">=</span> <span class="n">cutoffs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span><span class="o">*</span><span class="n">rbfs</span>
+        
+        <span class="c1"># Initialize refined feature vector list</span>
+        <span class="n">x_list</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="c1"># Apply message passing model</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">features</span>
+        <span class="k">for</span> <span class="n">interaction_block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">interaction_blocks</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">interaction_block</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">descriptors</span><span class="p">,</span> <span class="n">idx_i</span><span class="p">,</span> <span class="n">idx_j</span><span class="p">)</span>
+            <span class="n">x_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x_list</span></div></div>
+
+
+<span class="c1">#======================================</span>
+<span class="c1"># Output Module</span>
+<span class="c1">#======================================</span>
+
+<div class="viewcode-block" id="Output_PhysNet"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Output_PhysNet">[docs]</a><span class="k">class</span> <span class="nc">Output_PhysNet</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span> 
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    PhysNet output module class</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    config: (str, dict, object), optional, default None</span>
+<span class="sd">        Either the path to json file (str), dictionary (dict) or</span>
+<span class="sd">        settings.config class object of Asparagus parameters</span>
+<span class="sd">    config_file: str, optional, default see settings.default[&#39;config_file&#39;]</span>
+<span class="sd">        Path to json file (str)</span>
+<span class="sd">    output_properties: list(str), optional &#39;[&#39;energy&#39;, &#39;forces&#39;]&#39;</span>
+<span class="sd">        List of output properties to compute by the model</span>
+<span class="sd">        e.g. [&#39;energy&#39;, &#39;forces&#39;, &#39;atomic_charges&#39;]</span>
+<span class="sd">    output_n_residual: int, optional, default 1</span>
+<span class="sd">        Number of residual layers for transformation from atomic feature vector</span>
+<span class="sd">        to output results.</span>
+<span class="sd">    output_activation_fn: (str, callable), optional, default &#39;shifted_softplus&#39;</span>
+<span class="sd">        Residual layer activation function.</span>
+<span class="sd">    output_scaling_parameter: dictionary, optional, default None</span>
+<span class="sd">        Property average and standard deviation for the use as scaling factor </span>
+<span class="sd">        (standard deviation) and shift term (average) parameter pairs</span>
+<span class="sd">        for each property.</span>
+<span class="sd">    **kwargs: dict, optional</span>
+<span class="sd">        Additional arguments</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Default arguments for graph module</span>
+    <span class="n">_default_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;output_properties&#39;</span><span class="p">:</span>            <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;output_n_residual&#39;</span><span class="p">:</span>            <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;output_activation_fn&#39;</span><span class="p">:</span>         <span class="s1">&#39;shifted_softplus&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;output_scaling_parameter&#39;</span><span class="p">:</span>     <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Expected data types of input variables</span>
+    <span class="n">_dtypes_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;output_properties&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string_array</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">],</span>
+        <span class="s1">&#39;output_n_residual&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;output_activation_fn&#39;</span><span class="p">:</span>         <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">],</span>
+        <span class="s1">&#39;output_scaling_parameter&#39;</span><span class="p">:</span>     <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">],</span>
+        <span class="p">}</span>
+    
+    <span class="c1"># Property exclusion lists for properties (keys) derived from other </span>
+    <span class="c1"># properties (items) but in the model class</span>
+    <span class="n">_property_exclusion</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;energy&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;atomic_energies&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;forces&#39;</span><span class="p">:</span> <span class="p">[],</span> 
+        <span class="s1">&#39;hessian&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;dipole&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;atomic_charges&#39;</span><span class="p">]}</span>
+    
+    <span class="c1"># Output module specially handled properties</span>
+    <span class="n">_property_special</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;energy&#39;</span><span class="p">,</span> <span class="s1">&#39;atomic_energies&#39;</span><span class="p">,</span> <span class="s1">&#39;atomic_charges&#39;</span><span class="p">]</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_n_residual</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_activation_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_scaling_parameter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize PhysNet output module.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Output_PhysNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">output_type</span> <span class="o">=</span> <span class="s1">&#39;PhysNet&#39;</span>
+
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Check Module Class Input # # #</span>
+        <span class="c1">####################################</span>
+        
+        <span class="c1"># Get configuration object</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span>
+            <span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">config_from</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Check input parameter, set default values if necessary and</span>
+        <span class="c1"># update the configuration dictionary</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">argitems</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">(),</span>
+            <span class="n">check_default</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_default_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">),</span>
+            <span class="n">check_dtype</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_dtype_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Update global configuration dictionary</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_update</span><span class="p">)</span>
+
+        <span class="c1"># Assign module variable parameters from configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Get input and graph to output module interface parameters </span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_n_maxatom</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;input_n_maxatom&#39;</span><span class="p">)</span>
+        <span class="n">input_n_atombasis</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;input_n_atombasis&#39;</span><span class="p">)</span>
+        <span class="n">graph_n_blocks</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;graph_n_blocks&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Get model properties to check with output module properties</span>
+        <span class="n">model_properties</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;model_properties&#39;</span><span class="p">)</span>
+
+        <span class="c1">##########################################</span>
+        <span class="c1"># # # Check Output Module Properties # # #</span>
+        <span class="c1">##########################################</span>
+
+        <span class="c1"># Initialize output module properties</span>
+        <span class="n">properties_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_exclusion</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">prop_der</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_exclusion</span><span class="p">[</span><span class="n">prop</span><span class="p">]:</span>
+                        <span class="n">properties_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop_der</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">properties_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+
+        <span class="c1"># Check output module properties with model properties</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">model_properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties_list</span>
+                <span class="ow">and</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_exclusion</span>
+            <span class="p">):</span>
+                <span class="k">for</span> <span class="n">prop_der</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_exclusion</span><span class="p">[</span><span class="n">prop</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">prop_der</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties_list</span><span class="p">:</span>
+                        <span class="n">properties_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop_der</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties_list</span><span class="p">:</span>
+                <span class="n">properties_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+
+        <span class="c1"># Update output property list and global configuration dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span> <span class="o">=</span> <span class="n">properties_list</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;output_properties&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span><span class="p">}</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_update</span><span class="p">)</span>
+
+        <span class="c1">#####################################</span>
+        <span class="c1"># # # Output Module Class Setup # # #</span>
+        <span class="c1">#####################################</span>
+
+        <span class="c1"># Initialize activation function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation_fn</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">get_activation_fn</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_activation_fn</span><span class="p">)</span>
+
+        <span class="c1"># Initialize property to output block dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_property_block</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleDict</span><span class="p">({})</span>
+
+        <span class="c1"># Initialize property to number of output block predictions dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Check special case: atom energies and charges from one output block</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span>
+            <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;atomic_energies&#39;</span><span class="p">,</span> <span class="s1">&#39;atomic_charges&#39;</span><span class="p">]]</span>
+        <span class="p">):</span>
+            <span class="c1"># Set case flag for output module predicting atomic energies and</span>
+            <span class="c1"># charges</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_energies_charges</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="s1">&#39;atomic_energies_charges&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+
+            <span class="c1"># PhysNet energy and atom charges output block</span>
+            <span class="n">output_block</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([</span>
+                <span class="n">physnet_layers</span><span class="o">.</span><span class="n">OutputBlock</span><span class="p">(</span>
+                    <span class="n">input_n_atombasis</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="s1">&#39;atomic_energies_charges&#39;</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_n_residual</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">activation_fn</span><span class="p">,</span>
+                    <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph_n_blocks</span><span class="p">)]</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Assign output block to dictionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_property_block</span><span class="p">[</span><span class="s1">&#39;atomic_energies_charges&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">output_block</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">any</span><span class="p">([</span>
+            <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;atomic_energies&#39;</span><span class="p">,</span> <span class="s1">&#39;atomic_charges&#39;</span><span class="p">]]</span>
+        <span class="p">):</span>
+            
+            <span class="c1"># Get property label</span>
+            <span class="k">if</span> <span class="s1">&#39;atomic_energies&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span><span class="p">:</span>
+                <span class="n">prop</span> <span class="o">=</span> <span class="s1">&#39;atomic_energies&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prop</span> <span class="o">=</span> <span class="s1">&#39;atomic_charges&#39;</span>
+
+            <span class="c1"># Set case flag for output module predicting just atomic energies</span>
+            <span class="c1"># or charges</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_energies_charges</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="c1"># PhysNet energy only output block</span>
+            <span class="n">output_block</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([</span>
+                <span class="n">physnet_layers</span><span class="o">.</span><span class="n">OutputBlock</span><span class="p">(</span>
+                    <span class="n">input_n_atombasis</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_n_residual</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">activation_fn</span><span class="p">,</span>
+                    <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph_n_blocks</span><span class="p">)</span>
+                <span class="p">])</span>
+
+            <span class="c1"># Assign output block to dictionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_property_block</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">output_block</span>
+
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="c1"># Set case flag for output module predicting just atomic energies</span>
+            <span class="c1"># or charges</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_energies_charges</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Create further output blocks for properties with certain exceptions</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span><span class="p">:</span>
+
+            <span class="c1"># Skip deriving properties</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_exclusion</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># No output_block for already covered special properties</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_special</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Initialize output block</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">output_block</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([</span>
+                <span class="n">layer</span><span class="o">.</span><span class="n">physnet_layers</span><span class="o">.</span><span class="n">OutputBlock</span><span class="p">(</span>
+                    <span class="n">input_n_atombasis</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_n_residual</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">activation_fn</span><span class="p">,</span>
+                    <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph_n_blocks</span><span class="p">)</span>
+                <span class="p">])</span>
+
+            <span class="c1"># Assign output block to dictionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_property_block</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">output_block</span>
+
+        <span class="c1"># Initialize property scaling dictionary and atomic energy shift</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_property_scaling</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_scaling_parameter</span><span class="p">)</span>
+        
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_type</span>
+    
+<div class="viewcode-block" id="Output_PhysNet.get_info"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Output_PhysNet.get_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return class information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;output_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_type</span><span class="p">,</span>
+            <span class="s1">&#39;output_properties&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span><span class="p">,</span>
+            <span class="s1">&#39;output_n_residual&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_n_residual</span><span class="p">,</span>
+            <span class="s1">&#39;output_activation_fn&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_activation_fn</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+<div class="viewcode-block" id="Output_PhysNet.set_property_scaling"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Output_PhysNet.set_property_scaling">[docs]</a>    <span class="k">def</span> <span class="nf">set_property_scaling</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scaling_parameter</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]],</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update output property scaling factor and shift term dictionary.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scaling_parameter: dict(str, torch.Tensor(2))</span>
+<span class="sd">            Property average and standard deviation for the use as</span>
+<span class="sd">            scaling factor (standard deviation) and shift term (average) </span>
+<span class="sd">            parameter pairs (item) for each property (key).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Set scaling factor and shifts for output properties</span>
+        <span class="n">output_scaling</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_properties</span><span class="p">:</span>
+            
+            <span class="c1"># If property scaling input is missing, initialize default</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">scaling_parameter</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">or</span> <span class="n">scaling_parameter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="p">):</span>
+            
+                <span class="n">output_scaling</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+                        <span class="p">[[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_n_maxatom</span><span class="p">)],</span>
+                        <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> 
+                        <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                
+                <span class="c1"># Assign scaling factor and shift</span>
+                <span class="p">(</span><span class="n">shift</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span> <span class="o">=</span> <span class="n">scaling_parameter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+                <span class="n">output_scaling</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+                        <span class="p">[[</span><span class="n">scale</span><span class="p">,</span> <span class="n">shift</span><span class="p">]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_n_maxatom</span><span class="p">)],</span>
+                        <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> 
+                        <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="c1"># Convert model scaling to torch dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_scaling</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ParameterDict</span><span class="p">(</span><span class="n">output_scaling</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Output_PhysNet.set_atomic_energies_shift"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Output_PhysNet.set_atomic_energies_shift">[docs]</a>    <span class="k">def</span> <span class="nf">set_atomic_energies_shift</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atomic_energies_shifts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set atom type related atomic energies shift terms</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        atomic_energies_shifts: dict(str, torch.Tensor(1))</span>
+<span class="sd">            Atom type related atomic energies shift for core electron energy</span>
+<span class="sd">            contribution.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check atomic energies shift input</span>
+        <span class="k">if</span> <span class="n">atomic_energies_shifts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="c1"># Set atomic energies</span>
+        <span class="k">for</span> <span class="n">atom_type</span><span class="p">,</span> <span class="n">shift</span> <span class="ow">in</span> <span class="n">atomic_energies_shifts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            
+            <span class="c1"># Check atom type and energy shift definition</span>
+            <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">atom_type</span><span class="p">):</span>
+                <span class="n">atomic_number</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">atomic_numbers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">atom_type</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+                <span class="k">if</span> <span class="n">atomic_number</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Atom type symbol &#39;</span><span class="si">{</span><span class="n">atom_type</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; is not known &quot;</span>
+                        <span class="o">+</span> <span class="s2">&quot;(comparison is not case sensetive)!&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">(</span><span class="n">atom_type</span><span class="p">):</span>
+                <span class="n">atomic_number</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">atom_type</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Atom type symbol data type &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">atom_type</span><span class="p">)</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;is not valid! Define either as atomic number (int) or &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;atom symbol (str).&quot;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">(</span><span class="n">shift</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Atom type energy shift type &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">shift</span><span class="p">)</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;is not valid and must be numeric!&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Set atomic energy shift</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_scaling</span><span class="p">[</span><span class="s1">&#39;atomic_energies&#39;</span><span class="p">][</span><span class="n">atomic_number</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">shift</span>
+        
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Output_PhysNet.forward"><a class="viewcode-back" href="../../../api/asparagus.module.html#asparagus.module.physnet_modules.Output_PhysNet.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">features_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+        <span class="n">atomic_numbers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Forward pass of output module</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        features_list : [torch.Tensor(N_atoms, n_atombasis)]*n_blocks</span>
+<span class="sd">            List of atom feature vectors</span>
+<span class="sd">        atomic_numbers: torch.Tensor(N_atoms), optional, default None</span>
+<span class="sd">            List of atomic numbers</span>
+<span class="sd">        properties: list(str), optional, default None</span>
+<span class="sd">            List of properties to compute by the model. If None, all properties</span>
+<span class="sd">            are predicted.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict(str, torch.Tensor)</span>
+<span class="sd">            Dictionary of predicted properties</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialize predicted properties dictionary</span>
+        <span class="n">output_prediction</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="c1"># Check requested properties</span>
+        <span class="k">if</span> <span class="n">properties</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">predict_all</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">predict_all</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Initialize training properties</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="n">nhloss</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">last_prediction_squared</span> <span class="o">=</span> <span class="mf">0.0</span>
+        
+        <span class="c1"># Iterate over output blocks</span>
+        <span class="k">for</span> <span class="n">prop</span><span class="p">,</span> <span class="n">output_block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_property_block</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="c1"># Skip if property not requested</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">predict_all</span> <span class="ow">and</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Compute prediction and loss function contribution</span>
+            <span class="k">for</span> <span class="n">iblock</span><span class="p">,</span> <span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+                <span class="nb">zip</span><span class="p">(</span><span class="n">features_list</span><span class="p">,</span> <span class="n">output_block</span><span class="p">)</span>
+            <span class="p">):</span>
+
+                <span class="n">prediction</span> <span class="o">=</span> <span class="n">output</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">iblock</span><span class="p">:</span>
+                    <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">+</span> <span class="n">prediction</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">prediction</span>
+                
+                <span class="c1"># If training mode is active, compute nhloss contribution</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+                    <span class="n">prediction_squared</span> <span class="o">=</span> <span class="n">prediction</span><span class="o">**</span><span class="mi">2</span>
+                    <span class="k">if</span> <span class="n">iblock</span><span class="p">:</span>
+                        <span class="n">nhloss</span> <span class="o">=</span> <span class="n">nhloss</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                            <span class="n">prediction_squared</span>
+                            <span class="o">/</span> <span class="p">(</span>
+                                <span class="n">prediction_squared</span> 
+                                <span class="o">+</span> <span class="n">last_prediction_squared</span> 
+                                <span class="o">+</span> <span class="mf">1.0e-7</span><span class="p">)</span>
+                            <span class="p">)</span>
+                    <span class="n">last_prediction_squared</span> <span class="o">=</span> <span class="n">prediction_squared</span>
+            
+            <span class="c1"># Flatten prediction for scalar properties</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_n_property</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span>
+                    <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span> <span class="n">start_dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            
+        <span class="c1"># Save nhloss if training mode is active</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="n">output_prediction</span><span class="p">[</span><span class="s1">&#39;nhloss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nhloss</span>
+        
+        <span class="c1"># Post-process atomic energies/charges case</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_energies_charges</span><span class="p">:</span>
+
+            <span class="n">output_prediction</span><span class="p">[</span><span class="s1">&#39;atomic_energies&#39;</span><span class="p">],</span> \
+                <span class="n">output_prediction</span><span class="p">[</span><span class="s1">&#39;atomic_charges&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">output_prediction</span><span class="p">[</span><span class="s1">&#39;atomic_energies_charges&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span>
+                    <span class="n">output_prediction</span><span class="p">[</span><span class="s1">&#39;atomic_energies_charges&#39;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Apply property scaling</span>
+        <span class="k">for</span> <span class="n">prop</span><span class="p">,</span> <span class="n">scaling</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_scaling</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span> <span class="o">=</span> <span class="n">scaling</span><span class="p">[</span><span class="n">atomic_numbers</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">output_prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span><span class="o">*</span><span class="n">scale</span> <span class="o">+</span> <span class="n">shift</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output_prediction</span></div></div>
+
+        
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

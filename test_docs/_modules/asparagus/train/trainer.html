@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.train.trainer &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.train.trainer</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.train.trainer</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">data</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">model</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">train</span>
+
+<span class="kn">from</span> <span class="nn">.optimizer</span> <span class="kn">import</span> <span class="n">get_optimizer</span>
+<span class="kn">from</span> <span class="nn">.scheduler</span> <span class="kn">import</span> <span class="n">get_scheduler</span>
+<span class="kn">from</span> <span class="nn">.tester</span> <span class="kn">import</span> <span class="n">Tester</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Trainer&#39;</span><span class="p">]</span>
+
+
+<span class="c1"># ======================================</span>
+<span class="c1"># NNP Model Trainer</span>
+<span class="c1"># ======================================</span>
+
+<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    NNP model Trainer class</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    config: (str, dict, object)</span>
+<span class="sd">        Either the path to json file (str), dictionary (dict) or</span>
+<span class="sd">        settings.config class object of Asparagus parameters</span>
+<span class="sd">    config_file: str, optional, default see settings.default[&#39;config_file&#39;]</span>
+<span class="sd">        Path to config json file (str)</span>
+<span class="sd">    data_container: data.DataContainer, optional, default None</span>
+<span class="sd">        Reference data container object providing training, validation and</span>
+<span class="sd">        test data for the model training.</span>
+<span class="sd">    model_calculator: torch.nn.Module, optional, default None</span>
+<span class="sd">        Model calculator to train matching training and validation</span>
+<span class="sd">        data in the reference data set. If not provided, the model</span>
+<span class="sd">        calculator will be initialized according to config input.</span>
+<span class="sd">    trainer_restart: bool, optional, default False</span>
+<span class="sd">        Restart the model training from state in config[&#39;model_directory&#39;]</span>
+<span class="sd">    trainer_max_epochs: int, optional, default 10000</span>
+<span class="sd">        Maximum number of training epochs</span>
+<span class="sd">    trainer_properties: list, optional, default None</span>
+<span class="sd">        Properties contributing to the prediction quality value.</span>
+<span class="sd">        If the list is empty or None, all properties which are both predicted</span>
+<span class="sd">        by the model calculator and available in the data container will be </span>
+<span class="sd">        considered for the loss function.</span>
+<span class="sd">    trainer_properties_metrics: dict, optional, default &#39;MSE&#39; for all</span>
+<span class="sd">        Quantification of the property prediction quality only for</span>
+<span class="sd">        properties in the reference data set.</span>
+<span class="sd">        Can be given for each property individually and by keyword &#39;all&#39;</span>
+<span class="sd">        for every property else wise.</span>
+<span class="sd">    trainer_properties_weights: dict, optional, default {...}</span>
+<span class="sd">        Weighting factors for the combination of single property loss</span>
+<span class="sd">        values to total loss value.</span>
+<span class="sd">    trainer_optimizer: (str, object), optional, default &#39;AMSgrad&#39;</span>
+<span class="sd">        Optimizer class for the NNP model training</span>
+<span class="sd">    trainer_optimizer_args: dict, optional, default {}</span>
+<span class="sd">        Additional optimizer class arguments</span>
+<span class="sd">    trainer_scheduler: (str, object), optional, default &#39;ExponentialLR&#39;</span>
+<span class="sd">        Learning rate scheduler class for the NNP model training</span>
+<span class="sd">    trainer_scheduler_args: dict, optional, default {}</span>
+<span class="sd">        Additional learning rate scheduler class arguments</span>
+<span class="sd">    trainer_ema: bool, optional, default True</span>
+<span class="sd">        Apply exponential moving average scheme for NNP model training</span>
+<span class="sd">    trainer_ema_decay: float, optional, default 0.999</span>
+<span class="sd">        Exponential moving average decay rate</span>
+<span class="sd">    trainer_max_gradient_norm: float, optional, default 1000.0</span>
+<span class="sd">        Maximum model parameter gradient norm to clip its step size.</span>
+<span class="sd">    trainer_save_interval: int, optional, default 5</span>
+<span class="sd">        Interval between epoch to save current and best set of model</span>
+<span class="sd">        parameters.</span>
+<span class="sd">    trainer_validation_interval: int, optional, default 5</span>
+<span class="sd">        Interval between epoch to evaluate model performance on</span>
+<span class="sd">        validation data.</span>
+<span class="sd">    trainer_evaluate_testset: bool, optional, default True</span>
+<span class="sd">        Each validation interval and in case of a new best loss function,</span>
+<span class="sd">        apply Tester class on the test set.</span>
+<span class="sd">    trainer_max_checkpoints: int, optional, default 1</span>
+<span class="sd">        Maximum number of checkpoint files stored before deleting the</span>
+<span class="sd">        oldest ones up to the number threshold.</span>
+<span class="sd">    trainer_store_neighbor_list: bool, optional, default True</span>
+<span class="sd">        Store neighbor list parameter in the database file instead of</span>
+<span class="sd">        computing in situ.</span>
+<span class="sd">    trainer_summary_writer: bool, optional, default False</span>
+<span class="sd">        Write training process to a tensorboard summary writer instance</span>
+<span class="sd">    trainer_print_progress_bar: bool, optional, default True</span>
+<span class="sd">        Print progress bar to stout.</span>
+<span class="sd">        </span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Default arguments for trainer class</span>
+    <span class="n">_default_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;trainer_restart&#39;</span><span class="p">:</span>              <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_max_epochs&#39;</span><span class="p">:</span>           <span class="mi">10_000</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_properties&#39;</span><span class="p">:</span>           <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_properties_metrics&#39;</span><span class="p">:</span>   <span class="p">{</span><span class="s1">&#39;else&#39;</span><span class="p">:</span> <span class="s1">&#39;mse&#39;</span><span class="p">},</span>
+        <span class="s1">&#39;trainer_properties_weights&#39;</span><span class="p">:</span>   <span class="p">{</span>
+            <span class="s1">&#39;energy&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="p">,</span> <span class="s1">&#39;forces&#39;</span><span class="p">:</span> <span class="mf">50.</span><span class="p">,</span> <span class="s1">&#39;dipole&#39;</span><span class="p">:</span> <span class="mf">25.</span><span class="p">,</span> <span class="s1">&#39;else&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="p">},</span>
+        <span class="s1">&#39;trainer_optimizer&#39;</span><span class="p">:</span>            <span class="s1">&#39;AMSgrad&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_optimizer_args&#39;</span><span class="p">:</span>       <span class="p">{</span><span class="s1">&#39;lr&#39;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s1">&#39;weight_decay&#39;</span><span class="p">:</span> <span class="mf">1.e-5</span><span class="p">},</span>
+        <span class="s1">&#39;trainer_scheduler&#39;</span><span class="p">:</span>            <span class="s1">&#39;ExponentialLR&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_scheduler_args&#39;</span><span class="p">:</span>       <span class="p">{</span><span class="s1">&#39;gamma&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">},</span>
+        <span class="s1">&#39;trainer_ema&#39;</span><span class="p">:</span>                  <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_ema_decay&#39;</span><span class="p">:</span>            <span class="mf">0.99</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_max_gradient_norm&#39;</span><span class="p">:</span>    <span class="mf">1000.0</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_save_interval&#39;</span><span class="p">:</span>        <span class="mi">5</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_validation_interval&#39;</span><span class="p">:</span>  <span class="mi">5</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_evaluate_testset&#39;</span><span class="p">:</span>     <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_max_checkpoints&#39;</span><span class="p">:</span>      <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_store_neighbor_list&#39;</span><span class="p">:</span>  <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_summary_writer&#39;</span><span class="p">:</span>       <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;trainer_print_progress_bar&#39;</span><span class="p">:</span>   <span class="kc">True</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Expected data types of input variables</span>
+    <span class="n">_dtypes_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;trainer_restart&#39;</span><span class="p">:</span>              <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_max_epochs&#39;</span><span class="p">:</span>           <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_properties&#39;</span><span class="p">:</span>           <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string_array</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_properties_metrics&#39;</span><span class="p">:</span>   <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_properties_weights&#39;</span><span class="p">:</span>   <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_optimizer&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_optimizer_args&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_scheduler&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_callable</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_scheduler_args&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_ema&#39;</span><span class="p">:</span>                  <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_ema_decay&#39;</span><span class="p">:</span>            <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_max_gradient_norm&#39;</span><span class="p">:</span>    <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_numeric</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_save_interval&#39;</span><span class="p">:</span>        <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_validation_interval&#39;</span><span class="p">:</span>  <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_evaluate_testset&#39;</span><span class="p">:</span>     <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_max_checkpoints&#39;</span><span class="p">:</span>      <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_store_neighbor_list&#39;</span><span class="p">:</span>  <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_summary_writer&#39;</span><span class="p">:</span>       <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="s1">&#39;trainer_print_progress_bar&#39;</span><span class="p">:</span>   <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_bool</span><span class="p">],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">data_container</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">DataContainer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_calculator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_restart</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_max_epochs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_properties_metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_properties_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_optimizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_optimizer_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_scheduler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_scheduler_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_ema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_ema_decay</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_max_gradient_norm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_save_interval</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_validation_interval</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_evaluate_testset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_max_checkpoints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_store_neighbor_list</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_summary_writer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">trainer_print_progress_bar</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize Model Calculator Trainer.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">##########################################</span>
+        <span class="c1"># # # Check Calculator Trainer Input # # #</span>
+        <span class="c1">##########################################</span>
+
+        <span class="c1"># Get configuration object</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span>
+            <span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">config_from</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Check input parameter, set default values if necessary and</span>
+        <span class="c1"># update the configuration dictionary</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">argitems</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">(),</span>
+            <span class="n">check_default</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_default_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train</span><span class="p">),</span>
+            <span class="n">check_dtype</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_dtype_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Update global configuration dictionary</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_update</span><span class="p">)</span>
+        
+        <span class="c1"># Assign module variable parameters from configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">)</span>
+
+        <span class="c1">################################</span>
+        <span class="c1"># # # Check Data Container # # #</span>
+        <span class="c1">################################</span>
+
+        <span class="c1"># Assign DataContainer if not done already</span>
+        <span class="k">if</span> <span class="n">data_container</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_container</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">DataContainer</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Assign training and validation data loader</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_train</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_container</span><span class="o">.</span><span class="n">train_loader</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_valid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_container</span><span class="o">.</span><span class="n">valid_loader</span>
+
+        <span class="c1"># Get reference data properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_container</span><span class="o">.</span><span class="n">data_load_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_units</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_container</span><span class="o">.</span><span class="n">data_unit_properties</span>
+
+        <span class="c1">##################################</span>
+        <span class="c1"># # # Check Model Calculator # # #</span>
+        <span class="c1">##################################</span>
+
+        <span class="c1"># Assign model calculator model if not done already</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_calculator</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Get model properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">model_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_units</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">model_unit_properties</span>
+
+        <span class="c1">############################</span>
+        <span class="c1"># # # Check Properties # # #</span>
+        <span class="c1">############################</span>
+
+        <span class="c1"># Check property definition for the loss function evaluation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_properties</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_properties</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span><span class="p">)</span>
+
+        <span class="c1"># Check property metrics and weights for the loss function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_metrics</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_weights</span> <span class="o">=</span> <span class="p">(</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_properties_metrics_weights</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_metrics</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_weights</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check model units and model to data unit conversion</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_units</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_units</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_conversion</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_model_units</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model_units</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_units</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Show assigned property units and </span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+              <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="s1">&#39;Property &#39;</span><span class="si">:</span><span class="s2">&lt;17s</span><span class="si">}</span><span class="s2">|  </span><span class="si">{</span><span class="s1">&#39;Model Unit&#39;</span><span class="si">:</span><span class="s2">&lt;12s</span><span class="si">}</span><span class="s2">|&quot;</span>
+            <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="s1">&#39;Data Unit&#39;</span><span class="si">:</span><span class="s2">&lt;12s</span><span class="si">}</span><span class="s2">|  </span><span class="si">{</span><span class="s1">&#39;Conv. fact.&#39;</span><span class="si">:</span><span class="s2">&lt;12s</span><span class="si">}</span><span class="s2">|&quot;</span>
+            <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="s1">&#39;Loss Metric&#39;</span><span class="si">:</span><span class="s2">&lt;12s</span><span class="si">}</span><span class="s2">|  </span><span class="si">{</span><span class="s1">&#39;Loss Weight&#39;</span><span class="si">:</span><span class="s2">&lt;12s</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;-&quot;</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">prop</span><span class="p">,</span> <span class="n">unit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_units</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">prop</span><span class="si">:</span><span class="s2">&lt;16s</span><span class="si">}</span><span class="s2"> |  </span><span class="si">{</span><span class="n">unit</span><span class="si">:</span><span class="s2">&lt;11s</span><span class="si">}</span><span class="s2"> |&quot;</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">data_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span><span class="si">:</span><span class="s2">&lt;11s</span><span class="si">}</span><span class="s2"> |&quot;</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_conversion</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span><span class="si">:</span><span class="s2">&gt; 8.4e</span><span class="si">}</span><span class="s2"> |&quot;</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_metrics</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span><span class="si">:</span><span class="s2">&lt;11s</span><span class="si">}</span><span class="s2"> |&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="s1">&#39;&#39;</span><span class="si">:</span><span class="s2">&lt;11s</span><span class="si">}</span><span class="s2"> |&quot;</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_weights</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_weights</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span><span class="si">:</span><span class="s2">&gt; 10.4f</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">Training Properties</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">msg</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Assign potentially new property units to the model</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">,</span> <span class="s1">&#39;set_unit_properties&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">set_unit_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_units</span><span class="p">)</span>
+
+        <span class="c1">######################################</span>
+        <span class="c1"># # # Set Model Property Scaling # # #</span>
+        <span class="c1">######################################</span>
+
+        <span class="c1"># Initialize model property scaling dictionary</span>
+        <span class="n">model_properties_scaling</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Get property scaling guess from reference data and convert from data</span>
+        <span class="c1"># to model units.</span>
+        <span class="k">for</span> <span class="n">prop</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_container</span><span class="o">.</span><span class="n">get_property_scaling</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span><span class="p">:</span>
+                <span class="n">model_properties_scaling</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+
+        <span class="c1"># Set current model property scaling</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">set_property_scaling</span><span class="p">(</span><span class="n">model_properties_scaling</span><span class="p">)</span>
+
+        <span class="c1">#############################</span>
+        <span class="c1"># # # Prepare Optimizer # # #</span>
+        <span class="c1">#############################</span>
+
+        <span class="c1"># Assign model parameter optimizer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span> <span class="o">=</span> <span class="n">get_optimizer</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">get_trainable_parameters</span><span class="p">(),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer_args</span><span class="p">)</span>
+
+        <span class="c1">#############################</span>
+        <span class="c1"># # # Prepare Scheduler # # #</span>
+        <span class="c1">#############################</span>
+
+        <span class="c1"># Assign learning rate scheduler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler</span> <span class="o">=</span> <span class="n">get_scheduler</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler_args</span><span class="p">)</span>
+
+        <span class="c1">#######################</span>
+        <span class="c1"># # # Prepare EMA # # #</span>
+        <span class="c1">#######################</span>
+
+        <span class="c1"># Assign Exponential Moving Average model</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_ema</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">torch_ema</span> <span class="kn">import</span> <span class="n">ExponentialMovingAverage</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_ema_model</span> <span class="o">=</span> <span class="n">ExponentialMovingAverage</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span>
+                <span class="n">decay</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_ema_decay</span><span class="p">)</span>
+
+        <span class="c1">################################</span>
+        <span class="c1"># # # Prepare File Manager # # #</span>
+        <span class="c1">################################</span>
+
+        <span class="c1"># Initialize checkpoint file manager and summary writer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">FileManager</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">max_checkpoints</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_max_checkpoints</span><span class="p">)</span>
+        
+        <span class="c1"># Initialize training summary writer</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_summary_writer</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">torch.utils.tensorboard</span> <span class="kn">import</span> <span class="n">SummaryWriter</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">summary_writer</span> <span class="o">=</span> <span class="n">SummaryWriter</span><span class="p">(</span>
+                <span class="n">log_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span><span class="o">.</span><span class="n">logs_dir</span><span class="p">)</span>
+
+        <span class="c1">##########################</span>
+        <span class="c1"># # # Prepare Tester # # #</span>
+        <span class="c1">##########################</span>
+
+        <span class="c1"># Assign model prediction tester if test set evaluation is requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_evaluate_testset</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tester</span> <span class="o">=</span> <span class="n">Tester</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span>
+                <span class="n">data_container</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data_container</span><span class="p">,</span>
+                <span class="n">test_datasets</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span>
+                <span class="n">test_store_neighbor_list</span><span class="o">=</span><span class="n">trainer_store_neighbor_list</span><span class="p">)</span>
+
+        <span class="c1">#############################</span>
+        <span class="c1"># # # Save Model Config # # #</span>
+        <span class="c1">#############################</span>
+
+        <span class="c1"># Save a copy of the current model configuration in the model directory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span><span class="o">.</span><span class="n">save_config</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="Trainer.check_properties"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.check_properties">[docs]</a>    <span class="k">def</span> <span class="nf">check_properties</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">trainer_properties</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">data_properties</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">model_properties</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check properties for the contribution to the loss function between </span>
+<span class="sd">        predicted model properties and available properties in the reference</span>
+<span class="sd">        data container.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameter</span>
+<span class="sd">        ---------</span>
+<span class="sd">        trainer_properties: list(str)</span>
+<span class="sd">            Properties contributing to the loss function. If empty or None,</span>
+<span class="sd">            take all matching properties between model and data container.</span>
+<span class="sd">        data_properties: list(str)</span>
+<span class="sd">            Properties available in the reference data container</span>
+<span class="sd">        model_properties: list(str)</span>
+<span class="sd">            Properties predicted by the model calculator</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        --------</span>
+<span class="sd">        list(str)</span>
+<span class="sd">            List of loss function property contributions.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Check matching data and model properties </span>
+        <span class="n">matching_properties</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">data_properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">model_properties</span><span class="p">:</span>
+                <span class="n">matching_properties</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+
+        <span class="c1"># Check training properties are empty, use all matching properties</span>
+        <span class="k">if</span> <span class="n">trainer_properties</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">trainer_properties</span><span class="p">):</span>
+            <span class="n">trainer_properties</span> <span class="o">=</span> <span class="n">matching_properties</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">trainer_properties</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matching_properties</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">data_properties</span><span class="p">:</span>
+                        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;model calculator!&quot;</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;data container!&quot;</span>
+                    <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Requested property &#39;</span><span class="si">{</span><span class="n">prop</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; as loss function &quot;</span>
+                        <span class="o">+</span> <span class="s2">&quot;contribution is not available in &quot;</span> <span class="o">+</span> <span class="n">msg</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">trainer_properties</span></div>
+
+<div class="viewcode-block" id="Trainer.check_properties_metrics_weights"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.check_properties_metrics_weights">[docs]</a>    <span class="k">def</span> <span class="nf">check_properties_metrics_weights</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">trainer_properties</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">trainer_properties_metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="n">trainer_properties_weights</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="n">default_property_metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;mse&#39;</span><span class="p">,</span>
+        <span class="n">default_property_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prepare property loss metrics and weighting factors for the loss </span>
+<span class="sd">        function contributions.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameter</span>
+<span class="sd">        ---------</span>
+<span class="sd">        trainer_properties: list(str)</span>
+<span class="sd">            Properties contributing to the loss function</span>
+<span class="sd">        trainer_properties_metrics: dict(str, float)</span>
+<span class="sd">            Metrics functions for property contribution in the loss function</span>
+<span class="sd">        trainer_properties_weights: dict(str, float)</span>
+<span class="sd">            Weighting factors for property metrics in the loss function</span>
+<span class="sd">        default_property_metrics: str, optional, default &#39;mse&#39;</span>
+<span class="sd">            Default option, if the property not in metrics dictionary and no </span>
+<span class="sd">            other default value is defined by key &#39;else&#39;. </span>
+<span class="sd">            Default: mean scare error (mse) </span>
+<span class="sd">            Alternative: mean absolute error (mae)</span>
+<span class="sd">        default_property_weights: str, optional, default 1.0</span>
+<span class="sd">            Default option, if the property not in weights dictionary and no </span>
+<span class="sd">            other default value is defined by key &#39;else&#39;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        --------</span>
+<span class="sd">        dict(str, float)</span>
+<span class="sd">            Prepared property metrics dictionary</span>
+<span class="sd">        dict(str, float)</span>
+<span class="sd">            Prepared property weighting factors dictionary</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check property metrics</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">trainer_properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">trainer_properties_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">trainer_properties_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;else&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="n">trainer_properties_metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_property_metrics</span>
+            <span class="k">elif</span> <span class="n">trainer_properties_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">trainer_properties_metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">trainer_properties_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;else&#39;</span><span class="p">))</span>
+
+        <span class="c1"># Check property weights</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">trainer_properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">trainer_properties_weights</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">trainer_properties_weights</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;else&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="n">trainer_properties_weights</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_property_weights</span>
+            <span class="k">elif</span> <span class="n">trainer_properties_weights</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">trainer_properties_weights</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">trainer_properties_weights</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;else&#39;</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">trainer_properties_metrics</span><span class="p">,</span> <span class="n">trainer_properties_weights</span></div>
+
+<div class="viewcode-block" id="Trainer.check_model_units"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.check_model_units">[docs]</a>    <span class="k">def</span> <span class="nf">check_model_units</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">trainer_properties</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">model_units</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">data_units</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">related_properties</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;energy&#39;</span><span class="p">:</span> <span class="s1">&#39;atomic_energies&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;charge&#39;</span><span class="p">:</span> <span class="s1">&#39;atomic_charges&#39;</span><span class="p">}</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">float</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check the definition of the model units or assign units from the</span>
+<span class="sd">        reference dataset</span>
+
+<span class="sd">        Parameter</span>
+<span class="sd">        ---------</span>
+<span class="sd">        trainer_properties: list(str)</span>
+<span class="sd">            Properties contributing to the loss function</span>
+<span class="sd">        model_units: dict(str, str)</span>
+<span class="sd">            Dictionary of model property units.</span>
+<span class="sd">        data_units: dict(str, str)</span>
+<span class="sd">            Dictionary of data property units.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict(str, str)</span>
+<span class="sd">            Dictionary of adopted model property units</span>
+<span class="sd">        dict(str, str)</span>
+<span class="sd">            Dictionary of adopted data property units</span>
+<span class="sd">        dict(str, float)</span>
+<span class="sd">            Dictionary of model to data property unit conversion factors</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialize mode to data unit conversion dictionary</span>
+        <span class="n">model_conversion</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="c1"># Check basic properties - positions, charge</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;positions&#39;</span><span class="p">,</span> <span class="s1">&#39;charge&#39;</span><span class="p">]:</span>
+            
+            <span class="c1"># Check model property unit</span>
+            <span class="k">if</span> <span class="n">model_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+                <span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">check_units</span><span class="p">(</span>
+                    <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span> <span class="n">data_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
+
+            <span class="c1"># Append related property units</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">related_properties</span><span class="p">:</span>
+                <span class="n">related_prop</span> <span class="o">=</span> <span class="n">related_properties</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+                <span class="n">model_units</span><span class="p">,</span> <span class="n">data_units</span><span class="p">,</span> <span class="n">model_conversion</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_check_model_units_related</span><span class="p">(</span>
+                        <span class="n">prop</span><span class="p">,</span> 
+                        <span class="n">related_prop</span><span class="p">,</span>
+                        <span class="n">model_units</span><span class="p">,</span>
+                        <span class="n">data_units</span><span class="p">,</span>
+                        <span class="n">model_conversion</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="c1"># Iterate over training properties</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">trainer_properties</span><span class="p">:</span>
+            
+            <span class="c1"># Check model property unit</span>
+            <span class="k">if</span> <span class="n">model_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+                <span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">check_units</span><span class="p">(</span>
+                    <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span> <span class="n">data_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
+
+            <span class="c1"># Append related property units</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">related_properties</span><span class="p">:</span>
+                <span class="n">related_prop</span> <span class="o">=</span> <span class="n">related_properties</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+                <span class="n">model_units</span><span class="p">,</span> <span class="n">data_units</span><span class="p">,</span> <span class="n">model_conversion</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_check_model_units_related</span><span class="p">(</span>
+                        <span class="n">prop</span><span class="p">,</span> 
+                        <span class="n">related_prop</span><span class="p">,</span>
+                        <span class="n">model_units</span><span class="p">,</span>
+                        <span class="n">data_units</span><span class="p">,</span>
+                        <span class="n">model_conversion</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model_units</span><span class="p">,</span> <span class="n">data_units</span><span class="p">,</span> <span class="n">model_conversion</span></div>
+
+    <span class="k">def</span> <span class="nf">_check_model_units_related</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">prop</span><span class="p">,</span>
+        <span class="n">related_prop</span><span class="p">,</span>
+        <span class="n">model_units</span><span class="p">,</span>
+        <span class="n">data_units</span><span class="p">,</span>
+        <span class="n">model_conversion</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">float</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check and add the related property label to the model and data units</span>
+<span class="sd">        dictionary and add the unit conversion.</span>
+
+<span class="sd">        Parameter</span>
+<span class="sd">        ---------</span>
+<span class="sd">        prop: str</span>
+<span class="sd">            Property label</span>
+<span class="sd">        related_prop: str</span>
+<span class="sd">            Related property label sharing same property unit</span>
+<span class="sd">        model_units: dict(str, str)</span>
+<span class="sd">            Dictionary of model property units.</span>
+<span class="sd">        data_units: dict(str, str)</span>
+<span class="sd">            Dictionary of data property units.</span>
+<span class="sd">        model_conversion: dict(str, float)</span>
+<span class="sd">            Dictionary of model to data property unit conversion factors</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict(str, str)</span>
+<span class="sd">            Dictionary of adopted model property units</span>
+<span class="sd">        dict(str, str)</span>
+<span class="sd">            Dictionary of adopted data property units</span>
+<span class="sd">        dict(str, float)</span>
+<span class="sd">            Dictionary of model to data property unit conversion factors</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Add related property to lists and conversion dictionary</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">related_prop</span> <span class="ow">in</span> <span class="n">model_units</span>
+            <span class="ow">and</span> <span class="n">related_prop</span> <span class="ow">in</span> <span class="n">data_units</span>
+        <span class="p">):</span>
+            <span class="n">model_conversion</span><span class="p">[</span><span class="n">related_prop</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">check_units</span><span class="p">(</span>
+                <span class="n">model_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">],</span> 
+                <span class="n">data_units</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">related_prop</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">related_prop</span> <span class="ow">in</span> <span class="n">data_units</span><span class="p">:</span>
+            <span class="n">model_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+            <span class="n">model_conversion</span><span class="p">[</span><span class="n">related_prop</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">check_units</span><span class="p">(</span>
+                <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span> <span class="n">data_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">related_prop</span> <span class="ow">in</span> <span class="n">model_units</span><span class="p">:</span>
+            <span class="n">data_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span>
+            <span class="n">model_conversion</span><span class="p">[</span><span class="n">related_prop</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">check_units</span><span class="p">(</span>
+                <span class="n">model_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">],</span> <span class="n">data_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">])</span>
+            <span class="n">model_conversion</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+            <span class="n">data_units</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+            <span class="n">model_conversion</span><span class="p">[</span><span class="n">related_prop</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+        
+        <span class="k">return</span> <span class="n">model_units</span><span class="p">,</span> <span class="n">data_units</span><span class="p">,</span> <span class="n">model_conversion</span>
+
+<div class="viewcode-block" id="Trainer.run"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Train model calculator.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        verbose: bool, optional, default True</span>
+<span class="sd">            Show progress bar for the current epoch.</span>
+<span class="sd">        debug: bool, optional, dafault False</span>
+<span class="sd">            Enable torch autograd anomaly detection.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Prepare Model and Metric # # #</span>
+        <span class="c1">####################################</span>
+
+        <span class="c1"># Load, if exists, latest model calculator and training state</span>
+        <span class="c1"># checkpoint file</span>
+        <span class="n">latest_checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span>
+            <span class="n">checkpoint_label</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">)</span>
+
+        <span class="n">trainer_epoch_start</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">latest_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Assign model parameters</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span>
+                <span class="n">latest_checkpoint</span><span class="p">[</span><span class="s1">&#39;model_state_dict&#39;</span><span class="p">])</span>
+            <span class="c1"># Assign optimizer, scheduler and epoch parameter if available</span>
+            <span class="k">if</span> <span class="n">latest_checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;optimizer_state_dict&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span>
+                    <span class="n">latest_checkpoint</span><span class="p">[</span><span class="s1">&#39;optimizer_state_dict&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">latest_checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scheduler_state_dict&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span>
+                    <span class="n">latest_checkpoint</span><span class="p">[</span><span class="s1">&#39;scheduler_state_dict&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">latest_checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;epoch&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">trainer_epoch_start</span> <span class="o">=</span> <span class="n">latest_checkpoint</span><span class="p">[</span><span class="s1">&#39;epoch&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Initialize training mode for calculator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">set_grad_enabled</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">set_detect_anomaly</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Initialize best total loss value of validation reference data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Reset property metrics</span>
+        <span class="n">metrics_best</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_metrics</span><span class="p">()</span>
+
+        <span class="c1"># Define loss function</span>
+        <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">SmoothL1Loss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Count number of training batches</span>
+        <span class="n">Nbatch_train</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_train</span><span class="p">)</span>
+
+        <span class="c1"># Initialize training time estimation per epoch</span>
+        <span class="n">train_time_estimation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+        <span class="c1"># Set maximum model cutoff for neighbor list calculation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_train</span><span class="o">.</span><span class="n">init_neighbor_list</span><span class="p">(</span>
+            <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">model_cutoff</span><span class="p">,</span>
+            <span class="n">store</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_store_neighbor_list</span><span class="p">,</span>
+            <span class="n">func_neighbor_list</span><span class="o">=</span><span class="s1">&#39;torch&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_valid</span><span class="o">.</span><span class="n">init_neighbor_list</span><span class="p">(</span>
+            <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">model_cutoff</span><span class="p">,</span>
+            <span class="n">store</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_store_neighbor_list</span><span class="p">,</span>
+            <span class="n">func_neighbor_list</span><span class="o">=</span><span class="s1">&#39;torch&#39;</span><span class="p">)</span>
+
+        <span class="c1">##########################</span>
+        <span class="c1"># # # Start Training # # #</span>
+        <span class="c1">##########################</span>
+
+        <span class="c1"># Skip if max epochs are already reached</span>
+        <span class="k">if</span> <span class="n">trainer_epoch_start</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_max_epochs</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Loop over epochs</span>
+        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+            <span class="n">trainer_epoch_start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_max_epochs</span>
+        <span class="p">):</span>
+
+            <span class="c1"># Start epoch train timer</span>
+            <span class="n">train_time_epoch_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+            <span class="c1"># Reset property metrics</span>
+            <span class="n">metrics_train</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_metrics</span><span class="p">()</span>
+
+            <span class="c1"># Loop over training batches</span>
+            <span class="k">for</span> <span class="n">ib</span><span class="p">,</span> <span class="n">batch</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_train</span><span class="p">):</span>
+
+                <span class="c1"># Start batch train timer</span>
+                <span class="n">train_time_batch_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+                <span class="c1"># Eventually show training progress</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="n">utils</span><span class="o">.</span><span class="n">printProgressBar</span><span class="p">(</span>
+                        <span class="n">ib</span><span class="p">,</span> <span class="n">Nbatch_train</span><span class="p">,</span>
+                        <span class="n">prefix</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">:</span><span class="s2"> 5d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">suffix</span><span class="o">=</span><span class="p">(</span>
+                            <span class="s2">&quot;Complete - Remaining Epoch Time: &quot;</span>
+                            <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">train_time_estimation</span><span class="si">:</span><span class="s2"> 4.1f</span><span class="si">}</span><span class="s2"> s     &quot;</span>
+                            <span class="p">),</span>
+                        <span class="n">length</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+                <span class="c1"># Reset optimizer gradients</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">(</span><span class="n">set_to_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="c1"># Predict model properties from data batch</span>
+                <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+
+                <span class="c1"># Compute total and single loss values for training properties</span>
+                <span class="n">metrics_batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_metrics</span><span class="p">(</span>
+                    <span class="n">prediction</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">)</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="n">metrics_batch</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span>
+
+                <span class="c1"># Predict parameter gradients by backwards propagation</span>
+                <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+
+                <span class="c1"># Clip parameter gradients</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">clip_grad_norm_</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">trainer_max_gradient_norm</span><span class="p">)</span>
+
+                <span class="c1"># Update model parameters</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+                <span class="c1"># Apply Exponential Moving Average</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_ema</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">trainer_ema_model</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+                <span class="c1"># Update average metrics</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_metrics</span><span class="p">(</span><span class="n">metrics_train</span><span class="p">,</span> <span class="n">metrics_batch</span><span class="p">)</span>
+
+                <span class="c1"># End batch train timer</span>
+                <span class="n">train_time_batch_end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+                <span class="c1"># Eventually update training batch time estimation</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="n">train_time_batch</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">train_time_batch_end</span> <span class="o">-</span> <span class="n">train_time_batch_start</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">ib</span><span class="p">:</span>
+                        <span class="n">train_time_estimation</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">train_time_estimation</span> <span class="o">-</span> <span class="n">train_time_batch</span><span class="p">)</span>
+                            <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">train_time_batch</span><span class="o">*</span><span class="p">(</span><span class="n">Nbatch_train</span> <span class="o">-</span> <span class="n">ib</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">train_time_estimation</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">train_time_batch</span><span class="o">*</span><span class="p">(</span><span class="n">Nbatch_train</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+
+            <span class="c1"># Increment scheduler step</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+            <span class="c1"># Stop epoch train timer</span>
+            <span class="n">train_time_epoch_end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">train_time_epoch</span> <span class="o">=</span> <span class="n">train_time_epoch_end</span> <span class="o">-</span> <span class="n">train_time_epoch_start</span>
+
+            <span class="c1"># Eventually show final training progress</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="n">utils</span><span class="o">.</span><span class="n">printProgressBar</span><span class="p">(</span>
+                    <span class="n">Nbatch_train</span><span class="p">,</span> <span class="n">Nbatch_train</span><span class="p">,</span>
+                    <span class="n">prefix</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">:</span><span class="s2"> 5d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">suffix</span><span class="o">=</span><span class="p">(</span>
+                        <span class="s2">&quot;Done - Epoch Time: &quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">train_time_epoch</span><span class="si">:</span><span class="s2"> 4.1f</span><span class="si">}</span><span class="s2"> s, &quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot;Loss: </span><span class="si">{</span><span class="n">metrics_train</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2"> 4.4f</span><span class="si">}</span><span class="s2">   &quot;</span><span class="p">),</span>
+                    <span class="n">length</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+            <span class="c1"># Save current model each interval</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">epoch</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_save_interval</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span>
+                    <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">,</span>
+                    <span class="n">optimizer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="p">,</span>
+                    <span class="n">scheduler</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler</span><span class="p">,</span>
+                    <span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+
+            <span class="c1"># Perform model validation each interval</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">epoch</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_validation_interval</span><span class="p">):</span>
+
+                <span class="c1"># Change to evaluation mode for calculator</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+
+                <span class="c1"># Reset property metrics</span>
+                <span class="n">metrics_valid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_metrics</span><span class="p">()</span>
+
+                <span class="c1"># Loop over validation batches</span>
+                <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_valid</span><span class="p">:</span>
+
+                    <span class="c1"># Predict model properties from data batch</span>
+                    <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+
+                    <span class="c1"># Compute total and single loss values for training</span>
+                    <span class="c1"># properties</span>
+                    <span class="n">metrics_batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_metrics</span><span class="p">(</span>
+                        <span class="n">prediction</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">loss_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+                    <span class="c1"># Update average metrics</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">update_metrics</span><span class="p">(</span><span class="n">metrics_valid</span><span class="p">,</span> <span class="n">metrics_batch</span><span class="p">)</span>
+
+                <span class="c1"># Change back to training mode for calculator</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+                <span class="c1"># Check for model improvement and save as best model eventually</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="n">metrics_valid</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span>
+                <span class="p">):</span>
+
+                    <span class="c1"># Store best metrics</span>
+                    <span class="n">metrics_best</span> <span class="o">=</span> <span class="n">metrics_valid</span>
+
+                    <span class="c1"># Save model calculator state</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span>
+                        <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">,</span>
+                        <span class="n">optimizer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_optimizer</span><span class="p">,</span>
+                        <span class="n">scheduler</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_scheduler</span><span class="p">,</span>
+                        <span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">,</span>
+                        <span class="n">best</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                    <span class="c1"># Evaluation of the test set if requested</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_evaluate_testset</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">tester</span><span class="o">.</span><span class="n">test</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">,</span>
+                            <span class="n">test_directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">filemanager</span><span class="o">.</span><span class="n">best_dir</span><span class="p">,</span>
+                            <span class="n">test_plot_correlation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                            <span class="n">test_plot_histogram</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                            <span class="n">test_plot_residual</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                    <span class="c1"># Add process to training summary writer</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_summary_writer</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">prop</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">metrics_best</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                            <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_dictionary</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                                <span class="k">for</span> <span class="n">metric</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">summary_writer</span><span class="o">.</span><span class="n">add_scalar</span><span class="p">(</span>
+                                        <span class="n">prop</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">metric</span><span class="p">,</span>
+                                        <span class="n">metrics_best</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="n">metric</span><span class="p">],</span>
+                                        <span class="n">global_step</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">summary_writer</span><span class="o">.</span><span class="n">add_scalar</span><span class="p">(</span>
+                                    <span class="n">prop</span><span class="p">,</span> <span class="n">metrics_best</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span>
+                                    <span class="n">global_step</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+
+                    <span class="c1"># Update best total loss     value</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">best_loss</span> <span class="o">=</span> <span class="n">metrics_valid</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span>
+
+                <span class="c1"># Print validation metrics summary</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Summary Epoch: </span><span class="si">{</span><span class="n">epoch</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">/&quot;</span> <span class="o">+</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_max_epochs</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span>
+                    <span class="s2">&quot;  Loss   train / valid: &quot;</span> <span class="o">+</span>
+                    <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">metrics_train</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="s2"> /&quot;</span> <span class="o">+</span>
+                    <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">metrics_valid</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="s2">&quot;</span> <span class="o">+</span>
+                    <span class="sa">f</span><span class="s2">&quot;  Best Loss valid: </span><span class="si">{</span><span class="n">metrics_best</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;  Property Metrics (valid):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">+=</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">prop</span><span class="si">:</span><span class="s2">10s</span><span class="si">}</span><span class="s2">  MAE (Best) / RMSE (Best): &quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">metrics_valid</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;mae&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="s2">&quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">metrics_best</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;mae&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="s2">) /&quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">metrics_valid</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;mse&#39;</span><span class="p">])</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="s2">&quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">metrics_best</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;mse&#39;</span><span class="p">])</span><span class="si">:</span><span class="s2">.2E</span><span class="si">}</span><span class="s2">)&quot;</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_units</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Trainer.predict_batch"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.predict_batch">[docs]</a>    <span class="k">def</span> <span class="nf">predict_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predict properties from data batch.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        batch: dict</span>
+<span class="sd">            Data batch dictionary</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict(str, torch.Tensor)</span>
+<span class="sd">            Model Calculator prediction of properties</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Predict properties</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_calculator</span><span class="p">(</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;atoms_number&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;atomic_numbers&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;positions&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;idx_i&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;idx_j&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;charge&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;atoms_seg&#39;</span><span class="p">],</span>
+            <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;pbc_offset&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Trainer.reset_metrics"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.reset_metrics">[docs]</a>    <span class="k">def</span> <span class="nf">reset_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Reset metrics dictionary.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Initialize metrics dictionary</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Add loss total value</span>
+        <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Add data counter</span>
+        <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Add training property metrics</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">:</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;loss&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;mae&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;mse&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">metrics</span></div>
+
+<div class="viewcode-block" id="Trainer.update_metrics"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.update_metrics">[docs]</a>    <span class="k">def</span> <span class="nf">update_metrics</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="n">metrics_update</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Update metrics dictionary.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        metrics: dict</span>
+<span class="sd">            Metrics dictionary</span>
+<span class="sd">        metrics_update: dict</span>
+<span class="sd">            Metrics dictionary to update</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Get data sizes and metric ratio</span>
+        <span class="n">Ndata</span> <span class="o">=</span> <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span>
+        <span class="n">Ndata_update</span> <span class="o">=</span> <span class="n">metrics_update</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span>
+        <span class="n">fdata</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Ndata</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">((</span><span class="n">Ndata</span> <span class="o">+</span> <span class="n">Ndata_update</span><span class="p">))</span>
+        <span class="n">fdata_update</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">-</span> <span class="n">fdata</span>
+
+        <span class="c1"># Update metrics</span>
+        <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">metrics_update</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span>
+        <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">fdata</span><span class="o">*</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">fdata_update</span><span class="o">*</span><span class="n">metrics_update</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">metrics_update</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">fdata</span><span class="o">*</span><span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span>
+                    <span class="o">+</span> <span class="n">fdata_update</span><span class="o">*</span><span class="n">metrics_update</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">metrics</span></div>
+
+<div class="viewcode-block" id="Trainer.compute_metrics"><a class="viewcode-back" href="../../../api/asparagus.train.html#asparagus.train.trainer.Trainer.compute_metrics">[docs]</a>    <span class="k">def</span> <span class="nf">compute_metrics</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">prediction</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">reference</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">loss_only</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Compute metrics. This function evaluates the loss function.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prediction: dict</span>
+<span class="sd">            Model prediction dictionary</span>
+<span class="sd">        reference:</span>
+<span class="sd">            Reference data dictionary</span>
+<span class="sd">        loss_fn:</span>
+<span class="sd">            Loss function if not defined it is set to torch.nn.L1Loss</span>
+<span class="sd">        loss_only</span>
+<span class="sd">            Compute only loss function or compute MAE and MSE as well</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Check loss function input</span>
+        <span class="k">if</span> <span class="n">loss_fn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">L1Loss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize MAE calculator function if needed</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">loss_only</span><span class="p">:</span>
+            <span class="n">mae_fn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">L1Loss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+            <span class="n">mse_fn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize metrics dictionary</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Add batch size</span>
+        <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;Ndata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reference</span><span class="p">[</span><span class="s1">&#39;atoms_number&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Iterate over training properties</span>
+        <span class="k">for</span> <span class="n">ip</span><span class="p">,</span> <span class="n">prop</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties</span><span class="p">):</span>
+
+            <span class="c1"># Initialize single property metrics dictionary</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="c1"># Compute loss value per atom</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">reference</span><span class="p">[</span><span class="n">prop</span><span class="p">]))</span>
+
+            <span class="c1"># Weight and add to total loss</span>
+            <span class="k">if</span> <span class="n">ip</span><span class="p">:</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_weights</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+                    <span class="o">*</span> <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;loss&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">trainer_properties_weights</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+                    <span class="o">*</span> <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;loss&#39;</span><span class="p">])</span>
+
+            <span class="c1"># Compute MAE and MSE if requested</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">loss_only</span><span class="p">:</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;mae&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mae_fn</span><span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">reference</span><span class="p">[</span><span class="n">prop</span><span class="p">]))</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="n">prop</span><span class="p">][</span><span class="s1">&#39;mse&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mse_fn</span><span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">prediction</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_conversion</span><span class="p">[</span><span class="n">prop</span><span class="p">],</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">reference</span><span class="p">[</span><span class="n">prop</span><span class="p">]))</span>
+
+        <span class="k">return</span> <span class="n">metrics</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

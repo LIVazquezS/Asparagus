@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>asparagus.model.filemanager &mdash; Asparagus bundle 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=e031e9a9"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Asparagus bundle
+          </a>
+              <div class="version">
+                0.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../config_file.html">Configuration File Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contribute.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Asparagus bundle</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">asparagus.model.filemanager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for asparagus.model.filemanager</h1><div class="highlight"><pre>
+<span></span><span class="c1"># This should manage checkpoint creation and loading writer to tensorboardX</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">utils</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FileManager&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="FileManager"><a class="viewcode-back" href="../../../api/asparagus.model.html#asparagus.model.filemanager.FileManager">[docs]</a><span class="k">class</span> <span class="nc">FileManager</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    File manager for loading and storing model parameter and training files.</span>
+<span class="sd">    Manage checkpoint creation and loading writer to tensorboardX</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    config: (str, dict, object), optional, default None</span>
+<span class="sd">        Either the path to json file (str), dictionary (dict) or</span>
+<span class="sd">        settings.config class object of Asparagus parameters</span>
+<span class="sd">    config_file: str, optional, default see settings.default[&#39;config_file&#39;]</span>
+<span class="sd">        Path to config json file (str)</span>
+<span class="sd">    model_directory: str, optional, default None</span>
+<span class="sd">        Model directory that contains checkpoint and log files.</span>
+<span class="sd">    model_max_checkpoints: int, optional, default 1</span>
+<span class="sd">        Maximum number of checkpoint files.</span>
+<span class="sd">    **kwargs: dict</span>
+<span class="sd">        Additional keyword arguments for tensorboards &#39;SummaryWriter&#39;</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Default arguments for graph module</span>
+    <span class="n">_default_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;model_directory&#39;</span><span class="p">:</span>              <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;model_max_checkpoints&#39;</span><span class="p">:</span>        <span class="mi">1</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Expected data types of input variables</span>
+    <span class="n">_dtypes_args</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;model_directory&#39;</span><span class="p">:</span>              <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_None</span><span class="p">],</span>
+        <span class="s1">&#39;model_max_checkpoints&#39;</span><span class="p">:</span>        <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_max_checkpoints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize file manager class.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">####################################</span>
+        <span class="c1"># # # Check File Manager Input # # #</span>
+        <span class="c1">####################################</span>
+
+        <span class="c1"># Get configuration object</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">config_from</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># Check input parameter, set default values if necessary and</span>
+        <span class="c1"># update the configuration dictionary</span>
+        <span class="n">config_update</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">argitems</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">(),</span>
+            <span class="n">check_default</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_default_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">check_dtype</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_dtype_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        
+        <span class="c1"># Update global configuration dictionary</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_update</span><span class="p">)</span>
+        
+        <span class="c1">###################################</span>
+        <span class="c1"># # # Prepare Model Directory # # #</span>
+        <span class="c1">###################################</span>
+
+        <span class="c1"># Take either defined model directory path or a generate a generic one</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;model_type&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">model_type</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">model_type</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;model_type&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">model_type</span>
+                <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">%H%M%S&quot;</span><span class="p">))</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_directory&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span>
+        <span class="c1"># I would prefer if we keep the specifications of the NN model in the</span>
+        <span class="c1"># name of the directory...LIVS</span>
+        <span class="c1"># I see your point, but the commented version seems very PhysNet specific.</span>
+        <span class="c1"># Maybe add a __str__() function to the model which returns a model</span>
+        <span class="c1"># tag for the directory name.</span>
+        <span class="c1">#(</span>
+            <span class="c1">#datetime.datetime.utcnow().strftime(&quot;%Y%m%d%H%M%S&quot;)</span>
+            <span class="c1">#+ &quot;_&quot; + id_generator() + &quot;_F&quot; + str(config[&#39;input_n_atombasis&#39;])</span>
+            <span class="c1">#+ &quot;K&quot; + str(config[&#39;input_nradialbasis&#39;]) + &quot;b&quot; + str(config[&#39;graph_n_blocks&#39;])</span>
+            <span class="c1">#+ &quot;a&quot; + str(config[&#39;graph_n_residual_atomic&#39;])</span>
+            <span class="c1">#+ &quot;i&quot; + str(config[&#39;graph_n_residual_interaction&#39;])</span>
+            <span class="c1">#+ &quot;o&quot; + str(config[&#39;output_n_residual&#39;]) + &quot;cut&quot; + str(config[&#39;input_cutoff_descriptor&#39;])</span>
+            <span class="c1">#+ &quot;e&quot; + str(config[&#39;model_electrostatic&#39;]) + &quot;d&quot; + str(config[&#39;model_dispersion&#39;]) + &quot;r&quot; + str(config[&#39;model_repulsion&#39;]))</span>
+
+        <span class="c1"># Prepare model subdirectory paths</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">best_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span> <span class="s1">&#39;best&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span> <span class="s1">&#39;checkpoints&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span> <span class="s1">&#39;logs&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check existence of the directories</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">create_model_directory</span><span class="p">()</span>
+
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="FileManager.create_model_directory"><a class="viewcode-back" href="../../../api/asparagus.model.html#asparagus.model.filemanager.FileManager.create_model_directory">[docs]</a>    <span class="k">def</span> <span class="nf">create_model_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create folders for checkpoints and tensorboardX</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Create model directory</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">)</span>
+        <span class="c1"># Create directory for best model checkpoints</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">best_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">best_dir</span><span class="p">)</span>
+        <span class="c1"># Create directory for model parameter checkpoints</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">)</span>
+        <span class="c1"># Create directory for tensorboardX/logs</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logs_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logs_dir</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="FileManager.save_checkpoint"><a class="viewcode-back" href="../../../api/asparagus.model.html#asparagus.model.filemanager.FileManager.save_checkpoint">[docs]</a>    <span class="k">def</span> <span class="nf">save_checkpoint</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+        <span class="n">epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">best</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">num_checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_checkpoints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save model parameters and training state to checkpoint file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        model: object</span>
+<span class="sd">            Torch calculator model</span>
+<span class="sd">        optimizer: object</span>
+<span class="sd">            Torch optimizer</span>
+<span class="sd">        scheduler: object</span>
+<span class="sd">            Torch scheduler</span>
+<span class="sd">        best: bool, optional, default False</span>
+<span class="sd">            If True, save as best model checkpoint file.</span>
+<span class="sd">        num_checkpoint: int, optional, default None</span>
+<span class="sd">            Alternative checkpoint index other than epoch.</span>
+<span class="sd">        max_checkpoints: int, optional, default 1</span>
+<span class="sd">            Maximum number of checkpoint files. If the threshold is reached and</span>
+<span class="sd">            a checkpoint of the best model (best=True) or specific number</span>
+<span class="sd">            (num_checkpoint is not None), respectively many checkpoint files</span>
+<span class="sd">            with the lowest indices will be deleted.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># For best model, just store model parameter</span>
+        <span class="k">if</span> <span class="n">best</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;model_state_dict&#39;</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+                <span class="s1">&#39;epoch&#39;</span><span class="p">:</span> <span class="n">epoch</span><span class="p">,</span>
+                <span class="p">}</span>
+        <span class="c1"># Else the complete current model training state</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;model_state_dict&#39;</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+                <span class="s1">&#39;optimizer_state_dict&#39;</span><span class="p">:</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+                <span class="s1">&#39;scheduler_state_dict&#39;</span><span class="p">:</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+                <span class="s1">&#39;epoch&#39;</span><span class="p">:</span> <span class="n">epoch</span><span class="p">,</span>
+                <span class="p">}</span>
+
+        <span class="c1"># Checkpoint file name</span>
+        <span class="k">if</span> <span class="n">best</span><span class="p">:</span>
+            <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">best_dir</span><span class="p">,</span> <span class="s1">&#39;best_model.pt&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">num_checkpoint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;model_</span><span class="si">{</span><span class="n">epoch</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_max_checkpoints</span><span class="p">(</span><span class="n">max_checkpoints</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">(</span><span class="n">num_checkpoint</span><span class="p">):</span>
+                <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;model_</span><span class="si">{</span><span class="n">num_checkpoint</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Checkpoint file index number &#39;num_checkpoint&#39; is not &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;an integer!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Write checkpoint file</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">ckpt_name</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="FileManager.load_checkpoint"><a class="viewcode-back" href="../../../api/asparagus.model.html#asparagus.model.filemanager.FileManager.load_checkpoint">[docs]</a>    <span class="k">def</span> <span class="nf">load_checkpoint</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">checkpoint_label</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load model parameters and training state from checkpoint file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        checkpoint_label: (str, int)</span>
+<span class="sd">            If None, load checkpoint file with best loss function value.</span>
+<span class="sd">            If string &#39;best&#39; or &#39;last&#39;, load respectively the best checkpoint </span>
+<span class="sd">            file (as with None) or the with the highest epoch number.</span>
+<span class="sd">            If integer, load the checkpoint file of the respective epoch </span>
+<span class="sd">            number.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Any</span>
+<span class="sd">            Torch module checkpoint file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">checkpoint_label</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="ow">or</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">checkpoint_label</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">checkpoint_label</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;best&#39;</span>
+        <span class="p">):</span>
+
+            <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">best_dir</span><span class="p">,</span> <span class="s1">&#39;best_model.pt&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Check if best checkpoint file exists or return None</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">ckpt_name</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">No best checkpoint file found in &quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">best_dir</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="n">utils</span><span class="o">.</span><span class="n">is_string</span><span class="p">(</span><span class="n">checkpoint_label</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">checkpoint_label</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;last&#39;</span>
+        <span class="p">):</span>
+
+            <span class="c1"># Get highest index checkpoint file</span>
+            <span class="n">ckpt_max</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">ckpt_file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">):</span>
+                <span class="n">ckpt_num</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;model_(\d+).pt&quot;</span><span class="p">,</span> <span class="n">ckpt_file</span><span class="p">)</span>
+                <span class="n">ckpt_num</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ckpt_num</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">ckpt_num</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ckpt_max</span> <span class="o">&lt;</span> <span class="n">ckpt_num</span><span class="p">:</span>
+                    <span class="n">ckpt_max</span> <span class="o">=</span> <span class="n">ckpt_num</span>
+
+            <span class="c1"># If no checkpoint files available return None</span>
+            <span class="k">if</span> <span class="n">ckpt_max</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">No latest checkpoint file found in &quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;model_</span><span class="si">{</span><span class="n">ckpt_max</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">utils</span><span class="o">.</span><span class="n">is_integer</span><span class="p">(</span><span class="n">checkpoint_label</span><span class="p">):</span>
+
+            <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;model_</span><span class="si">{</span><span class="n">checkpoint_label</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Check existence</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">ckpt_name</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Checkpoint file &#39;</span><span class="si">{</span><span class="n">ckpt_name</span><span class="si">}</span><span class="s2">&#39; of index &quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">checkpoint_label</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2"> does not exist!&quot;</span><span class="p">)</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            
+            <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span>
+                <span class="s2">&quot;Input for the model checkpoint label to load &quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;&#39;checkpoint_label&#39; is not valid type!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Load checkpoint</span>
+        <span class="n">checkpoint</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">ckpt_name</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;INFO:</span><span class="se">\n</span><span class="s2">Checkpoint file &#39;</span><span class="si">{</span><span class="n">ckpt_name</span><span class="si">:</span><span class="s2">s</span><span class="si">}</span><span class="s2">&#39; will be loaded.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">checkpoint</span></div>
+
+<div class="viewcode-block" id="FileManager.check_max_checkpoints"><a class="viewcode-back" href="../../../api/asparagus.model.html#asparagus.model.filemanager.FileManager.check_max_checkpoints">[docs]</a>    <span class="k">def</span> <span class="nf">check_max_checkpoints</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">max_checkpoints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check number of checkpoint files and in case of exceeding the</span>
+<span class="sd">        maximum checkpoint threshold, delete the ones with lowest indices.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        max_checkpoints: int, optional, default None</span>
+<span class="sd">             Maximum number of checkpoint files. If None, the threshold is</span>
+<span class="sd">             taken from the class attribute &#39;self.model_max_checkpoints&#39;.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Skip in checkpoint threshold is None</span>
+        <span class="k">if</span> <span class="n">max_checkpoints</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_max_checkpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">elif</span> <span class="n">max_checkpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">max_checkpoints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_max_checkpoints</span>
+
+        <span class="c1"># Gather checkpoint files</span>
+        <span class="n">num_checkpoints</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ckpt_file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">):</span>
+            <span class="n">ckpt_num</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;model_(\d+).pt&quot;</span><span class="p">,</span> <span class="n">ckpt_file</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ckpt_num</span><span class="p">:</span>
+                <span class="n">num_checkpoints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ckpt_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">num_checkpoints</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">num_checkpoints</span><span class="p">)</span>
+
+        <span class="c1"># Delete in case the lowest checkpoint files</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">num_checkpoints</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_checkpoints</span><span class="p">:</span>
+            <span class="c1"># Get checkpoints to delete</span>
+            <span class="k">if</span> <span class="n">max_checkpoints</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">remove_num_checkpoints</span> <span class="o">=</span> <span class="n">num_checkpoints</span><span class="p">[:</span><span class="o">-</span><span class="n">max_checkpoints</span><span class="p">]</span>
+            <span class="c1"># If max_checkpoints is zero (or less), delete everyone</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">remove_num_checkpoints</span> <span class="o">=</span> <span class="n">num_checkpoints</span>
+            <span class="c1"># Delete checkpoint files</span>
+            <span class="k">for</span> <span class="n">ckpt_num</span> <span class="ow">in</span> <span class="n">remove_num_checkpoints</span><span class="p">:</span>
+                <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ckpt_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;model_</span><span class="si">{</span><span class="n">ckpt_num</span><span class="si">:</span><span class="s1">d</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">ckpt_name</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="FileManager.save_config"><a class="viewcode-back" href="../../../api/asparagus.model.html#asparagus.model.filemanager.FileManager.save_config">[docs]</a>    <span class="k">def</span> <span class="nf">save_config</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+        <span class="n">max_backup</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save config object in current model directory with the default file</span>
+<span class="sd">        name. If such file already exist, backup the old one and overwrite.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        config: object</span>
+<span class="sd">            Config class object</span>
+<span class="sd">        max_backup: optional, int, default 100</span>
+<span class="sd">            Maximum number of backup config files</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Config file path</span>
+        <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span> <span class="n">settings</span><span class="o">.</span><span class="n">_default_args</span><span class="p">[</span><span class="s1">&#39;config_file&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Check for old config files</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">config_file</span><span class="p">):</span>
+
+            <span class="n">default_file</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">_default_args</span><span class="p">[</span><span class="s1">&#39;config_file&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Check for backup config files</span>
+            <span class="n">list_backups</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">):</span>
+                <span class="n">num_backup</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span>
+                    <span class="s2">&quot;(\d+)_&quot;</span> <span class="o">+</span> <span class="n">default_file</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                <span class="n">num_backup</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">num_backup</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">num_backup</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">num_backup</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">list_backups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">num_backup</span><span class="p">)</span>
+            <span class="n">list_backups</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">list_backups</span><span class="p">)</span>
+
+            <span class="c1"># Rename old config file</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_backups</span><span class="p">):</span>
+                <span class="n">backup_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">list_backups</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">_&quot;</span> <span class="o">+</span> <span class="n">default_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">backup_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="mi">1</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">_&quot;</span> <span class="o">+</span> <span class="n">default_file</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="n">backup_file</span><span class="p">)</span>
+
+            <span class="c1"># If maximum number of back file reached, delete the oldest</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_backups</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_backup</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">num_backup</span> <span class="ow">in</span> <span class="n">list_backups</span><span class="p">[:</span><span class="o">-</span><span class="p">(</span><span class="n">max_backup</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]:</span>
+                    <span class="n">backup_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">model_directory</span><span class="p">,</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">num_backup</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">_&quot;</span> <span class="o">+</span> <span class="n">default_file</span><span class="p">)</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">backup_file</span><span class="p">)</span>
+
+        <span class="c1"># Dump config in file path</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">config_file</span><span class="o">=</span><span class="n">config_file</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, L.I.Vazquez-Salazar, K. Toepfer &amp; M. Meuwly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
