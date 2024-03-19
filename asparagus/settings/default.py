@@ -24,7 +24,6 @@ _default_args = {
     'model_num_threads':            None,
     'model_restart':                False,
     'model_path':                   'best_model',
-    'model_save_top_k':             1,
     'model_device':                 'cpu',
     'model_dtype':                  torch.float64,
     'model_seed':                   np.random.randint(1E6),

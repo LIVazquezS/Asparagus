@@ -214,7 +214,8 @@ def gather_nd(
     idx = torch.zeros_like(indices[0]).long()
     m = 1
 
-    for i in range(ndim)[::-1]:
+    for irev in range(ndim):
+        i = ndim - irev - 1
         idx = idx + indices[i] * m
         m *= params.size(i)
 

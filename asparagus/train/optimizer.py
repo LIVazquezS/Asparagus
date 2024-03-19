@@ -16,11 +16,19 @@ __all__ = ['get_optimizer']
 #======================================
 
 optimizer_avaiable = {
+    'SGD'.lower(): torch.optim.SGD,
+    'Adagrad'.lower(): torch.optim.Adagrad,
     'Adam'.lower(): torch.optim.Adam,
+    'AdamW'.lower(): torch.optim.AdamW,
+    'Adamax'.lower(): torch.optim.Adam,
     'AMSgrad'.lower(): torch.optim.Adam,
     }
 optimizer_argumens = {
+    'SGD'.lower(): {},
+    'Adagrad'.lower(): {},
     'Adam'.lower(): {},
+    'AdamW'.lower(): {},
+    'Adamax'.lower(): {},
     'AMSgrad'.lower(): {
         'amsgrad': True},
     }

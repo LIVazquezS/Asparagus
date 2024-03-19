@@ -10,13 +10,13 @@ import time
 #==============================================================================
 
 
-flag_dictionary_initialization = True
-flag_database_sql = True
+flag_dictionary_initialization = False
+flag_database_sql = False
 flag_database_hdf5 = False
-flag_sampler_all = True
-flag_sampler_shell = True
+flag_sampler_all = False
+flag_sampler_shell = False
 flag_sampler_slurm = False
-flag_model_physnet = True
+flag_model_physnet = False
 flag_train_physnet = True
 flag_ase_physnet = True
 
@@ -790,6 +790,7 @@ if flag_train_physnet:
         config_file=config_file,
         data_file='data/nms_nh3.db',
         model_directory='test/physnet',
+        model_num_threads=2,
         trainer_max_epochs=100,
         )
     trainer = model.get_trainer()
@@ -806,33 +807,44 @@ if flag_ase_physnet:
         config_file=config_file)
     calc = model.get_ase_calculator()
     
-    # Get system from data container
+    # Get data container
     data = model.get_data_container()
-    system_data = data[100]
-    system = Atoms(
-        system_data['atomic_numbers'],
-        positions=system_data['positions'])
-    system_energy = system_data['energy'].numpy()
-    system_forces = system_data['forces'].numpy()
-    system_dipole = system_data['dipole'].numpy()
+    Ndata = len(data)
+    results_energy = np.zeros([Ndata, 2], dtype=float)
+    for idata, data_i in enumerate(data):
     
-    # Compute model properties
-    system.calc = calc
-    model_energy = system.get_potential_energy()
-    model_forces = system.get_forces()
-    model_dipole = system.get_dipole_moment()
-    
-    # Compare results
-    print(
-        "Reference and model energy (error): "
-        + f"{system_energy:.4f} eV, {model_energy:.4f} eV "
-        + f"({system_energy - model_energy:.4f} eV)")
-    print(
-        "Reference and model forces on nitrogen (mean error): "
-        + f"{system_forces[0]} eV/Ang, {model_forces[0]} eV/Ang "
-        + f"({np.mean(system_forces[0] - model_forces[0]):.4f} eV/Ang)")
-    print(
-        "Reference and model dipole (mean error): "
-        + f"{system_dipole} eAng, {model_dipole} eAng "
-        + f"({np.mean(system_dipole - model_dipole):.4f} eAng)")
-    
+        # Set system from data container
+        system = Atoms(
+            data_i['atomic_numbers'],
+            positions=data_i['positions'])
+        system_energy = data_i['energy'].numpy()
+        system_forces = data_i['forces'].numpy()
+        system_dipole = data_i['dipole'].numpy()
+        
+        # Compute model properties
+        model_energy = calc.get_potential_energy(system)
+        model_forces = calc.get_forces(system)
+        model_dipole = calc.get_dipole_moment(system)
+        
+        # Compare results
+        print(
+            "Reference and model energy (error): "
+            + f"{system_energy:.4f} eV, {model_energy:.4f} eV "
+            + f"({system_energy - model_energy:.4f} eV)")
+        print(
+            "Reference and model forces on nitrogen (mean error): "
+            + f"{system_forces[0]} eV/Ang, {model_forces[0]} eV/Ang "
+            + f"({np.mean(system_forces[0] - model_forces[0]):.4f} eV/Ang)")
+        print(
+            "Reference and model dipole (mean error): "
+            + f"{system_dipole} eAng, {model_dipole} eAng "
+            + f"({np.mean(system_dipole - model_dipole):.4f} eAng)")
+        
+        # Append to result list
+        results_energy[idata, 0] = system_energy
+        results_energy[idata, 1] = model_energy
+        
+    # Show RMSE
+    rmse_energy = np.sqrt(
+        np.mean((results_energy[:, 0] - results_energy[:, 1])**2))
+    print(f"RMSE(energy) = {rmse_energy:.4f} eV")

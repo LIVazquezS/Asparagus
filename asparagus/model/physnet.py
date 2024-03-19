@@ -53,6 +53,8 @@ class Model_PhysNet(torch.nn.Module):
     model_dispersion_trainable: bool, optional, default True
         If True, empirical parameter in the D3 dispersion model are
         trainable. If False, empirical parameter are fixed to default
+    model_num_threads: int, optional, default 4
+        Sets the number of threads used for intraop parallelism on CPU.
 
     """
     
@@ -67,6 +69,7 @@ class Model_PhysNet(torch.nn.Module):
         'model_electrostatic':          True,
         'model_dispersion':             True,
         'model_dispersion_trainable':   True,
+        'model_num_threads':            4,
         }
 
     # Expected data types of input variables
@@ -80,6 +83,7 @@ class Model_PhysNet(torch.nn.Module):
         'model_electrostatic':          [utils.is_bool],
         'model_dispersion':             [utils.is_bool],
         'model_dispersion_trainable':   [utils.is_bool],
+        'model_num_threads':            [utils.is_integer],
         }
 
     # Default module types of the model calculator
@@ -102,6 +106,7 @@ class Model_PhysNet(torch.nn.Module):
         model_electrostatic: Optional[bool] = None,
         model_dispersion: Optional[bool] = None,
         model_dispersion_trainable: Optional[bool] = None,
+        model_num_threads: Optional[int] = None,
         device: Optional[str] = None,
         dtype: Optional[str] = None,
         **kwargs
@@ -136,6 +141,10 @@ class Model_PhysNet(torch.nn.Module):
         # Assign module variable parameters from configuration
         self.device = config.get('device')
         self.dtype = config.get('dtype')
+
+        # Set model calculator number of threads
+        if config.get('model_num_threads') is not None:
+            torch.set_num_threads(config.get('model_num_threads'))
 
         ##########################################
         # # # Check PhysNet Model Properties # # #
@@ -487,7 +496,8 @@ class Model_PhysNet(torch.nn.Module):
 
         return trainable_parameters
 
-    @torch.jit.export
+    #@torch.compile # Not supporting backwards propagation with torch.float64
+    #@torch.jit.export  # No effect, as 'forward' already is
     def forward(
         self,
         batch: Dict[str, torch.Tensor]

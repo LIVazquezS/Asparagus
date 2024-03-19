@@ -202,6 +202,14 @@ class DataContainer():
         else:
             return "DataContainer"
 
+    def __len__(
+        self,
+    ) -> int:
+        """
+        Size of the complete data set
+        """
+        return len(self.dataset)
+
     def __getitem__(
         self,
         idx: int,
