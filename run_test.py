@@ -100,10 +100,10 @@ if flag_database_sql:
         )
     data = model.get_data_container()
     print("\nDatabase path: ", model.get_data_container(), "\n")
-    print("\nDatabase entry '0': ", data[0])
-    print("\nDatabase Train entry '1': ", data.get_train(1))
-    print("\nDatabase Valid entry '2': ", data.get_valid(2))
-    print("\nDatabase Test entry  '3': ", data.get_test(3))
+    print("\nDatabase entry '0': ", data[0]['energy'])
+    print("\nDatabase Train entry '1': ", data.get_train(1)['atoms_number'])
+    print("\nDatabase Valid entry '2': ", data.get_valid(2)['cell'])
+    print("\nDatabase Test entry  '3': ", data.get_test(3)['positions'])
     
     # Load Numpy .npz files
     model.set_data_container(
@@ -114,10 +114,10 @@ if flag_database_sql:
     )
     data = model.get_data_container(data_file='test/h2co_test.db')
     print("\nDatabase path: ", data, "\n")
-    print("\nDatabase entry '0': ", data[0])
-    print("\nDatabase Train entry '1': ", data.get_train(1))
-    print("\nDatabase Valid entry '2': ", data.get_valid(2))
-    print("\nDatabase Test entry  '3': ", data.get_test(3))
+    print("\nDatabase entry '0': ", data[0]['energy'])
+    print("\nDatabase Train entry '1': ", data.get_train(1)['atomic_numbers'])
+    print("\nDatabase Valid entry '2': ", data.get_valid(2)['charge'])
+    print("\nDatabase Test entry  '3': ", data.get_test(3)['pbc'])
 
     
     # Load multiple source files files
