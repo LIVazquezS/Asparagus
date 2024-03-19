@@ -25,7 +25,6 @@ optimizer_argumens = {
         'amsgrad': True},
     }
 
-
 def get_optimizer(
     trainer_optimizer: Union[str, object],
     model_parameter: Optional[Union[List, Dict[str, List]]] = None,
@@ -34,9 +33,8 @@ def get_optimizer(
     """
     Optimizer selection
 
-    Parameters
-    ----------
-
+    Parameter
+    ---------
     trainer_optimizer: (str, object)
         If name is a str than it checks for the corresponding optimizer
         and return the function object.
@@ -52,6 +50,7 @@ def get_optimizer(
     -------
     object
         Optimizer function
+
     """
 
     # Select calculator model
@@ -95,9 +94,6 @@ def get_optimizer(
 
             try:
 
-                #return optimizer_avaiable[trainer_optimizer.lower()](
-                    #params=model_parameter,
-                    #**trainer_optimizer_args)
                 return optimizer_avaiable[trainer_optimizer.lower()](
                     optimizer_input)
 

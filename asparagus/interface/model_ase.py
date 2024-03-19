@@ -2,6 +2,7 @@ import numpy as np
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 
+import ase
 import ase.calculators.calculator as ase_calc
 from ase.neighborlist import neighbor_list
 
@@ -23,7 +24,7 @@ class ASE_Calculator(ase_calc.Calculator):
     Parameters
     ----------
     model_calculator: (callable object, list of callable objects)
-        NNP model calculator(s) to predict model properties. If an ensemble
+        Model calculator(s) to predict model properties. If an ensemble
         is given in form of a list of model calculators, the average value
         is returned as model prediction.
     atoms: ASE Atoms object, optional, default None
@@ -34,7 +35,7 @@ class ASE_Calculator(ase_calc.Calculator):
         Properties predicted by the model calculator. If None, then
         all model properties (of the first model if ensemble) are
         available.
-    use_neighbor_list: bool, optional, default True
+    use_ase_neighbor_list: bool, optional, default True
         If True, use the ASE neighbor list function to compute atom pair
         indices within the model interaction cutoff regarding periodic
         boundary conditions.
@@ -42,16 +43,11 @@ class ASE_Calculator(ase_calc.Calculator):
         If ASE Atoms object is periodic, neighbor list function will be
         used anyway.
 
-    Returns
-    -------
-    callable object
-        ASE calculator object
     """
 
     # ASE specific calculator information
     default_parameters = {
-        "method": "Asparagus",
-    }
+        "method": "Asparagus"}
 
     def __init__(
         self,
@@ -59,11 +55,12 @@ class ASE_Calculator(ase_calc.Calculator):
         atoms: Optional[object] = None,
         atoms_charge: Optional[float] = None,
         implemented_properties: Optional[List[str]] = None,
-        use_neighbor_list: Optional[bool] = None,
+        use_ase_neighbor_list: Optional[bool] = None,
         **kwargs
     ):
         """
         Initialize ASE Calculator class.
+
         """
 
         # Initialize parent Calculator class
@@ -118,39 +115,39 @@ class ASE_Calculator(ase_calc.Calculator):
         if self.model_ensemble:
             self.interaction_cutoff = 0.0
             for calc in self.model_calculator_list:
-                cutoff = calc.model_interaction_cutoff
+                cutoff = calc.model_cutoff
                 if self.interaction_cutoff < cutoff:
                     self.interaction_cutoff = cutoff
                 calc.eval()
         else:
             self.interaction_cutoff = (
-                self.model_calculator.model_interaction_cutoff)
+                self.model_calculator.model_cutoff)
             self.model_calculator.eval()
 
         # Flag for the use atoms neighbor list function to potentially reduce
         # the number atom pairs
-        if use_neighbor_list is None:
-            self.use_neighbor_list = True
+        if use_ase_neighbor_list is None:
+            self.use_ase_neighbor_list = True
         else:
-            if utils.is_bool(use_neighbor_list):
-                self.use_neighbor_list = use_neighbor_list
+            if utils.is_bool(use_ase_neighbor_list):
+                self.use_ase_neighbor_list = use_ase_neighbor_list
             else:
                 raise SyntaxError(
-                    "Input flag 'use_neighbor_list' must be a boolean!")
+                    "Input flag 'use_ase_neighbor_list' must be a boolean!")
 
         # Get property unit conversions from model units to ASE units
         self.model_unit_properties = (
             self.model_calculator.model_unit_properties)
-        self.model2ase_unit_conversion = {}
+        self.model_conversion = {}
         # Positions unit (None = ASE units by default)
         conversion, _ = utils.check_units(
             None, self.model_unit_properties['positions'])
-        self.model2ase_unit_conversion['positions'] = conversion
+        self.model_conversion['positions'] = conversion
         # Implemented property units (None = ASE units by default)
         for prop in self.implemented_properties:
             conversion, _ = utils.check_units(
                 None, self.model_unit_properties[prop])
-            self.model2ase_unit_conversion[prop] = conversion
+            self.model_conversion[prop] = conversion
 
         # Set atoms charge
         self.set_atoms_charge(atoms_charge, initialize=False)
@@ -160,9 +157,21 @@ class ASE_Calculator(ase_calc.Calculator):
 
         return
 
-    def set_atoms(self, atoms, initialize=False):
+    def set_atoms(
+        self, 
+        atoms, 
+        initialize=False,
+    ):
         """
         Assign atoms object to calculator and prepare input.
+        
+        Parameter
+        ---------
+        atoms: ase.Atoms
+            Model calculator assigned ASE atoms object 
+        initialize: bool, optional, default False
+            Force initialization of atoms batch data
+
         """
         if atoms is None:
             self.atoms = None
@@ -173,10 +182,26 @@ class ASE_Calculator(ase_calc.Calculator):
         if initialize:
             self.atoms_batch = self.initialize_model_input()
 
-    def set_atoms_charge(self, atoms_charge, initialize=False):
+        return
+
+    def set_atoms_charge(
+        self,
+        atoms_charge: int,
+        initialize: Optional[bool] = False,
+    ):
         """
-        Assing atoms charge.
+        Assign atoms charge to the system
+        
+        Parameter
+        ---------
+        atoms_charge: int
+            Model calculator assigned ASE atoms charge
+        initialize: bool, optional, default False
+            Force initialization of atoms batch data
+        
         """
+
+        # Check charge input
         if atoms_charge is None:
             self.atoms_charge = 0.0
         elif utils.is_numeric(atoms_charge):
@@ -189,9 +214,19 @@ class ASE_Calculator(ase_calc.Calculator):
         if initialize:
             self.atoms_batch = self.initialize_model_input()
 
-    def initialize_model_input(self):
+        return
+
+    def initialize_model_input(
+        self,
+    ) -> Dict[str, torch.Tensor]:
         """
-        Initial preparation for an ASE Atoms objects
+        Initialization of the batch data for the assigned ASE Atoms object
+        
+        Returns
+        -------
+        dict(str, torch.Tensor)
+            Basic atoms data batch
+
         """
 
         # Initialize model calculator input
@@ -215,7 +250,7 @@ class ASE_Calculator(ase_calc.Calculator):
             self.atoms.get_atomic_numbers(), dtype=torch.int64)
 
         # Atom segment indices, just one atom segment allowed
-        atoms_batch['atoms_seg'] = torch.zeros(
+        atoms_batch['sys_i'] = torch.zeros(
             Natoms, dtype=torch.int64)
 
         # Total atomic system charge
@@ -227,9 +262,23 @@ class ASE_Calculator(ase_calc.Calculator):
 
         return atoms_batch
 
-    def update_model_input(self, atoms_batch):
+    def update_model_input(
+        self, 
+        atoms_batch: Dict[str, torch.Tensor],
+    ) -> Dict[str, torch.Tensor]:
         """
-        Update model calculator input for an ASE Atoms object.
+        Update atoms data bach by the changes in the assigned ASE atoms system.
+        
+        Parameter
+        ---------
+        atoms_batch: dict(str, torch.Tensor)
+            ASE atoms data batch
+            
+        Returns
+        -------
+        dict(str, torch.Tensor)
+            Updated atoms data batch
+
         """
 
         # If model input is not initialized
@@ -242,7 +291,7 @@ class ASE_Calculator(ase_calc.Calculator):
             self.atoms.get_positions(), dtype=torch.float64)
 
         # Create and assign atom pair indices and periodic offsets
-        if self.use_neighbor_list or any(self.atoms.get_pbc()):
+        if self.use_ase_neighbor_list or any(self.atoms.get_pbc()):
             idx_i, idx_j, pbc_offset = neighbor_list(
                 'ijS',
                 self.atoms,
@@ -267,14 +316,31 @@ class ASE_Calculator(ase_calc.Calculator):
                 (atoms_batch['atoms_number'], 3), dtype=torch.float64)
 
         # Atom pairs segment index, also just one atom pair segment allowed
-        atoms_batch['pairs_seg'] = torch.zeros_like(
+        atoms_batch['sys_ij'] = torch.zeros_like(
             atoms_batch['idx_i'], dtype=torch.int64)
 
         return atoms_batch
 
-    def initialize_model_input_list(self, atoms_list, atoms_charge):
+    def initialize_model_input_list(
+        self, 
+        atoms_list: List[ase.Atoms],
+        atoms_charge: List[float],
+    ) -> Dict[str, torch.Tensor]:
         """
-        Initial preparation for a list of ASE Atoms objects.
+        Initial preparation for a set of ASE Atoms objects.
+
+        Parameter
+        ---------
+        atoms_list: list(ase.Atoms)
+            List of ASE atoms object
+        atoms_charge: list(float)
+            List of ASE atoms system charges
+
+        Returns
+        -------
+        dict(str, torch.Tensor)
+            Basic atom systems data batch
+
         """
 
         # Initialize model calculator input
@@ -313,7 +379,7 @@ class ASE_Calculator(ase_calc.Calculator):
         atoms_batch['atomic_numbers'] = atomic_numbers
 
         # Atom segment indices
-        atoms_batch['atoms_seg'] = torch.repeat_interleave(
+        atoms_batch['sys_i'] = torch.repeat_interleave(
             torch.arange(
                 atoms_batch['Nsys'], dtype=torch.int64),
             repeats=Natoms, dim=0)
@@ -327,9 +393,26 @@ class ASE_Calculator(ase_calc.Calculator):
 
         return atoms_batch
 
-    def update_model_input_list(self, atoms_batch, atoms_list):
+    def update_model_input_list(
+        self,
+        atoms_batch: Dict[str, torch.Tensor],
+        atoms_list: List[ase.Atoms],
+    ) -> Dict[str, torch.Tensor]:
         """
         Update model calculator input for a list of ASE Atoms objects.
+        
+        Parameter
+        ---------
+        atoms_batch: dict(str, torch.Tensor)
+            ASE atoms systems data batch
+        atoms_list: list(ase.Atoms)
+            List of ASE atoms object
+        
+        Returns
+        -------
+        dict(str, torch.Tensor)
+            Basic atom systems data batch
+
         """
 
         # Update atom positions
@@ -345,7 +428,7 @@ class ASE_Calculator(ase_calc.Calculator):
         for shift, (i_atom, atoms) in zip(
                 atoms_batch['Natoms_cumsum'][:-1],
                 enumerate(atoms_list)):
-            if self.use_neighbor_list or any(atoms.get_pbc()):
+            if self.use_ase_neighbor_list or any(atoms.get_pbc()):
                 atoms_idx_i, atoms_idx_j, atoms_pbc_offset = neighbor_list(
                     'ijS',
                     atoms,
@@ -380,27 +463,26 @@ class ASE_Calculator(ase_calc.Calculator):
         # Atom pairs segment
         Npairs = torch.tensor(
             [len(atoms_idx_i) for atoms_idx_i in idx_i])
-        atoms_batch['pairs_seg'] = torch.repeat_interleave(
+        atoms_batch['sys_ij'] = torch.repeat_interleave(
             torch.arange(atoms_batch['Nsys'], dtype=torch.int64),
             repeats=Npairs, dim=0)
 
         return atoms_batch
 
-
     def calculate(
         self,
-        atoms: Optional[Union[object, List[object]]] = None,
+        atoms: Optional[Union[ase.Atoms, List[ase.Atoms]]] = None,
         atoms_charge: Optional[Union[float, List[float]]] = None,
         properties: List[str] = None,
         system_changes: List[str] = ase_calc.all_changes,
         **kwargs
-    ):
+    ) -> Dict[str, Any]:
         """
         Calculate model properties
 
-        Parameters
-        ----------
-        atoms: (object, list(object)), optional, default None
+        Parameter
+        ---------
+        atoms: (ase.Atoms, list(ase.Atoms)), optional, default None
             Optional ASE Atoms object or list of ASE Atoms objects to which the
             properties will be calculated. If given, atoms setup to prepare
             model calculator input will be run again.
@@ -411,6 +493,12 @@ class ASE_Calculator(ase_calc.Calculator):
         properties: list(str), optional, default None
             List of properties to be calculated. If None, all implemented
             properties will be calculated (will be anyways ...).
+
+        Results
+        -------
+        dict(str, any)
+            ASE atoms property predictions
+
         """
 
         # Check atoms input
@@ -469,7 +557,7 @@ class ASE_Calculator(ase_calc.Calculator):
         # Compute model properties
         results = {}
         if self.model_ensemble:
-            # TODO Test!!!
+            # TODO Test
             for ic, calc in enumerate(self.model_calculator_list):
                 results[ic] = calc(atoms_batch)
             for prop in self.implemented_properties:
@@ -488,11 +576,10 @@ class ASE_Calculator(ase_calc.Calculator):
         # Convert model properties
         self.results = {}
         if atoms_list:
-            # TODO Resolve results per atoms object
             for prop in self.implemented_properties:
                 all_results = (
                     results[prop].detach().numpy()
-                    *self.model2ase_unit_conversion[prop])
+                    *self.model_conversion[prop])
                 self.results[prop] = self.resolve_atoms(
                     all_results, atoms_batch, prop)
                 
@@ -500,21 +587,39 @@ class ASE_Calculator(ase_calc.Calculator):
             for prop in self.implemented_properties:
                 self.results[prop] = (
                     results[prop].detach().numpy()
-                    *self.model2ase_unit_conversion[prop])
+                    *self.model_conversion[prop])
 
         return self.results
 
     def resolve_atoms(
         self,
         all_results: List[float],
-        atoms_batch: Dict[str, Any],
+        atoms_batch: Dict[str, torch.Tensor],
         prop: str,
     ):
+        """
+        Resolve model prediction of multiple ensembles to a consistent shape.
+        
+        Parameter
+        ---------
+        all_results: list(float)
+            List of model prediction for ASE atoms system in batch
+        atoms_batch: dict(str, torch.Tensor)
+            ASE atoms systems data batch
+        prop: str
+            Model property to resolve results
+        
+        Returns
+        -------
+        list(float)
+            Reshaped model property predictions
+        
+        """
 
         # Compare result shape with number of atom systems, atom numbers and
         # pair numbers
         if all_results.shape[0] == atoms_batch['atoms_number'].shape[0]:
-            return [
+            atoms_results = [
                 all_results[isys] 
                 for isys, _ in enumerate(atoms_batch['atoms_number'])]
         elif all_results.shape[0] == atoms_batch['atomic_numbers'].shape[0]:
@@ -524,16 +629,13 @@ class ASE_Calculator(ase_calc.Calculator):
                 atoms_results.append(
                     all_results[iatoms:(iatoms + Natoms)])
                 iatoms = iatoms + Natoms
-            return atoms_results
-        elif all_results.shape[0] == atoms_batch['pairs_seg'].shape[0]:
+        elif all_results.shape[0] == atoms_batch['sys_ij'].shape[0]:
             atoms_results = [
                 [] for _ in atoms_batch['atoms_number']]
-            for ipair, isys in enumerate(atoms_batch['pairs_seg']):
+            for ipair, isys in enumerate(atoms_batch['sys_ij']):
                 atoms_results[isys].append(all_results[ipair])
-            return atoms_results
         else:
             raise SyntaxError(
                 f"Model result of property '{prop:s}' could not be resolved!")
         
-        
-        
+        return atoms_results

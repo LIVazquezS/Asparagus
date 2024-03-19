@@ -96,9 +96,11 @@ class DataLoader(torch.utils.data.DataLoader):
         # Initialize neighbor list creator
         if func_neighbor_list.lower() == 'ase':
             self.neighbor_list = utils.ASENeighborList(cutoff=cutoff)
+        elif func_neighbor_list.lower() == 'torch':
+            self.neighbor_list = utils.TorchNeighborList(cutoff=cutoff)
         else:
             raise NotImplementedError(
-                "Neighbor list functions other than from ASE are not"
+                "Neighbor list functions other than from ASE ot Torch are not "
                 + "implemented, yet!")
 
         # If demanded, apply neighbor list computation and store results in the
@@ -228,15 +230,17 @@ class DataLoader(torch.utils.data.DataLoader):
         coll_batch['cell'] = torch.cat(
             [b['cell'] for b in batch], 0).reshape(Nsys, -1)
 
-        # If atom pair indices are already available, compute the 
-        # cumulative segment size number
-        if batch[0].get('idx_i') is not None:
-            atomic_numbers_cumsum = torch.cat(
-                [
-                    torch.zeros((1,), dtype=coll_batch['sys_i'].dtype),
-                    torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
-                ],
-                dim=0)
+        # Compute the cumulative segment size number
+        atomic_numbers_cumsum = torch.cat(
+            [
+                torch.zeros((1,), dtype=coll_batch['sys_i'].dtype),
+                torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
+            ],
+            dim=0)
+        
+        # Prepare neighbor list calculator
+        if self.neighbor_list is None:
+            self.init_neighbor_list()
 
         # Iterate over batch properties
         skip_props = ['atoms_number', 'atomic_numbers', 'pbc', 'cell']
@@ -258,7 +262,10 @@ class DataLoader(torch.utils.data.DataLoader):
                         ],
                         dim=0).to(torch.int64)
                 except AttributeError:
-                    raise AttributeError(
+                    coll_batch = self.neighbor_list(
+                        coll_batch,
+                        atomic_numbers_cumsum=atomic_numbers_cumsum)
+                    logger.warning(
                         "Most likely, pair indices of one data frame is None, "
                         + "because the data seed or dataset has changed after "
                         + "storing pair indices just for a sub set of data "
@@ -279,10 +286,9 @@ class DataLoader(torch.utils.data.DataLoader):
 
         # Compute pair indices and position offsets if not available
         if batch[0].get('idx_i') is None:
-            
-            if self.neighbor_list is None:
-                self.init_neighbor_list()
-            coll_batch = self.neighbor_list(coll_batch)
+            coll_batch = self.neighbor_list(
+                coll_batch,
+                atomic_numbers_cumsum=atomic_numbers_cumsum)
 
         # Get number of atom pairs per system segment
         Npairs = torch.tensor(coll_batch['idx_i'].shape[0])

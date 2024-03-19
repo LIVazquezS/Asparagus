@@ -10,14 +10,15 @@ import time
 #==============================================================================
 
 
-flag_dictionary_initialization = False
-flag_database_sql = False
+flag_dictionary_initialization = True
+flag_database_sql = True
 flag_database_hdf5 = False
-flag_sampler_all = False
-flag_sampler_shell = False
+flag_sampler_all = True
+flag_sampler_shell = True
 flag_sampler_slurm = False
-flag_model_physnet = False
+flag_model_physnet = True
 flag_train_physnet = True
+flag_ase_physnet = True
 
 
 #==============================================================================
@@ -781,7 +782,7 @@ if flag_model_physnet:
     model.set_model_calculator(
         model_calculator=mcalc)
     
-# Initialize PhysNet model traniing
+# Initialize PhysNet model training
 if flag_train_physnet:
     
     config_file = 'test/train.json'
@@ -789,8 +790,49 @@ if flag_train_physnet:
         config_file=config_file,
         data_file='data/nms_nh3.db',
         model_directory='test/physnet',
+        trainer_max_epochs=100,
         )
     trainer = model.get_trainer()
     model.train()
 
-
+# Test ASE calculator
+if flag_ase_physnet:
+    
+    from ase import Atoms
+    
+    # Get ASE model calculator
+    config_file = 'test/train.json'
+    model = asparagus.Asparagus(
+        config_file=config_file)
+    calc = model.get_ase_calculator()
+    
+    # Get system from data container
+    data = model.get_data_container()
+    system_data = data[100]
+    system = Atoms(
+        system_data['atomic_numbers'],
+        positions=system_data['positions'])
+    system_energy = system_data['energy'].numpy()
+    system_forces = system_data['forces'].numpy()
+    system_dipole = system_data['dipole'].numpy()
+    
+    # Compute model properties
+    system.calc = calc
+    model_energy = system.get_potential_energy()
+    model_forces = system.get_forces()
+    model_dipole = system.get_dipole_moment()
+    
+    # Compare results
+    print(
+        "Reference and model energy (error): "
+        + f"{system_energy:.4f} eV, {model_energy:.4f} eV "
+        + f"({system_energy - model_energy:.4f} eV)")
+    print(
+        "Reference and model forces on nitrogen (mean error): "
+        + f"{system_forces[0]} eV/Ang, {model_forces[0]} eV/Ang "
+        + f"({np.mean(system_forces[0] - model_forces[0]):.4f} eV/Ang)")
+    print(
+        "Reference and model dipole (mean error): "
+        + f"{system_dipole} eAng, {model_dipole} eAng "
+        + f"({np.mean(system_dipole - model_dipole):.4f} eAng)")
+    

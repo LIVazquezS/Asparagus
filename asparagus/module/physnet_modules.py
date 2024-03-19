@@ -651,24 +651,12 @@ class Output_PhysNet(torch.nn.Module):
             # or charges
             self.output_energies_charges = False
 
-        # Initialize property scaling dictionary and atomic energy shift
-        self.set_property_scaling(self.output_scaling_parameter)
-        
         # Create further output blocks for properties with certain exceptions
         for prop in self.output_properties:
 
             # Skip deriving properties
             if prop in self._property_exclusion:
                 continue
-
-            # Initialize scaling factor and shifting term if not done already
-            if prop not in self.output_scaling:
-                self.output_scaling[prop] = torch.nn.Parameter(
-                    torch.tensor(
-                        [[1.0, 0.0] for _ in range(self.input_n_maxatom)],
-                        device=self.device, 
-                        dtype=self.dtype)
-                    )
 
             # No output_block for already covered special properties
             if prop in self._property_special:
@@ -690,6 +678,9 @@ class Output_PhysNet(torch.nn.Module):
             # Assign output block to dictionary
             self.output_property_block[prop] = output_block
 
+        # Initialize property scaling dictionary and atomic energy shift
+        self.set_property_scaling(self.output_scaling_parameter)
+        
         return
 
     def __str__(self):
@@ -723,29 +714,34 @@ class Output_PhysNet(torch.nn.Module):
 
         """
 
-        # Initialize property scaling dictionary
-        if not hasattr(self, 'output_scaling'):
-            self.output_scaling = {}
-        
-        # Check property scaling input
-        if scaling_parameter is None:
-            return
-
-        # Assign scaling factor and shift term
+        # Set scaling factor and shifts for output properties
         output_scaling = {}
-        for prop, (shift, scale) in scaling_parameter.items():
+        for prop in self.output_properties:
             
-            # Skip for deriving properties and special properties
-            if prop not in self.output_properties:
-                continue
+            # If property scaling input is missing, initialize default
+            if (
+                scaling_parameter is None
+                or scaling_parameter.get(prop) is None
+            ):
+            
+                output_scaling[prop] = torch.nn.Parameter(
+                    torch.tensor(
+                        [[1.0, 0.0] for _ in range(self.input_n_maxatom)],
+                        device=self.device, 
+                        dtype=self.dtype)
+                    )
 
-            output_scaling[prop] = torch.nn.Parameter(
-                torch.tensor(
-                    [[scale, shift] for _ in range(self.input_n_maxatom)],
-                    device=self.device, 
-                    dtype=self.dtype)
-                )
-        
+            else:
+                
+                # Assign scaling factor and shift
+                (shift, scale) = scaling_parameter.get(prop)
+                output_scaling[prop] = torch.nn.Parameter(
+                    torch.tensor(
+                        [[scale, shift] for _ in range(self.input_n_maxatom)],
+                        device=self.device, 
+                        dtype=self.dtype)
+                    )
+
         # Convert model scaling to torch dictionary
         self.output_scaling = torch.nn.ParameterDict(output_scaling)
 

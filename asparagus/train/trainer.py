@@ -117,7 +117,7 @@ class Trainer:
         'trainer_validation_interval':  5,
         'trainer_evaluate_testset':     True,
         'trainer_max_checkpoints':      1,
-        'trainer_store_neighbor_list':  False,
+        'trainer_store_neighbor_list':  True,
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         }
@@ -648,7 +648,7 @@ class Trainer:
         latest_checkpoint = self.filemanager.load_checkpoint(
             checkpoint_label='last')
 
-        self.trainer_epoch_start = 1
+        trainer_epoch_start = 1
         if latest_checkpoint is not None:
             # Assign model parameters
             self.model_calculator.load_state_dict(
@@ -661,7 +661,7 @@ class Trainer:
                 self.trainer_scheduler.load_state_dict(
                     latest_checkpoint['scheduler_state_dict'])
             if latest_checkpoint.get('epoch') is not None:
-                self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
+                trainer_epoch_start = latest_checkpoint['epoch'] + 1
 
         # Initialize training mode for calculator
         self.model_calculator.train()
@@ -687,18 +687,24 @@ class Trainer:
         # Set maximum model cutoff for neighbor list calculation
         self.data_train.init_neighbor_list(
             cutoff=self.model_calculator.model_cutoff,
-            store=self.trainer_store_neighbor_list)
+            store=self.trainer_store_neighbor_list,
+            func_neighbor_list='torch')
         self.data_valid.init_neighbor_list(
             cutoff=self.model_calculator.model_cutoff,
-            store=self.trainer_store_neighbor_list)
+            store=self.trainer_store_neighbor_list,
+            func_neighbor_list='torch')
 
         ##########################
         # # # Start Training # # #
         ##########################
 
+        # Skip if max epochs are already reached
+        if trainer_epoch_start > self.trainer_max_epochs:
+            return
+
         # Loop over epochs
         for epoch in torch.arange(
-            self.trainer_epoch_start, self.trainer_max_epochs
+            trainer_epoch_start, self.trainer_max_epochs
         ):
 
             # Start epoch train timer
@@ -881,6 +887,8 @@ class Trainer:
                         f" ({np.sqrt(metrics_best[prop]['mse']):.2E})" +
                         f" {self.model_units[prop]:s}\n")
                 logger.info("INFO:\n" + msg)
+
+        return
 
     def predict_batch(self, batch):
         """

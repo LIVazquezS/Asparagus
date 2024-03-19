@@ -7,6 +7,8 @@ from typing import Optional, List, Dict, Tuple, Union, Callable
 
 import numpy as np 
 
+import ase
+
 import torch
 #import pytorch_lightning as pl
 #from pytorch_lightning.accelerators import GPUAccelerator #TODO
@@ -16,6 +18,7 @@ from . import utils
 from . import data
 from . import model
 from . import train
+from . import interface
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -337,7 +340,7 @@ class Asparagus():
         model_type: str, optional, default None
             Model calculator type to initialize, e.g. 'PhysNet'. The default
             model is defined in settings.default._default_calculator_model.
-        model_checkpoint: int, optional, default 'best'
+        model_checkpoint: (int, str), optional, default 'best'
             If None or 'best', load best model checkpoint. 
             Otherwise load latest checkpoint file with 'last' or define a
             checkpoint index number of the respective checkpoint file.
@@ -402,7 +405,7 @@ class Asparagus():
         model_type: str, optional, default None
             Model calculator type to initialize, e.g. 'PhysNet'. The default
             model is defined in settings.default._default_calculator_model.
-        model_checkpoint: int, optional, default 'best'
+        model_checkpoint: (int, str), optional, default 'best'
             If None or 'best', load best model checkpoint. 
             Otherwise load latest checkpoint file with 'last' or define a
             checkpoint index number of the respective checkpoint file.
@@ -456,7 +459,7 @@ class Asparagus():
         model_type: str, optional, default None
             Model calculator type to initialize, e.g. 'PhysNet'. The default
             model is defined in settings.default._default_calculator_model.
-        model_checkpoint: int, optional, default 'best'
+        model_checkpoint: (int, str), optional, default 'best'
             If None or 'best', load best model checkpoint. 
             Otherwise load latest checkpoint file with 'last' or define a
             checkpoint index number of the respective checkpoint file.
@@ -705,5 +708,100 @@ class Asparagus():
         ########################################
         # # # Run Model Calculator Trainer # # #
         ########################################
-        
+
         trainer.run()
+
+        return
+
+    def get_ase_calculator(
+        self,
+        config: Optional[Union[str, dict, object]] = None,
+        config_file: Optional[str] = None,
+        model_checkpoint: Optional[Union[int, str]] = 'best',
+        atoms: Optional[Union[ase.Atoms, List[ase.Atoms]]] = None,
+        atoms_charge: Optional[Union[float, List[float]]] = None,
+        implemented_properties: Optional[List[str]] = None,
+        use_neighbor_list: Optional[bool] = None,
+        label: Optional[str] = 'asparagus',
+        **kwargs,
+    ) -> ase.calculators.calculator.Calculator:
+        """
+        Return ASE calculator class object of the model calculator
+
+        Parameter
+        ---------
+        config: (str, dict, object), optional, default 'self.config'
+            Either the path to json file (str), dictionary (dict) or
+            settings.config class object of model parameters
+        config_file: str, optional, default see settings.default['config_file']
+            Path to json file (str)
+        model_checkpoint: (int, str), optional, default 'best'
+            If None or 'best', load best model checkpoint. 
+            Otherwise load latest checkpoint file with 'last' or define a
+            checkpoint index number of the respective checkpoint file.
+        atoms: ase.Atoms, optional, default None
+            ASE Atoms object with assigned ASE calculator
+        atoms_charge: (float, list(float)), optional, default None
+            Total charge(s) of the system(s)
+        implemented_properties: list(str), optional, default None
+            List of model properties to compute. If None, all model properties
+            will be provided, else the properties will be checked for 
+            availability.
+        use_neighbor_list: bool, optional, default None
+            Use neighbor list for the calculator.
+        label: str, optional, default 'asparagus'
+            Label for the ASE calculator
+
+        Returns
+        -------
+        ase.calculators.calculator.Calculator
+            ASE calculator instance of the model calculator
+
+        """
+
+        ######################################
+        # # # Check ASE Calculator Input # # #
+        ######################################
+
+        # Assign model parameter configuration library
+        if config is None:
+            config = settings.get_config(
+                self.config, config_file, config_from=self)
+        else:
+            config = settings.get_config(
+                config, config_file, config_from=self)
+
+        # Check model parameter configuration and set default
+        config_update = config.set(
+            argitems=utils.get_input_args(),
+            check_default=utils.get_default_args(self, None),
+            check_dtype=utils.get_dtype_args(self, None))
+        
+        # Update configuration dictionary
+        config.update(config_update)
+
+        ###################################
+        # # # Assign Model Calculator # # #
+        ###################################
+        
+        if self.model_calculator is None:
+            model_calculator = self.get_model_calculator(
+                config=config,
+                model_checkpoint=model_checkpoint,
+                **kwargs)
+        else:
+            model_calculator = self.model_calculator
+
+        ##################################
+        # # # Prepare ASE Calculator # # #
+        ##################################
+
+        ase_calculator = interface.ASE_Calculator(
+            model_calculator,
+            atoms=atoms,
+            atoms_charge=atoms_charge,
+            implemented_properties=implemented_properties,
+            use_neighbor_list=use_neighbor_list,
+            label=label)
+
+        return ase_calculator

@@ -34,49 +34,76 @@ class NeighborList(torch.nn.Module):
     def forward(
         self,
         coll_batch: Dict[str, torch.Tensor],
+        atomic_numbers_cumsum: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
         """
         Build neighbor list for a batch of systems.
         Parameters
         ----------
         coll_batch: dict
-
+            System property batch
+        atomic_numbers_cumsum: torch.Tensor, optional, default None
+            Cumulative atomic number sum serving as starting index for atom
+            length system data lists.
 
         Returns
         -------
+        dict(str, torch.Tensor)
+            Updated system batch with atom pair information
 
         """
 
+        # Extract system data
         atomic_numbers = coll_batch['atomic_numbers']
         positions = coll_batch['positions']
-
         cell = coll_batch['cell']
         pbc = coll_batch['pbc']
 
+        # Check system indices
         if coll_batch.get("sys_i") is None:
             sys_i = torch.zeros_like(atomic_numbers)
         else:
             sys_i = coll_batch["sys_i"]
+        
+        # Check for system batch or single system input
+        # System batch:
         if coll_batch["atoms_number"].shape:
-            atomic_numbers_cumsum = torch.cat(
-                [
-                    torch.zeros((1,), dtype=sys_i.dtype),
-                    torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
-                ],
-                dim=0)
-        else:
-            atomic_numbers_cumsum = torch.zeros((1,), dtype=sys_i.dtype)
+            
+            # Compute, eventually, cumulative atomic number list
+            if atomic_numbers_cumsum is None:
+                atomic_numbers_cumsum = torch.cat(
+                    [
+                        torch.zeros((1,), dtype=sys_i.dtype),
+                        torch.cumsum(coll_batch["atoms_number"][:-1], dim=0)
+                    ],
+                    dim=0)
 
+        # Single system
+        else:
+            
+            # Assign cumulative atomic number list and system index
+            atomic_numbers_cumsum = torch.zeros((1,), dtype=sys_i.dtype)
+            sys_i = torch.zeros_like(atomic_numbers)
+            
+            # Extend periodic system data
+            cell = cell[None, ...]
+            pbc = pbc[None, ...]
+
+        # Compute atom pair neighbor list
         idx_i, idx_j, pbc_offset, idx_seg = self._build_neighbor_list(
-            atomic_numbers, positions, cell, pbc,
-            sys_i, atomic_numbers_cumsum,
+            atomic_numbers, 
+            positions, 
+            cell, 
+            pbc,
+            sys_i, 
+            atomic_numbers_cumsum,
             self.cutoff)
 
         coll_batch['idx_i'] = idx_i.detach()
         coll_batch['idx_j'] = idx_j.detach()
         if pbc_offset is not None:
             coll_batch['pbc_offset'] = pbc_offset.detach()
-        coll_batch['pairs_seg'] = idx_seg.detach()
+        coll_batch['sys_ij'] = idx_seg.detach()
 
         return coll_batch
 
@@ -187,6 +214,7 @@ class TorchNeighborList(NeighborList):
         sys_i: torch.Tensor,
         atomic_numbers_cumsum: torch.Tensor,
         cutoff: float,
+        single: Optional[bool] = False,
     ) -> (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor):
 
         idx_i, idx_j, offset, idx_seg = [], [], [], []
@@ -198,15 +226,19 @@ class TorchNeighborList(NeighborList):
             select = sys_i == iseg
 
             # Check if shifts are needed for periodic boundary conditions
+            if cell[iseg].dim() == 1:
+                cell_seg = cell[iseg].diag()
+            else:
+                cell_seg = cell[iseg]
             if torch.any(pbc[iseg]):
-                seg_offset = self._get_shifts(cell[iseg], pbc[iseg], cutoff)
+                seg_offset = self._get_shifts(cell_seg, pbc[iseg], cutoff)
             else:
                 seg_offset = torch.zeros(
                     0, 3, device=cell.device, dtype=positions.dtype)
 
             # Compute pair indices
             seg_idx_i, seg_idx_j, seg_offset = self._get_neighbor_pairs(
-                positions[select], cell[iseg], seg_offset, cutoff)
+                positions[select], cell_seg, seg_offset, cutoff)
 
             # Create bidirectional id arrays, similar to what the ASE
             # neighbor list returns
@@ -220,7 +252,7 @@ class TorchNeighborList(NeighborList):
 
             bi_offset = torch.cat((-seg_offset, seg_offset), dim=0)
             seg_offset = bi_offset[sorted_idx]
-            seg_offset = torch.mm(seg_offset.to(cell.dtype), cell[iseg])
+            seg_offset = torch.mm(seg_offset.to(cell.dtype), cell_seg)
 
             # Append pair indices and position offsets
             idx_i.append(seg_idx_i + idx_off)
