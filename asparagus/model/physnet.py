@@ -25,7 +25,7 @@ class Model_PhysNet(torch.nn.Module):
 
     Parameters
     ----------
-    config: (str, dict, object)
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
@@ -58,7 +58,7 @@ class Model_PhysNet(torch.nn.Module):
     
     # Default arguments for graph module
     _default_args = {
-        'model_properties':             ['energy', 'forces'],
+        'model_properties':             ['energy', 'forces', 'dipole'],
         'model_unit_properties':        {},
         'model_cutoff':                 12.0,
         'model_cuton':                  None,
@@ -209,6 +209,29 @@ class Model_PhysNet(torch.nn.Module):
         else:
             self.model_switch_range = self.model_cutoff - self.model_cuton
 
+        # Check module electrostatic and dispersion module requirement
+        if self.model_electrostatic and not self.model_energy:
+            raise SyntaxError(
+                "Electrostatic energy contribution is requested without "
+                + "having 'energy' assigned as model property!")
+        if self.model_electrostatic and not self.model_atomic_charges:
+            raise SyntaxError(
+                "Electrostatic energy contribution is requested without "
+                + "having 'atomic_charges' or 'dipole' assigned as model "
+                + "property!")
+        if self.model_dispersion and not self.model_energy:
+            raise SyntaxError(
+                "Dispersion energy contribution is requested without "
+                + "having 'energy' assigned as model property!")
+
+        # Update global configuration dictionary
+        config_update = {
+            'model_properties': self.model_properties,
+            'model_cutoff': self.model_cutoff,
+            'model_cuton': self.model_cuton,
+            'model_switch_range': self.model_switch_range}
+        config.update(config_update)
+
         #################################
         # # # PhysNet Modules Setup # # #
         #################################
@@ -287,7 +310,7 @@ class Model_PhysNet(torch.nn.Module):
             pass
 
         # Assign electrostatic interaction module
-        if self.model_electrostatic and self.model_energy:
+        if self.model_electrostatic:
 
             # Get electrostatic point charge model calculator
             self.electrostatic_module = module.PC_shielded_electrostatics(
@@ -298,14 +321,8 @@ class Model_PhysNet(torch.nn.Module):
                 dtype=self.dtype,
                 **kwargs)
 
-        elif self.model_electrostatic:
-            
-            raise SyntaxError(
-                "Electrostatic energy contribution is requested without "
-                + "having 'energy' assigned as model property!")
-
         # Assign dispersion interaction module
-        if self.model_dispersion and self.model_energy:
+        if self.model_dispersion:
             
             # Grep dispersion correction parameters
             d3_s6 = config.get("model_dispersion_d3_s6")
@@ -326,11 +343,6 @@ class Model_PhysNet(torch.nn.Module):
                 device=self.device,
                 dtype=self.dtype)
 
-        elif self.model_dispersion:
-            
-            raise SyntaxError(
-                "Dispersion energy contribution is requested without "
-                + "having 'energy' assigned as model property!")
 
         return
 
@@ -501,7 +513,7 @@ class Model_PhysNet(torch.nn.Module):
                     Atom i pair index
                 'idx_j': torch.Tensor(n_pairs)
                     Atom j pair index
-                'atoms_seg': torch.Tensor(n_atoms)
+                'sys_i': torch.Tensor(n_atoms)
                     System indices of atoms in batch
             Extra keys are:
                 'pbc_offset': torch.Tensor(n_pairs)
@@ -548,16 +560,14 @@ class Model_PhysNet(torch.nn.Module):
         features, distances, cutoffs, rbfs = self.input_module(
             atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
 
-        # Compute descriptors
-        descriptors = cutoffs*rbfs
-
         # PBC: Supercluster approach - Point from image atoms to primary atoms
-        if idx_p is not None:
+        if pbc_idx is not None:
             idx_i = pbc_idx[idx_i]
             idx_j = pbc_idx[pbc_idx_j]
 
         # Run graph model
-        features_list = self.graph_module(features, descriptors, idx_i, idx_j)
+        features_list = self.graph_module(
+            features, distances, cutoffs, rbfs, idx_i, idx_j)
 
         # Run output model
         output = self.output_module(
@@ -579,11 +589,11 @@ class Model_PhysNet(torch.nn.Module):
         if self.model_atomic_charges:
             charge_deviation = (
                 charge - utils.segment_sum(
-                    output['atomic_charges'], idx_seg, device=self.device)
+                    output['atomic_charges'], sys_i, device=self.device)
                 / atoms_number
                 )
             output['atomic_charges'] = (
-                output['atomic_charges'] + charge_deviation[idx_seg])
+                output['atomic_charges'] + charge_deviation[sys_i])
 
         # Add electrostatic model contribution
         if self.model_electrostatic:

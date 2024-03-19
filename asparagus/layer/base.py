@@ -57,9 +57,9 @@ class DenseLayer(torch.nn.Linear):
 
         # Assign activation function
         if activation_fn is None:
-            self.activation_fn = torch.nn.Identity()
+            self.activation = torch.nn.Identity()
         else:
-            self.activation_fn = activation_fn
+            self.activation = activation_fn
 
         return
 

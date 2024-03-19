@@ -26,7 +26,7 @@ class Input_PhysNet(torch.nn.Module):
 
     Parameters
     ----------
-    config: (str, dict, object)
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
@@ -132,12 +132,14 @@ class Input_PhysNet(torch.nn.Module):
         config.update(config_update)
         
         # Assign module variable parameters from configuration
-        self.dtype = config.get('dtype')
         self.device = config.get('device')
+        self.dtype = config.get('dtype')
         
         # Check general model cutoff with radial basis cutoff
         if config.get('model_cutoff') is None:
-            config['model_cutoff'] = self.input_radial_cutoff
+            raise ValueError(
+                "No general model interaction cutoff 'model_cutoff' is yet "
+                + "defined for the model calculator!")
         elif config['model_cutoff'] < self.input_radial_cutoff:
             raise ValueError(
                 "The model interaction cutoff distance 'model_cutoff' "
@@ -153,19 +155,12 @@ class Input_PhysNet(torch.nn.Module):
         self.atom_features = torch.nn.Embedding(
             self.input_n_maxatom + 1,
             self.input_n_atombasis, 
-            padding_idx=0)
-        #self.atom_features = torch.nn.Parameter(
-            #torch.empty(
-                #self.input_n_maxatom + 1, self.input_n_atombasis,
-                #dtype=self.dtype,
-                #device=self.device
-                #).uniform_(
-                    #-self.input_atom_features_range, 
-                    #self.input_atom_features_range)
-            #)
+            padding_idx=0,
+            device=self.device, 
+            dtype=self.dtype)
         
         # Initialize radial cutoff function
-        self.cutoff_fn = layer.get_cutoff_fn(self.input_cutoff_fn)(
+        self.cutoff = layer.get_cutoff_fn(self.input_cutoff_fn)(
             self.input_radial_cutoff)
         
         # Get upper RBF center range
@@ -239,7 +234,7 @@ class Input_PhysNet(torch.nn.Module):
         """
         
         # Collect atom feature vectors
-        features = self.atom_features[atomic_numbers]
+        features = self.atom_features(atomic_numbers)
 
         # Compute atom pair distances
         if pbc_offset is None:
@@ -252,7 +247,7 @@ class Input_PhysNet(torch.nn.Module):
                 dim=-1)
 
         # Compute distance cutoff values
-        cutoffs = self.cutoff_fn(distances)
+        cutoffs = self.cutoff(distances)
 
         # Compute radial basis functions
         rbfs = self.radial_fn(distances)
@@ -270,7 +265,7 @@ class Graph_PhysNet(torch.nn.Module):
 
     Parameters
     ----------
-    config: (str, dict, object)
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
@@ -393,7 +388,8 @@ class Graph_PhysNet(torch.nn.Module):
         self, 
         features: torch.Tensor,
         distances: torch.Tensor,
-        cutoffs: torch.Tensor, 
+        cutoffs: torch.Tensor,
+        rbfs: torch.Tensor, 
         idx_i: torch.Tensor, 
         idx_j: torch.Tensor,
     ) -> List[torch.Tensor]:
@@ -423,7 +419,7 @@ class Graph_PhysNet(torch.nn.Module):
         """
         
         # Compute descriptor vectors
-        descriptors = cutoffs*rbfs
+        descriptors = cutoffs[..., None]*rbfs
         
         # Initialize refined feature vector list
         x_list = []
@@ -447,7 +443,7 @@ class Output_PhysNet(torch.nn.Module):
 
     Parameters
     ----------
-    config: (str, dict, object)
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
@@ -485,11 +481,17 @@ class Output_PhysNet(torch.nn.Module):
         'output_scaling_parameter':     [utils.is_dictionary],
         }
     
-    # Property exclusion lists for properties derived from other properties 
-    # or are treated specially.
-    _property_derived = ['forces', 'hessian', 'dipole']
+    # Property exclusion lists for properties (keys) derived from other 
+    # properties (items) but in the model class
+    _property_exclusion = {
+        'energy': ['atomic_energies'],
+        'forces': [], 
+        'hessian': [],
+        'dipole': ['atomic_charges']}
+    
+    # Output module specially handled properties
     _property_special = ['energy', 'atomic_energies', 'atomic_charges']
-
+    
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
@@ -544,12 +546,33 @@ class Output_PhysNet(torch.nn.Module):
         # # # Check Output Module Properties # # #
         ##########################################
 
-        # Check output module properties
-        if self.output_properties is None:
-            self.output_properties = []
-        for model_prop in model_properties:
-            if model_prop not in self.output_properties:
-                self.output_properties.append(model_prop)
+        # Initialize output module properties
+        properties_list = []
+        if self.output_properties is not None:
+            for prop in self.output_properties:
+                if prop in self._property_exclusion:
+                    for prop_der in self._property_exclusion[prop]:
+                        properties_list.append(prop_der)
+                else:
+                    properties_list.append(prop)
+
+        # Check output module properties with model properties
+        for prop in model_properties:
+            if (
+                prop not in properties_list
+                and prop in self._property_exclusion
+            ):
+                for prop_der in self._property_exclusion[prop]:
+                    if prop_der not in properties_list:
+                        properties_list.append(prop_der)
+            elif prop not in properties_list:
+                properties_list.append(prop)
+
+        # Update output property list and global configuration dictionary
+        self.output_properties = properties_list
+        config_update = {
+            'output_properties': self.output_properties}
+        config.update(config_update)
 
         #####################################
         # # # Output Module Class Setup # # #
@@ -570,7 +593,6 @@ class Output_PhysNet(torch.nn.Module):
             prop in self.output_properties
             for prop in ['atomic_energies', 'atomic_charges']]
         ):
-
             # Set case flag for output module predicting atomic energies and
             # charges
             self.output_energies_charges = True
@@ -592,7 +614,7 @@ class Output_PhysNet(torch.nn.Module):
             self.output_property_block['atomic_energies_charges'] = (
                 output_block)
 
-        if any([
+        elif any([
             prop in self.output_properties
             for prop in ['atomic_energies', 'atomic_charges']]
         ):
@@ -636,7 +658,7 @@ class Output_PhysNet(torch.nn.Module):
         for prop in self.output_properties:
 
             # Skip deriving properties
-            if prop in self._property_derived:
+            if prop in self._property_exclusion:
                 continue
 
             # Initialize scaling factor and shifting term if not done already
@@ -710,19 +732,23 @@ class Output_PhysNet(torch.nn.Module):
             return
 
         # Assign scaling factor and shift term
+        output_scaling = {}
         for prop, (shift, scale) in scaling_parameter.items():
             
             # Skip for deriving properties and special properties
-            if prop in self._property_derived:
+            if prop not in self.output_properties:
                 continue
 
-            self.output_scaling[prop] = torch.nn.Parameter(
+            output_scaling[prop] = torch.nn.Parameter(
                 torch.tensor(
                     [[scale, shift] for _ in range(self.input_n_maxatom)],
                     device=self.device, 
                     dtype=self.dtype)
                 )
         
+        # Convert model scaling to torch dictionary
+        self.output_scaling = torch.nn.ParameterDict(output_scaling)
+
         return
 
     def set_atomic_energies_shift(
@@ -823,7 +849,7 @@ class Output_PhysNet(torch.nn.Module):
 
             # Compute prediction and loss function contribution
             for iblock, (features, output) in enumerate(
-                zip(messages_list, output_block)
+                zip(features_list, output_block)
             ):
 
                 prediction = output(features)
@@ -847,7 +873,7 @@ class Output_PhysNet(torch.nn.Module):
                     last_prediction_squared = prediction_squared
             
             # Flatten prediction for scalar properties
-            if self.output_property_num[prop] == 1:
+            if self.output_n_property[prop] == 1:
                 output_prediction[prop] = torch.flatten(
                     output_prediction[prop], start_dim=0)
             

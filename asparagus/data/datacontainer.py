@@ -23,7 +23,7 @@ class DataContainer():
 
     Parameters
     ----------
-    config: (str, dict, object), optional, default 
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of model parameters
     config_file: str, optional, default see settings.default['config_file']

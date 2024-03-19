@@ -25,7 +25,7 @@ class FileManager():
 
     Parameters
     ----------
-    config: (str, dict, object)
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
         settings.config class object of Asparagus parameters
     config_file: str, optional, default see settings.default['config_file']
@@ -305,15 +305,15 @@ class FileManager():
         ----------
         max_checkpoints: int, optional, default None
              Maximum number of checkpoint files. If None, the threshold is
-             taken from the class attribute 'self.max_checkpoints'.
+             taken from the class attribute 'self.model_max_checkpoints'.
 
         """
         
         # Skip in checkpoint threshold is None
-        if max_checkpoints is None and self.max_checkpoints is None:
+        if max_checkpoints is None and self.model_max_checkpoints is None:
             return
         elif max_checkpoints is None:
-            max_checkpoints = self.max_checkpoints
+            max_checkpoints = self.model_max_checkpoints
 
         # Gather checkpoint files
         num_checkpoints = []

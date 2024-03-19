@@ -98,20 +98,20 @@ class Trainer:
 
     """
 
-    # Default arguments for graph module
+    # Default arguments for trainer class
     _default_args = {
         'trainer_restart':              False,
         'trainer_max_epochs':           10_000,
         'trainer_properties':           None,
         'trainer_properties_metrics':   {'else': 'mse'},
         'trainer_properties_weights':   {
-            'energy': 1., 'forces': 50., 'else': 1.},
+            'energy': 1., 'forces': 50., 'dipole': 25., 'else': 1.},
         'trainer_optimizer':            'AMSgrad',
         'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-5},
         'trainer_scheduler':            'ExponentialLR',
-        'trainer_scheduler_args':       {'gamma': 0.999},
+        'trainer_scheduler_args':       {'gamma': 0.99},
         'trainer_ema':                  True,
-        'trainer_ema_decay':            0.999,
+        'trainer_ema_decay':            0.99,
         'trainer_max_gradient_norm':    1000.0,
         'trainer_save_interval':        5,
         'trainer_validation_interval':  5,
@@ -486,7 +486,7 @@ class Trainer:
         related_properties: Dict[str, str] = {
             'energy': 'atomic_energies',
             'charge': 'atomic_charges'}
-    ) -> Dict[str,str]:
+    ) -> [Dict[str,str], Dict[str,str], Dict[str,float]]:
         """
         Check the definition of the model units or assign units from the
         reference dataset
@@ -569,7 +569,34 @@ class Trainer:
         model_units,
         data_units,
         model_conversion
-    ):
+    ) -> [Dict[str,str], Dict[str,str], Dict[str,float]]:
+        """
+        Check and add the related property label to the model and data units
+        dictionary and add the unit conversion.
+
+        Parameter
+        ---------
+        prop: str
+            Property label
+        related_prop: str
+            Related property label sharing same property unit
+        model_units: dict(str, str)
+            Dictionary of model property units.
+        data_units: dict(str, str)
+            Dictionary of data property units.
+        model_conversion: dict(str, float)
+            Dictionary of model to data property unit conversion factors
+
+        Returns
+        -------
+        dict(str, str)
+            Dictionary of adopted model property units
+        dict(str, str)
+            Dictionary of adopted data property units
+        dict(str, float)
+            Dictionary of model to data property unit conversion factors
+
+        """
 
         # Add related property to lists and conversion dictionary
         if (
@@ -601,7 +628,7 @@ class Trainer:
         debug=False,
     ):
         """
-        Train NN potential model.
+        Train model calculator.
 
         Parameters
         ----------
@@ -637,7 +664,6 @@ class Trainer:
                 self.trainer_epoch_start = latest_checkpoint['epoch'] + 1
 
         # Initialize training mode for calculator
-        # (torch.nn.Module function to activate, e.g., parameter dropout)
         self.model_calculator.train()
         torch.set_grad_enabled(True)
         if debug:
@@ -846,7 +872,7 @@ class Trainer:
                     f" {metrics_valid['loss']:.2E}" +
                     f"  Best Loss valid: {metrics_best['loss']:.2E}\n"
                     f"  Property Metrics (valid):\n")
-                for prop in self.trainer_properties_train:
+                for prop in self.trainer_properties:
                     msg += (
                         f"    {prop:10s}  MAE (Best) / RMSE (Best): " +
                         f" {metrics_valid[prop]['mae']:.2E}" +
@@ -942,7 +968,7 @@ class Trainer:
         metrics['loss'] = (
             fdata*metrics['loss']
             + fdata_update*metrics_update['loss'].detach().item())
-        for prop in self.trainer_properties_train:
+        for prop in self.trainer_properties:
             for metric in metrics_update[prop].keys():
                 metrics[prop][metric] = (
                     fdata*metrics[prop][metric]
@@ -994,7 +1020,7 @@ class Trainer:
         metrics['Ndata'] = reference['atoms_number'].size()[0]
 
         # Iterate over training properties
-        for ip, prop in enumerate(self.trainer_properties_train):
+        for ip, prop in enumerate(self.trainer_properties):
 
             # Initialize single property metrics dictionary
             metrics[prop] = {}
@@ -1002,7 +1028,7 @@ class Trainer:
             # Compute loss value per atom
             metrics[prop]['loss'] = loss_fn(
                 torch.flatten(prediction[prop])
-                * self.model2data_unit_conversion[prop],
+                * self.model_conversion[prop],
                 torch.flatten(reference[prop]))
 
             # Weight and add to total loss
@@ -1019,11 +1045,11 @@ class Trainer:
             if not loss_only:
                 metrics[prop]['mae'] = mae_fn(
                     torch.flatten(prediction[prop])
-                    * self.model2data_unit_conversion[prop],
+                    * self.model_conversion[prop],
                     torch.flatten(reference[prop]))
                 metrics[prop]['mse'] = mse_fn(
                     torch.flatten(prediction[prop])
-                    * self.model2data_unit_conversion[prop],
+                    * self.model_conversion[prop],
                     torch.flatten(reference[prop]))
 
         return metrics

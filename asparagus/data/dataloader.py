@@ -1,5 +1,6 @@
 import os
 import logging
+import numpy as np
 from typing import Optional, List, Dict, Tuple, Union
 
 import torch
@@ -18,23 +19,19 @@ class DataLoader(torch.utils.data.DataLoader):
     
     Parameters
     ----------
-    dataset: DataSet object
-        DataSet or DataSubSet instance
+    dataset: (data.DataSet, data.DataSubSet)
+        DataSet or DataSubSet instance of reference data
     data_batch_size: int
         Number of atomic systems per batch
     data_shuffle: bool
-        Shuffle batch compilation after each go-through 
+        Shuffle batch compilation after each epoch
     data_num_workers: int
         Number of parallel workers for collecting data
-    data_collate_fn: callable
+    data_collate_fn: callable, optional, default None
         Callable function that prepare and return batch data
-    data_pin_memory: bool, optional False
+    data_pin_memory: bool, optional, default False
         If True data are loaded to GPU
-    
-    Returns
-    -------
-        DataLoader object
-            DataLoader object iterating over dataset batches
+
     """
 
     def __init__(
@@ -47,6 +44,9 @@ class DataLoader(torch.utils.data.DataLoader):
         data_pin_memory: Optional[bool] = False,
         **kwargs
     ):
+        """
+        Initialize data loader.
+        """
         
         # Check collate function
         if data_collate_fn is None:
@@ -71,9 +71,11 @@ class DataLoader(torch.utils.data.DataLoader):
         # Initialize neighbor list function class parameter
         self.neighbor_list = None
 
+        return
+
     def init_neighbor_list(
         self,
-        cutoff: Optional[float] = 100.0,
+        cutoff: Optional[float] = np.inf,
         store: Optional[bool] = False,
         func_neighbor_list: Optional[str] = 'ase',
     ):
@@ -82,12 +84,13 @@ class DataLoader(torch.utils.data.DataLoader):
         
         Parameters
         ----------
-        cutoff: float, optional, default 100.0
+        cutoff: float, optional, default infinity
             Neighbor list cutoff range equal to max interaction range
         store: bool, optional, default False
             Pre-compute neighbor list and store in the reference dataset
         func_neighbor_list: str, optional, default 'ase'
             Function type to compute the neighbor list
+
         """
         
         # Initialize neighbor list creator
@@ -103,21 +106,24 @@ class DataLoader(torch.utils.data.DataLoader):
         if store:
             self.store_neighbor_list()
 
+        return
+
     def store_neighbor_list(
         self,
     ):
         """
         Compute neighbor list and store results in 
+
         """
 
         # Check cutoff range
         metadata = self.dataset.get_metadata()
         if metadata.get('cutoff') is None:
-            self.recompute = True
+            recompute = True
         elif metadata.get('cutoff') == self.neighbor_list.cutoff:
-            self.recompute = False
+            recompute = False
         else:
-            self.recompute = True
+            recompute = True
 
         # Iterate over reference dataset
         Ndata = len(self.dataset)
@@ -130,7 +136,7 @@ class DataLoader(torch.utils.data.DataLoader):
 
             # Compute neighbor list data if necessary because of different
             # cutoff range or missing data
-            if self.recompute or datai.get('idx_i') is None:
+            if recompute or datai.get('idx_i') is None:
                 datai = self.neighbor_list(datai)
             
                 # Collect neighbor list properties
@@ -156,11 +162,13 @@ class DataLoader(torch.utils.data.DataLoader):
                 properties=data_subset)
 
         # Update cutoff range in metadata
-        if self.recompute:
+        if recompute:
             metadata = self.dataset.get_metadata()
             metadata['cutoff'] = self.neighbor_list.cutoff
             self.dataset.set_metadata(metadata=metadata)
-        
+
+        return
+
     def data_collate_fn(
         self,
         batch: Dict[str, torch.Tensor],
@@ -185,11 +193,11 @@ class DataLoader(torch.utils.data.DataLoader):
                 forces: (Natoms, 3) torch.Tensor
                 energy: (Natoms,) torch.Tensor
                 charge: (Natoms,) torch.Tensor
-                sys_i: (Natoms,) torch.Tensor
                 idx_i: (Npairs,) torch.Tensor
                 idx_j: (Npairs,) torch.Tensor
                 pbc_offset: (Npairs, 3) torch.Tensor
-                pairs_seg: (Npairs,) torch.Tensor
+                sys_i: (Natoms,) torch.Tensor
+                sys_ij: (Npairs,) torch.Tensor
 
         """
 
@@ -220,7 +228,8 @@ class DataLoader(torch.utils.data.DataLoader):
         coll_batch['cell'] = torch.cat(
             [b['cell'] for b in batch], 0).reshape(Nsys, -1)
 
-        # Get segment size cumulative sum if pair parameter are available
+        # If atom pair indices are already available, compute the 
+        # cumulative segment size number
         if batch[0].get('idx_i') is not None:
             atomic_numbers_cumsum = torch.cat(
                 [
@@ -230,13 +239,11 @@ class DataLoader(torch.utils.data.DataLoader):
                 dim=0)
 
         # Iterate over batch properties
+        skip_props = ['atoms_number', 'atomic_numbers', 'pbc', 'cell']
         for prop_i in batch[0]:
             
             # Skip previous parameter and None
-            if (
-                    prop_i in ['atoms_number', 'atomic_numbers', 'pbc', 'cell']
-                    or batch[0].get(prop_i) is None
-            ):
+            if prop_i in skip_props or batch[0].get(prop_i) is None:
 
                 continue
 
@@ -244,16 +251,13 @@ class DataLoader(torch.utils.data.DataLoader):
             elif prop_i in ['idx_i', 'idx_j']:
 
                 try:
-
                     coll_batch[prop_i] = torch.cat(
                         [
                             b[prop_i].to(torch.int64) + off 
                             for b, off in zip(batch, atomic_numbers_cumsum)
                         ],
                         dim=0).to(torch.int64)
-
                 except AttributeError:
-
                     raise AttributeError(
                         "Most likely, pair indices of one data frame is None, "
                         + "because the data seed or dataset has changed after "
@@ -281,14 +285,14 @@ class DataLoader(torch.utils.data.DataLoader):
             coll_batch = self.neighbor_list(coll_batch)
 
         # Get number of atom pairs per system segment
-        Npairs = torch.tensor(len(coll_batch['idx_i']))
+        Npairs = torch.tensor(coll_batch['idx_i'].shape[0])
 
         # System segment index of atom pair i,j
-        idx_seg = torch.repeat_interleave(
+        sys_ij = torch.repeat_interleave(
             torch.arange(Nsys, dtype=torch.int64), repeats=Npairs, dim=0)
 
         # Add atom pairs segment index to collective batch
-        coll_batch['pairs_seg'] = idx_seg
+        coll_batch['sys_ij'] = sys_ij
 
         return coll_batch
 

@@ -4,6 +4,8 @@ import torch
 
 from .base import DenseLayer, ResidualLayer
 
+from .. import utils
+
 __all__ = ['InteractionBlock', 'InteractionLayer', 'OutputBlock']
 
 #======================================
@@ -144,9 +146,9 @@ class InteractionLayer(torch.nn.Module):
 
         # Assign activation function
         if activation_fn is None:
-            self.activation_fn = torch.nn.Identity()
+            self.activation = torch.nn.Identity()
         else:
-            self.activation_fn = activation_fn
+            self.activation = activation_fn
 
         # Dense layer for the conversion from radial basis vector to atomic 
         # feature vector length
@@ -233,7 +235,7 @@ class InteractionLayer(torch.nn.Module):
         """
 
         # Apply initial activation function on atomic features
-        x = self.activation_fn(features)
+        x = self.activation(features)
 
         # Apply radial basis (descriptor) to feature vector layer
         g = self.radial2atom(descriptors)
@@ -248,7 +250,7 @@ class InteractionLayer(torch.nn.Module):
 
         # Combine descriptor weighted neighbor atoms feature vector for each
         # central atom i
-        xj = utils.segment_sum(gxj, idx_i, device=self.device)
+        xj = utils.segment_sum(gxj, idx_i, device=gxj.device)
 
         # Combine features to message vector
         message = xi + xj
@@ -257,10 +259,10 @@ class InteractionLayer(torch.nn.Module):
         # interaction
         for residual in self.residuals_ij:
             message = residual(message)
-        message = self.activation_fn(message)
+        message = self.activation(message)
 
         # Mix initial atomic feature vector with message vector
-        x = self.scaling*x + self.dense(message)
+        x = self.scaling*x + self.dense_out(message)
 
         return x
 

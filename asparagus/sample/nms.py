@@ -172,6 +172,7 @@ class NormalModeScanner(sample.Sampler):
         sample_systems_queue: Optional[queue.Queue] = None,
         nms_indices: Optional[List[int]] = None,
         nms_exclude_modes: Optional[List[int]] = None,
+        nms_frequency_range: Optional[List[Tuple[str, float]]] = None,
         nms_clean: Optional[bool] = True,
         **kwargs,
     ):
@@ -187,13 +188,16 @@ class NormalModeScanner(sample.Sampler):
             assigned.
         nms_indices: list[int], optional, default None
             List of atom indices to include in normal mode analysis.
-            If none, indices if a full list of atom indices with length ot the
+            If none, indices if a full list of atom indices with length to the
             atom number of the system.
             Atom indices from atoms constraint by FixAtoms are removed from
             index list and the normal mode analysis.
         nms_exclude_modes: list[int], optional, default None
             List of vibrational modes, sorted by wave number, to exclude
             from the sampling procedure.
+        nms_frequency_range: list[tuple(str, float)], optional, default None
+            Frequency range conditions for normal modes to be included in the
+            scan.
         nms_clean: bool, optional, default True
             If True, checkpoint files for atom displacement calculations
             in {sample_directory}/vib_{isample} will be deleted.
@@ -259,6 +263,7 @@ class NormalModeScanner(sample.Sampler):
                 sample_input_queue,
                 nms_indices,
                 nms_exclude_modes,
+                nms_frequency_range,
                 nms_clean,
                 **kwargs)
         
@@ -269,6 +274,7 @@ class NormalModeScanner(sample.Sampler):
         sample_systems_queue: queue.Queue,
         nms_indices: List[int],
         nms_exclude_modes: List[int],
+        nms_frequency_range: List[Tuple[str, float]],
         nms_clean: bool,
         **kwargs
     ):
@@ -431,6 +437,7 @@ class NormalModeScanner(sample.Sampler):
         
         # Apply exclusion list if defined
         if nms_exclude_modes is not None:
+
             for imode in nms_exclude_modes:
                 if imode < len(system_vib_modes):
                     system_vib_modes[imode] = False
@@ -439,6 +446,40 @@ class NormalModeScanner(sample.Sampler):
                         f"WARNING:\nVibrational mode {imode:d} in the "
                         + "exclusion list is larger than the number of "
                         + "vibrational modes!")
+
+        if nms_frequency_range is not None:
+            
+            # Initially include all modes
+            include_modes = np.ones_like(system_vib_modes)
+            
+            # Iterate over all exclusion conditions
+            for (condition, frequency) in nms_frequency_range:
+                
+                # Modes are still include if conditions are matched
+                if condition == '<':
+                    include_modes = np.logical_and(
+                        include_modes, 
+                        system_frequencies < frequency)
+                elif condition == '<=':
+                    include_modes = np.logical_and(
+                        include_modes, 
+                        system_frequencies <= frequency)
+                elif condition == '>=':
+                    include_modes = np.logical_and(
+                        include_modes, 
+                        system_frequencies >= frequency)
+                elif condition == '>':
+                    include_modes = np.logical_and(
+                        include_modes, 
+                        system_frequencies >= frequency)
+                else:
+                    raise SyntaxError(
+                        f"Normal mode selection condition '{condition}' in "
+                        + "'nms_frequency_range' selection input is not "
+                        + "recognized! Choose between ('<', '<=', '>=', '>').")
+            
+            # Combine normal mode exclusion list
+            system_vib_modes = np.logical_and(system_vib_modes, include_modes)
 
         # Displacement factor for energy step (in eV)
         system_displfact = np.sqrt(

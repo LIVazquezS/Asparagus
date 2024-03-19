@@ -12,6 +12,7 @@ from .. import data
 from .. import settings
 from .. import utils
 from .. import model
+from .. import train
 
 # These packages are required for all functions of plotting and analysing
 # the model.
@@ -44,11 +45,10 @@ class Tester:
 
     Parameters
     ----------
-
-    config: (str, dict, object)
+    config: (str, dict, object), optional, default None
         Either the path to json file (str), dictionary (dict) or
-        settings.config class object of model parameters
-    data_container: callable object, optional
+        settings.config class object of Asparagus parameters
+    data_container: data.DataContainer, optional
         Data container object of the reference test data set.
         If not provided, the data container will be initialized according
         to config input.
@@ -65,13 +65,29 @@ class Tester:
         Store neighbor list parameter in the database file instead of
         computing in situ.
 
-
     """
+
+    # Default arguments for tester class
+    _default_args = {
+        'test_datasets':                ['test'],
+        'tester_properties':            None,
+        'test_store_neighbor_list':     False,
+        }
+
+    # Expected data types of input variables
+    _dtypes_args = {
+        'test_datasets':                [
+            utils.is_string, utils.is_string_array],
+        'tester_properties':            [
+            utils.is_string, utils.is_string_array, utils.is_None],
+        'test_store_neighbor_list':     [utils.is_bool],
+        }
 
     def __init__(
         self,
         config: Optional[Union[str, dict, object]] = None,
-        data_container: Optional[object] = None,
+        config_file: Optional[str] = None,
+        data_container: Optional[data.DataContainer] = None,
         test_datasets: Optional[Union[str, List[str]]] = None,
         test_properties: Optional[Union[str, List[str]]] = None,
         test_store_neighbor_list: Optional[bool] = None,
@@ -87,37 +103,17 @@ class Tester:
         ####################################
 
         # Get configuration object
-        config = settings.get_config(config)
+        config = settings.get_config(
+            config, config_file, config_from=self)
 
         # Check input parameter, set default values if necessary and
         # update the configuration dictionary
-        config_update = {}
-        for arg, item in locals().items():
-
-            # Skip 'config' argument and possibly more
-            if arg in [
-                    'self', 'config', 'config_update', 'kwargs', '__class__']:
-                continue
-
-            # Take argument from global configuration dictionary if not defined
-            # directly
-            if item is None:
-                item = config.get(arg)
-
-            # Set default value if the argument is not defined (None)
-            if arg in settings._default_args.keys() and item is None:
-                item = settings._default_args[arg]
-
-            # Check datatype of defined arguments
-            if arg in settings._dtypes_args.keys():
-                match = utils.check_input_dtype(
-                    arg, item, settings._dtypes_args, raise_error=True)
-
-            # Append to update dictionary
-            config_update[arg] = item
-
-            # Assign as class parameter
-            setattr(self, arg, item)
+        config_update = config.set(
+            instance=self,
+            argitems=utils.get_input_args(),
+            check_default=utils.get_default_args(self, train),
+            check_dtype=utils.get_dtype_args(self, train)
+        )
 
         # Update global configuration dictionary
         config.update(config_update)
@@ -151,12 +147,14 @@ class Tester:
         # # # Check Test Properties # # #
         #################################
 
-        self.test_properties = self.check_test_properties()
+        self.test_properties = self.check_test_properties(
+            self.test_properties,
+            self.data_properties)
 
     def check_test_properties(
         self,
-        test_properties: Optional[Union[str, List[str]]] = None,
-        data_properties: Optional[List[str]] = None,
+        test_properties: Union[str, List[str]],
+        data_properties: List[str],
     ) -> List[str]:
         """
         Check availability of 'test_properties' in 'data_properties' and
@@ -164,7 +162,6 @@ class Tester:
 
         Parameters
         ----------
-
         test_properties: (str, list(str)), optional, default None
             Model properties to evaluate which must be available in the
             model prediction and the reference test data set. If None, model
@@ -174,17 +171,10 @@ class Tester:
 
         Returns
         -------
-        list
-
-
+        List[str]
+            Test properties
 
         """
-
-        # Check input
-        if test_properties is None:
-            test_properties = self.test_properties
-        if data_properties is None:
-            data_properties = self.data_properties
 
         # If not defined, take all reference properties, else check
         # availability
@@ -230,8 +220,7 @@ class Tester:
 
         Parameters
         ----------
-
-        model_calculator: callable object
+        model_calculator: torch.nn.Module
             NNP model calculator to predict test properties. The prediction
             are done with the given state of parametrization, no checkpoint
             files will be loaded.
@@ -268,6 +257,7 @@ class Tester:
             of atoms in the particular system.
         verbose: bool, optional, default True
             Print test metrics.
+
         """
 
         #################################
@@ -313,7 +303,7 @@ class Tester:
 
             # Set maximum model cutoff for neighbor list calculation
             datasubset.init_neighbor_list(
-                cutoff=model_calculator.model_interaction_cutoff,
+                cutoff=model_calculator.model_cutoff,
                 store=self.test_store_neighbor_list)
 
             # Prepare dictionary for property values and number of atoms per
@@ -344,13 +334,13 @@ class Tester:
                 for prop in eval_properties:
                     data_prediction = prediction[prop].detach().numpy()
                     data_reference = batch[prop].detach().numpy()
-                    if data_prediction.shape[0] == len(batch['atoms_seg']):
+                    if data_prediction.shape[0] == len(batch['sys_i']):
                         data_prediction = [
                             list(data_prediction[isys])
                             for isys in range(Nsys)]
                         data_reference = [
                             list(data_reference[isys]) for isys in range(Nsys)]
-                    elif data_prediction.shape[0] == len(batch['pairs_seg']):
+                    elif data_prediction.shape[0] == len(batch['sys_ij']):
                         data_prediction = [
                             list(data_prediction[isys])
                             for isys in range(Nsys)]
@@ -452,9 +442,22 @@ class Tester:
         return
 
     @staticmethod
-    def is_imported(module: str):
+    def is_imported(
+        module: str
+    ) -> bool:
         """
         Check if a module is imported.
+        
+        Parameters
+        ----------
+        module: str
+            Module name
+            
+        Returns
+        -------
+        bool
+            Module availability flag on the system
+
         """
 
         return module in sys.modules
@@ -465,8 +468,7 @@ class Tester:
         test_directory: str,
         npz_name: str,
     ):
-        '''
-
+        """
         Save results of the test set to a binary npz file.
 
         Parameters
@@ -478,16 +480,15 @@ class Tester:
         npz_name:
             Name of the npz file.
 
-        Returns
-        -------
-
-        '''
+        """
 
         path_to_save = os.path.join(test_directory, npz_name)
         logger.info(
             "INFO:\nSaving results of the test set to file "
             + f"'{path_to_save:s}'!")
         np.savez(path_to_save, **vals)
+        
+        return
 
     def save_csv(
         self,
@@ -495,14 +496,8 @@ class Tester:
         test_directory: str,
         csv_name: str
     ):
-
-        '''
-
+        """
         Save results of the test set to a csv file.
-
-        **Note**: This function requires the module 'pandas' to be installed.
-
-        TODO: Save data without pandas.
 
         Parameters
         ----------
@@ -513,11 +508,7 @@ class Tester:
         csv_name:
             Name of the csv file.
 
-        Returns
-        -------
-
-        '''
-
+        """
 
         # Check for .csv file extension
         if '.csv' == csv_name[-4:]:
@@ -552,30 +543,27 @@ class Tester:
             logger.warning(
                 "WARNING:\nModule 'pandas' is not available. "
                 + "Test properties are not written to a csv file!")
+
         return
 
     def reset_metrics(
         self,
-        test_properties: List[str] = None
+        test_properties: List[str],
     ) -> Dict[str, float]:
-
-        '''
-
+        """
         Reset the metrics dictionary.
 
         Parameters
         ----------
-        test_properties
+        test_properties: list(str)
             List of properties to restart.
 
         Returns
         -------
+        dict(str, dict(str, float))
+            Property metrics dictionary
 
-        '''
-
-        # Check input
-        if test_properties is None:
-            test_properties = self.test_properties
+        """
 
         # Initialize metrics dictionary
         metrics = {}
@@ -595,12 +583,11 @@ class Tester:
         self,
         prediction: Dict[str, Any],
         reference: Dict[str, Any],
-        test_properties: List[str] = None
+        test_properties: List[str],
     ) -> Dict[str, float]:
-
-        '''
-
-        Compute the metrics for the test set (Mean Absolute Error (MAE) and Mean Squared Error (MSE)).
+        """
+        Compute the metrics mean absolute error (MAE) and mean squared error 
+        (MSE) for the test set.
 
         Parameters
         ----------
@@ -608,19 +595,15 @@ class Tester:
             Dictionary of the model predictions
         reference: dict
             Dictionary of the reference data
-        test_properties:
+        test_properties: list(str)
             List of properties to evaluate.
 
         Returns
         -------
-        dict
-            Dictionary of the values for the metrics
+        dict(str, dict(str, float))
+            Property metrics dictionary
 
-        '''
-
-        # Check input
-        if test_properties is None:
-            test_properties = self.test_properties
+        """
 
         # Initialize metrics dictionary
         metrics = {}
@@ -651,28 +634,27 @@ class Tester:
         self,
         metrics: Dict[str, float],
         metrics_update: Dict[str, float],
-        test_properties: Optional[List[str]] = None,
+        test_properties: List[str],
     ) -> Dict[str, float]:
 
-        '''
-            Update the metrics dictionary.
+        """
+        Update the metrics dictionary.
+        
         Parameters
         ----------
         metrics: dict
-            Dictionary of the metrics to update.
-        metrics_update:
-            Dictionary of the metrics to update with.
-        test_properties:
-            List of properties to update.
+            Dictionary of the new metrics
+        metrics_update: dict
+            Dictionary of the metrics to update
+        test_properties: list(str)
+            List of properties to evaluate
 
         Returns
         -------
+        dict(str, dict(str, float))
+            Property metrics dictionary
 
-        '''
-
-        # Check property input
-        if test_properties is None:
-            test_properties = self.test_properties
+        """
 
         # Get data sizes and metric ratio
         Ndata = metrics['Ndata']
@@ -698,21 +680,19 @@ class Tester:
         test_properties: Optional[List[str]] = None,
         test_label: Optional[str] = '',
     ):
-
-        '''
-
+        """
         Print the values of MAE and RMSE for the test set.
 
         Parameters
         ----------
-        metrics
-        test_properties
-        test_label
+        metrics: dict
+            Dictionary of the property metrics
+        test_properties: list(str)
+            List of properties to evaluate
+        test_label: str
+            Label of the reference data set
 
-        Returns
-        -------
-
-        '''
+        """
 
         # Check property and label input
         if test_properties is None:
@@ -729,6 +709,8 @@ class Tester:
             msg += f"{np.sqrt(metrics[prop]['mse']):3.2e} "
             msg += f"{self.data_units[prop]:s}\n"
         logger.info("INFO:\n" + msg)
+        
+        return
 
     def plain_data(
         self,
@@ -761,32 +743,28 @@ class Tester:
         figsize = (6, 6)
         fontsize = 12
 
-        **Note**: This function requires the module 'matplotlib' to be installed. Additionally, 'scipy' is required
-        to compute the Pearson correlation coefficient.
-
         Parameters
         ----------
         label_dataset: str
-            Label of the data set.
+            Label of the data set
         label_property: str
-            Label of the property.
+            Label of the property
         data_prediction: list(float)
-            List of the predicted data.
+            List of the predicted data
         data_reference: list(float)
-            List of the reference data.
+            List of the reference data
         unit_property: str
-            Unit of the property.
+            Unit of the property
         data_metrics: dict
-            Dictionary of the metrics.
+            Dictionary of the metrics
         test_scaling: list(float)
-            List of the scaling factors.
+            List of the scaling factors
         test_directory: str
-            Directory to save the plot.
+            Directory to save the plot
         test_plot_format: str
-            Format of the plot.
+            Format of the plot
         test_plot_dpi: int
-            DPI of the plot.
-
+            DPI of the plot
 
         """
 
@@ -881,6 +859,8 @@ class Tester:
             format=test_plot_format,
             dpi=test_plot_dpi)
         plt.close()
+        
+        return
 
     def plot_histogram(
         self,
@@ -902,23 +882,23 @@ class Tester:
         Parameters
         ----------
         label_dataset: str
-            Label of the data set.
+            Label of the data set
         label_property: str
-            Label of the property.
+            Label of the property
         data_prediction: list(float)
-            List of the predicted data.
+            List of the predicted data
         data_reference: list(float)
-            List of the reference data.
+            List of the reference data
         unit_property: str
-            Unit of the property.
+            Unit of the property
         data_metrics: dict
-            Dictionary of the metrics.
+            Dictionary of the metrics
         test_directory: str
-            Directory to save the plot.
+            Directory to save the plot
         test_plot_format: str
-            Format of the plot.
+            Format of the plot
         test_plot_dpi: int
-            DPI of the plot.
+            DPI of the plot
 
         """
 
@@ -1006,6 +986,8 @@ class Tester:
             format=test_plot_format,
             dpi=test_plot_dpi)
         plt.close()
+        
+        return
 
     def plot_residual(
         self,
@@ -1024,31 +1006,28 @@ class Tester:
         Plot property data residual data.
         (x-axis: reference data; y-axis: prediction error)
 
-
         Parameters
         ----------
-
         label_dataset: str
-            Label of the data set.
+            Label of the data set
         label_property: str
-            Label of the property.
+            Label of the property
         data_prediction: list(float)
-            List of the predicted data.
+            List of the predicted data
         data_reference: list(float)
-            List of the reference data.
+            List of the reference data
         unit_property: str
-            Unit of the property.
+            Unit of the property
         data_metrics: dict
-            Dictionary of the metrics.
+            Dictionary of the metrics
         test_scaling: list(float)
-            List of the scaling factors.
+            List of the scaling factors
         test_directory: str
-            Directory to save the plot.
+            Directory to save the plot
         test_plot_format: str
-            Format of the plot.
+            Format of the plot
         test_plot_dpi: int
-            DPI of the plot.
-
+            DPI of the plot
 
         """
 
@@ -1147,3 +1126,5 @@ class Tester:
             format=test_plot_format,
             dpi=test_plot_dpi)
         plt.close()
+        
+        return

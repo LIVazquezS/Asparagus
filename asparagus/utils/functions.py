@@ -122,7 +122,8 @@ def segment_sum(
                 + f"({segment_ids.shape[0]}).")
 
     num_segments = len(torch.unique(segment_ids))
-    return unsorted_segment_sum(data, segment_ids, num_segments, device=device)
+    return unsorted_segment_sum(
+        data, segment_ids, num_segments, device=data.device)
 
 def unsorted_segment_sum(
     data: torch.Tensor,
