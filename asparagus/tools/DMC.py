@@ -54,7 +54,7 @@ class DMC:
     eqsteps: int
         Number of equilibration steps for the DMC
     alpha: float
-        Alpha parameter for the DMC: Feed-back parameter, usually propotional to 1/stepsize
+        Alpha parameter for the DMC: Feed-back parameter, usually proportional to 1/stepsize
     max_batch: int
         Size of the batch
     initial_coord: str or array
@@ -154,12 +154,11 @@ class DMC:
                 verbose=False)
 
         # Initialize checkpoint file manager and load best model
-        filemanager = utils.FileManager(config_data, **kwargs)
+        filemanager = model.FileManager(config_data, **kwargs)
         if model_checkpoint is None:
-            latest_checkpoint = filemanager.load_checkpoint(best=True)
+            latest_checkpoint = filemanager.load_checkpoint()
         elif utils.is_integer(model_checkpoint):
-            latest_checkpoint = filemanager.load_checkpoint(
-                num_checkpoint=model_checkpoint)
+            latest_checkpoint = filemanager.load_checkpoint(model_checkpoint)
         else:
             raise ValueError(
                 "Input 'model_checkpoint' must be either None to load best "
@@ -437,7 +436,7 @@ class DMC:
                             psips_f[nalive] = 1
                             v_tot = v_tot + v_psip[i]
 
-        error_checker = 0
+        #error_checker = 0
         return psips, psips_f, v_tot, nalive
 
     def create_batch(self,coor, batch_size,max_size=False):

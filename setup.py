@@ -21,6 +21,7 @@ setup(
         'torch', 
         'torch-ema',
         'tabulate',
+        'h5py',
         'xtb']
     #TODO: Add more dependencies and option to be read from a file
 )

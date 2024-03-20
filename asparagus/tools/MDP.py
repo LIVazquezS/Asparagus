@@ -18,6 +18,7 @@ from ase.io.trajectory import Trajectory
 from .. import interface
 from .. import settings
 from .. import utils
+from .. import model
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -160,12 +161,11 @@ class MDP:
                 verbose=False)
 
         # Initialize checkpoint file manager and load best model
-        filemanager = utils.FileManager(config_data, **kwargs)
+        filemanager = model.FileManager(config_data, **kwargs)
         if model_checkpoint is None:
-            latest_checkpoint = filemanager.load_checkpoint(best=True)
+            latest_checkpoint = filemanager.load_checkpoint()
         elif utils.is_integer(model_checkpoint):
-            latest_checkpoint = filemanager.load_checkpoint(
-                num_checkpoint=model_checkpoint)
+            latest_checkpoint = filemanager.load_checkpoint(model_checkpoint)
         else:
             raise ValueError(
                 "Input 'model_checkpoint' must be either None to load best "

@@ -7,11 +7,11 @@ sys.path.insert(0, os.path.abspath(os.path.join('.','..', '..')))
 # -- Project information
 
 project = 'Asparagus bundle'
-copyright = '2023, L.I.Vazquez-Salazar, K. Toepfer & M. Meuwly'
+copyright = '2024, L.I.Vazquez-Salazar, K. Toepfer & M. Meuwly'
 author = 'L.I.Vazquez-Salazar & K. Toepfer'
 
 release = '0.1'
-version = '0.1.0'
+version = '0.2.0'
 
 # -- General configuration
 
