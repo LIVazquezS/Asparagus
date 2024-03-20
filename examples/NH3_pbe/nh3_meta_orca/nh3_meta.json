@@ -75,7 +75,7 @@
     }
   },
   "sample_counter": 1,
-  "data_file": "nh3_meta.db",
+  "data_file": "nh3_meta_orca/nh3_meta.db",
   "model_directory": "model_nh3_meta",
   "model_properties": [
     "energy",
@@ -96,13 +96,10 @@
     "dipole"
   ],
   "data_unit_properties": {
-    "positions": "Ang",
     "energy": "eV",
     "forces": "eV/Ang",
-    "charge": "e",
     "dipole": "eAng",
-    "atomic_charges": "e",
-    "atomic_energies": "eV"
+    "positions": "Ang"
   },
   "data_num_train": 0.8,
   "data_num_valid": 0.1,

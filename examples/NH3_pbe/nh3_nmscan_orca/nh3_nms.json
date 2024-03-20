@@ -65,7 +65,7 @@
     }
   },
   "sample_counter": 2,
-  "data_file": "nh3_nms.db",
+  "data_file": "nh3_nmscan_orca/nh3_nms.db",
   "model_directory": "model_nh3_nms",
   "model_properties": [
     "energy",
@@ -86,13 +86,10 @@
     "dipole"
   ],
   "data_unit_properties": {
-    "positions": "Ang",
     "energy": "eV",
     "forces": "eV/Ang",
-    "charge": "e",
     "dipole": "eAng",
-    "atomic_charges": "e",
-    "atomic_energies": "eV"
+    "positions": "Ang"
   },
   "data_num_train": 0.8,
   "data_num_valid": 0.1,

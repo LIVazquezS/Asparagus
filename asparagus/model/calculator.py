@@ -18,7 +18,6 @@ def get_Model_PhysNet():
     return Model_PhysNet
 
 def get_Model_PaiNN():
-    raise NotImplementedError()
     from .painn import Model_PaiNN
     return Model_PaiNN
 

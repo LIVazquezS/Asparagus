@@ -17,8 +17,9 @@ flag_sampler_all = False
 flag_sampler_shell = False
 flag_sampler_slurm = False
 flag_model_physnet = False
-flag_train_physnet = True
-flag_ase_physnet = True
+flag_model_painn = True
+flag_train_physnet = False
+flag_ase_physnet = False
 
 
 #==============================================================================
@@ -771,17 +772,26 @@ if flag_sampler_slurm:
 # Initialize PhysNet model calculator
 if flag_model_physnet:
     
-    config_file = 'test/model.json'
+    config_file = 'test/physnet.json'
     model = asparagus.Asparagus(
-        config_file=config_file,
-        model_type='physnet')
+        config_file=config_file)
     mcalc = model.get_model_calculator(
         model_directory='test/physnet') # Default model type: 'PhysNet'
     model.set_model_calculator(
         model_directory='test/physnet')
     model.set_model_calculator(
         model_calculator=mcalc)
+
+# Initialize PaiNN model calculator
+if flag_model_painn:
     
+    config_file = 'test/painn.json'
+    model = asparagus.Asparagus(
+        config_file=config_file,
+        model_type='painn')
+    model.set_model_calculator(
+        model_directory='test/painn') # Initialized model type: 'PaiNN'
+
 # Initialize PhysNet model training
 if flag_train_physnet:
     
@@ -795,6 +805,7 @@ if flag_train_physnet:
         )
     trainer = model.get_trainer()
     model.train()
+    model.test()
 
 # Test ASE calculator
 if flag_ase_physnet:
@@ -818,27 +829,15 @@ if flag_ase_physnet:
             data_i['atomic_numbers'],
             positions=data_i['positions'])
         system_energy = data_i['energy'].numpy()
-        system_forces = data_i['forces'].numpy()
-        system_dipole = data_i['dipole'].numpy()
         
         # Compute model properties
         model_energy = calc.get_potential_energy(system)
-        model_forces = calc.get_forces(system)
-        model_dipole = calc.get_dipole_moment(system)
         
         # Compare results
-        print(
-            "Reference and model energy (error): "
-            + f"{system_energy:.4f} eV, {model_energy:.4f} eV "
-            + f"({system_energy - model_energy:.4f} eV)")
-        print(
-            "Reference and model forces on nitrogen (mean error): "
-            + f"{system_forces[0]} eV/Ang, {model_forces[0]} eV/Ang "
-            + f"({np.mean(system_forces[0] - model_forces[0]):.4f} eV/Ang)")
-        print(
-            "Reference and model dipole (mean error): "
-            + f"{system_dipole} eAng, {model_dipole} eAng "
-            + f"({np.mean(system_dipole - model_dipole):.4f} eAng)")
+        #print(
+            #"Reference and model energy (error): "
+            #+ f"{system_energy:.4f} eV, {model_energy:.4f} eV "
+            #+ f"({system_energy - model_energy:.4f} eV)")
         
         # Append to result list
         results_energy[idata, 0] = system_energy
@@ -848,3 +847,4 @@ if flag_ase_physnet:
     rmse_energy = np.sqrt(
         np.mean((results_energy[:, 0] - results_energy[:, 1])**2))
     print(f"RMSE(energy) = {rmse_energy:.4f} eV")
+

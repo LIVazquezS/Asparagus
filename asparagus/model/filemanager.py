@@ -194,7 +194,6 @@ class FileManager():
         elif num_checkpoint is None:
             ckpt_name = os.path.join(
                 self.ckpt_dir, f'model_{epoch:d}.pt')
-            self.check_max_checkpoints(max_checkpoints)
         else:
             if utils.is_integer(num_checkpoint):
                 ckpt_name = os.path.join(
@@ -206,6 +205,10 @@ class FileManager():
 
         # Write checkpoint file
         torch.save(state, ckpt_name)
+        
+        # Check number of epoch checkpoints
+        if not best and num_checkpoint is None:
+            self.check_max_checkpoints(max_checkpoints)
 
         return
 
@@ -342,7 +345,7 @@ class FileManager():
     def save_config(
         self,
         config: object,
-        max_backup: Optional[int] = 10,
+        max_backup: Optional[int] = 5,
     ):
         """
         Save config object in current model directory with the default file
@@ -400,3 +403,5 @@ class FileManager():
 
         # Dump config in file path
         config.dump(config_file=config_file)
+
+        return

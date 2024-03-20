@@ -363,7 +363,7 @@ class MCSampler(sample.Sampler):
                 Naccept += 1
                 
                 # Store system properties
-                if not Naccept%self.mc_save_interval:
+                if not Nsample%self.mc_save_interval:
                     Nsample = self.save_properties(system, Nsample)
                     if self.sample_save_trajectory:
                         self.write_trajectory(

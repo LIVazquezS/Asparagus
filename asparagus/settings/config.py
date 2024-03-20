@@ -391,9 +391,9 @@ class Configuration():
 
         Parameters
         ----------
-
         config_file: str, optional, default None
             Dump current config dictionary in this file path.
+
         """
 
         # Initialize dictionary with JSON compatible parameter types

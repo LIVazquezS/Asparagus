@@ -119,9 +119,9 @@ class Model_PhysNet(torch.nn.Module):
         super(Model_PhysNet, self).__init__()
         model_type = 'PhysNet'
 
-        ##########################################
-        # # # Check PhysNet Calculator Input # # #
-        ##########################################
+        #############################
+        # # # Check Class Input # # #
+        #############################
         
         # Get configuration object
         config = settings.get_config(
@@ -146,9 +146,9 @@ class Model_PhysNet(torch.nn.Module):
         if config.get('model_num_threads') is not None:
             torch.set_num_threads(config.get('model_num_threads'))
 
-        ##########################################
-        # # # Check PhysNet Model Properties # # #
-        ##########################################
+        #####################################
+        # # # Check PhysNet Model Input # # #
+        #####################################
 
         # Check model properties - Labels
         for prop in self.model_properties:
@@ -580,7 +580,7 @@ class Model_PhysNet(torch.nn.Module):
             features, distances, cutoffs, rbfs, idx_i, idx_j)
 
         # Run output model
-        output = self.output_module(
+        results = self.output_module(
             features_list, 
             atomic_numbers=atomic_numbers)
         
@@ -590,8 +590,8 @@ class Model_PhysNet(torch.nn.Module):
 
         # Add dispersion model contributions
         if self.model_dispersion:
-            output['atomic_energies'] = (
-                output['atomic_energies']
+            results['atomic_energies'] = (
+                results['atomic_energies']
                 + self.dispersion_module(
                     atomic_numbers, distances, idx_i, idx_j))
 
@@ -599,47 +599,47 @@ class Model_PhysNet(torch.nn.Module):
         if self.model_atomic_charges:
             charge_deviation = (
                 charge - utils.segment_sum(
-                    output['atomic_charges'], sys_i, device=self.device)
+                    results['atomic_charges'], sys_i, device=self.device)
                 / atoms_number
                 )
-            output['atomic_charges'] = (
-                output['atomic_charges'] + charge_deviation[sys_i])
+            results['atomic_charges'] = (
+                results['atomic_charges'] + charge_deviation[sys_i])
 
         # Add electrostatic model contribution
         if self.model_electrostatic:
             # Apply electrostatic model
-            output['atomic_energies'] = (
-                output['atomic_energies']
+            results['atomic_energies'] = (
+                results['atomic_energies']
                 + self.electrostatic_module(
-                    output['atomic_charges'], 
+                    results['atomic_charges'], 
                     distances, idx_i, idx_j))
 
         # Compute property - Energy
         if self.model_energy:
-            output['energy'] = torch.squeeze(
+            results['energy'] = torch.squeeze(
                 utils.segment_sum(
-                    output['atomic_energies'], sys_i, device=self.device)
+                    results['atomic_energies'], sys_i, device=self.device)
                 )
 
         # Compute gradients and Hessian if demanded
         if self.model_forces:
 
             gradient = torch.autograd.grad(
-                torch.sum(output['energy']),
+                torch.sum(results['energy']),
                 positions,
                 create_graph=True)[0]
 
             # Avoid crashing if forces are none
             if gradient is not None:
-                output['forces'] = -gradient
+                results['forces'] = -gradient
             else:
                 logger.warning(
                     "WARNING:\nError in force calculation "
                     + "(backpropagation)!")
-                output['forces'] = torch.zeros_like(positions)
+                results['forces'] = torch.zeros_like(positions)
 
             if self.model_hessian:
-                hessian = output['energy'].new_zeros(
+                hessian = results['energy'].new_zeros(
                     (gradient.size(0), gradient.size(0)))
                 for ig in range(gradient.size(0)):
                     hessian_ig = torch.autograd.grad(
@@ -648,25 +648,19 @@ class Model_PhysNet(torch.nn.Module):
                         retain_graph=(ig < gradient.size(0)))[0]
                     if hessian_ig is not None:
                         hessian[ig] = hessian_ig.view(-1)
-                output['hessian'] = hessian
+                results['hessian'] = hessian
 
         # Compute molecular dipole of demanded
         if self.model_dipole:
             if pbc_atoms is None:
-                output['dipole'] = utils.segment_sum(
-                    output['atomic_charges'][..., None]*positions,
+                results['dipole'] = utils.segment_sum(
+                    results['atomic_charges'][..., None]*positions,
                     sys_i, device=self.device).reshape(-1, 3)
             else:
-                output['dipole'] = utils.segment_sum(
-                    output['atomic_charges'][..., None]
+                results['dipole'] = utils.segment_sum(
+                    results['atomic_charges'][..., None]
                     *positions[pbc_atoms],
                     sys_i, device=self.device).reshape(-1, 3)
 
-        #print('properties predicted: ', output.keys())
-        #print('energy: ', output['energy'])
-        #print('forces: ', output['forces'])
-        #print('atomic charges: ', output['atomic_charges'])
-        #print('dipole: ', output['dipole'])
-
-        return output
+        return results
 

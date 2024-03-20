@@ -15,7 +15,6 @@ def get_Input_PhysNet_original():
     return Input_PhysNet_original
 
 def get_Input_PaiNN():
-    raise NotImplementedError()
     from .painn_modules import Input_PaiNN
     return Input_PaiNN
 

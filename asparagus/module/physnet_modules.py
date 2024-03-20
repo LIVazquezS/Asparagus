@@ -33,7 +33,7 @@ class Input_PhysNet(torch.nn.Module):
         Path to json file (str)
     input_n_atombasis: int, optional, default 128
         Number of atomic features (length of the atomic feature vector)
-    input_radialbasis_fn: (str, callable), optional, default 'GaussianRBF'
+    input_radial_fn: (str, callable), optional, default 'GaussianRBF'
         Type of the radial basis function.
     input_n_radialbasis: int, optional, default 64
         Number of input radial basis centers
