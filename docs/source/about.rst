@@ -15,7 +15,7 @@ Asparagus are very easy to grow but they grow separate to each other. In this co
 all the different parts of the process of creating a potential energy surface with machine learning that have been
 separately developed in our research group for the last few years.
 
-Why are we lying? It is called Asparagus because Kai does not like Asparagus.
+Why are we lying? It is called Asparagus because Kai does not like Asparagus and Luis likes to make bad jokes.
 
 ---------------------------------
 What can Asparagus do?

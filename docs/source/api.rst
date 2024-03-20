@@ -6,7 +6,7 @@ Contents
 .. toctree::
    :maxdepth: 2
 
-   api/asparagus.src
+   api/asparagus
    api/modules
 
 

@@ -16,7 +16,6 @@ potential energy surface from sampling to production.
 
     installation
     config_file
-    main
     about
     contribute
     api
@@ -55,5 +54,5 @@ Please check out the :doc:`about` section for further information.
 
    This project is under active development.
 
-g
+
 
