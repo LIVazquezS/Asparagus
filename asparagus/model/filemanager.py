@@ -115,9 +115,6 @@ class FileManager():
         self.ckpt_dir = os.path.join(self.model_directory, 'checkpoints')
         self.logs_dir = os.path.join(self.model_directory, 'logs')
 
-        # Check existence of the directories
-        self.create_model_directory()
-
         return
 
     def create_model_directory(self):
@@ -172,6 +169,9 @@ class FileManager():
             with the lowest indices will be deleted.
 
         """
+
+        # Check existence of the directories
+        self.create_model_directory()
 
         # For best model, just store model parameter
         if best:
@@ -356,6 +356,9 @@ class FileManager():
             Maximum number of backup config files
 
         """
+
+        # Check existence of the directories
+        self.create_model_directory()
 
         # Config file path
         config_file = os.path.join(

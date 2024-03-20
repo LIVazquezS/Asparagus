@@ -45,25 +45,17 @@ def get_config(
     """
 
     # If 'config' being a config class object
-    if utils.is_callable(config) and config_file is None:
+    if utils.is_callable(config):
 
+        # If config file is defined - update config file path
+        config.set_config_file = (config_file)
+        
         # Update configuration with keyword arguments
         config.update(
             kwargs,
             config_from=config_from)
 
         return config
-
-    # If 'config' being a config class object but with new file path
-    if utils.is_callable(config) and utils.is_string(config_file):
-
-        # Update configuration with keyword arguments
-        config.update(
-            kwargs,
-            config_file=config_file,
-            config_from=config_from)
-
-        
 
     # Otherwise initialize Configuration class object
     else:
@@ -74,6 +66,7 @@ def get_config(
             config_from=config_from,
             **kwargs)
 
+    return
 
 # ======================================
 # Configuration Class
@@ -119,61 +112,67 @@ class Configuration():
         self.config_dict = {}
         self.config_indent = 2
 
-        # Check and set configuration dictionary and file path.
-        # If both undefined: Set empty config at default config file path
+        # Check configuration source input
+        # Case 1: Neither defined - Get config dict at default file path
         if config is None and config_file is None:
             self.config_file = settings._default_args.get('config_file')
             self.config_dict = self.read(self.config_file)
-        # Else if just config undefined: get config from config file path
+        # Case 2: Only config file is defined - Read config dict from file path
         elif config is None:
             if utils.is_string(config_file):
                 self.config_file = config_file
                 self.config_dict = self.read(self.config_file)
             else:
                 raise SyntaxError(
-                    "Input config file path 'config_file' is not a valid"
-                    + "string input!")
-        # Else if config defined as file path: get config from file path
-        elif utils.is_string(config):
-            self.config_dict = self.read(config)
-            if utils.is_string(config_file):
-                self.config_file = config_file
-            else:
+                    "Config input 'config_file' is not a string of "
+                    + "a valid file path!")
+        # Case 3: Only config is defined - Check type
+        elif config_file is None:
+            # If config is actually a file path - use as file path like case 2
+            if utils.is_string(config):
                 self.config_file = config
-        # Else if config defined as dictionary: get config and check file path
-        elif utils.is_dictionary(config):
-            self.config_dict = config
-            if config_file is None and config.get('config_file') is None:
-                self.config_file = settings._default_args.get('config_file')
-            elif utils.is_string(config_file):
+                self.config_dict = self.read(self.config_file)
+            # If config is a dictionary - assign and read file path
+            elif utils.is_dictionary(config):
+                self.config_dict = config
+                if self.config_dict.get('config_file') is None:
+                    config_file = settings._default_args.get('config_file')
+                else:
+                    config_file = self.config_dict.get('config_file')
                 self.config_file = config_file
-            elif utils.is_string(config.get('config_file')):
-                self.config_file = config.get('config_file')
             else:
                 raise SyntaxError(
-                    "Input config file path 'config_file' is not a valid"
-                    + "string input!")
+                    "Config input 'config' is neither a dictionary nor a "
+                    + "string of a  valid file path!")
+        # Case 4: Both are defined - Update config dict from config file with 
+        # config input
         else:
-            raise SyntaxError(
-                "Input 'config_file' is not a file path string !\n" 
-                + "Input 'config' is not a dictionary containing a valid "
-                + "'config_file' input!")
+            # Read config dict from file path and assign as self.config_dict
+            if utils.is_string(config_file):
+                self.config_file = config_file
+                self.config_dict = self.read(self.config_file)
+            else:
+                raise SyntaxError(
+                    "Config input 'config_file' is not a string of "
+                    + "a valid file path!")
+            # If config is actually a file path - read config dict and update
+            # self.config_dict
+            if utils.is_string(config):
+                self.update(self.read(config))
+            # If config is a dictionary - update self.config_dict
+            elif utils.is_dictionary(config):
+                self.update(config)
+            else:
+                raise SyntaxError(
+                    "Config input 'config' is neither a dictionary nor a "
+                    + "string of a  valid file path!")
+        # In all cases, config_dict and config_file are class variables and 
+        # defined as dictionary and string.
+        
+        # Set config file path to dictionary
+        self.set_config_file(self.config_file)
 
-        # Set, eventually, new config file path to dictionary
-        if self.config_dict.get('config_file') is None:
-            self.config_dict['config_file'] = self.config_file
-            logger.info(
-                "INFO:\nConfiguration file path set to "
-                + f"'{self.config_file:s}'!\n")
-        else:
-            if self.config_dict.get('config_file') != self.config_file:
-                logger.info(
-                    "INFO:\nConfiguration file path will be changed from "
-                    + f"'{self.config_dict.get('config_file'):s}' to "
-                    + f"'{self.config_file:s}'!\n")
-                self.config['config_file'] = self.config_file
-
-        # Prepare, eventually, config file path
+        # Generate, eventually, the directory for the config file
         config_dir = os.path.dirname(self.config_file)
         if not os.path.isdir(config_dir) and len(config_dir):
             os.makedirs(os.path.dirname(self.config_file))
@@ -224,6 +223,35 @@ class Configuration():
     def keys(self):
         return self.config_dict.keys()
 
+    def set_config_file(
+        self,
+        config_file: str,
+    ):
+        
+        # Check input
+        if utils.is_string(config_file):
+            self.config_file = config_file
+        else:
+            raise SyntaxError(
+                "Config input 'config_file' is not a string of "
+                + "a valid file path!")
+        
+        # Set config file path to dictionary
+        if self.config_dict.get('config_file') is None:
+            self.config_dict['config_file'] = self.config_file
+            logger.info(
+                "INFO:\nConfiguration file path set to "
+                + f"'{self.config_file:s}'!\n")
+        else:
+            if self.config_dict.get('config_file') != self.config_file:
+                logger.info(
+                    "INFO:\nConfiguration file path will be changed from "
+                    + f"'{self.config_dict.get('config_file'):s}' to "
+                    + f"'{self.config_file:s}'!\n")
+                self.config_dict['config_file'] = self.config_file
+        
+        return
+    
     def read(
         self, 
         config_file: str,

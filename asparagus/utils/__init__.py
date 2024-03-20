@@ -33,10 +33,6 @@ from .functions import(
     detach_tensor, flatten_array_like
 )
 
-from .filemanager import(
-    FileManager
-)
-
 from .neighborlist import(
     ASENeighborList, TorchNeighborList
 )

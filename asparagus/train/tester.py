@@ -61,6 +61,8 @@ class Tester:
         Model properties to evaluate which must be available in the
         model prediction and the reference test data set. If None, all
         model properties will be evaluated if available in the test set.
+    test_directory: str, optional, default '.'
+        Directory to store evaluation graphics and data.
     test_store_neighbor_list: bool, optional, default True
         Store neighbor list parameter in the database file instead of
         computing in situ.
@@ -71,6 +73,7 @@ class Tester:
     _default_args = {
         'test_datasets':                ['test'],
         'tester_properties':            None,
+        'test_directory':               '.',
         'test_store_neighbor_list':     False,
         }
 
@@ -80,6 +83,7 @@ class Tester:
             utils.is_string, utils.is_string_array],
         'tester_properties':            [
             utils.is_string, utils.is_string_array, utils.is_None],
+        'test_directory':               [utils.is_string],
         'test_store_neighbor_list':     [utils.is_bool],
         }
 
@@ -90,6 +94,7 @@ class Tester:
         data_container: Optional[data.DataContainer] = None,
         test_datasets: Optional[Union[str, List[str]]] = None,
         test_properties: Optional[Union[str, List[str]]] = None,
+        test_directory: Optional[str] = None,
         test_store_neighbor_list: Optional[bool] = None,
         **kwargs
     ):
@@ -128,6 +133,14 @@ class Tester:
                 config=config,
                 **kwargs)
 
+        # Get reference data properties
+        self.data_properties = self.data_container.data_load_properties
+        self.data_units = self.data_container.data_unit_properties
+
+        ##########################
+        # # # Prepare Tester # # #
+        ##########################
+
         # Prepare list of data set definition for evaluation
         if utils.is_string(self.test_datasets):
             self.test_datasets = [self.test_datasets]
@@ -139,17 +152,14 @@ class Tester:
             label: self.data_container.get_dataloader(label)
             for label in self.test_datasets}
 
-        # Get reference data properties
-        self.data_properties = self.data_container.data_load_properties
-        self.data_units = self.data_container.data_unit_properties
-
-        #################################
-        # # # Check Test Properties # # #
-        #################################
-
+        # Check test properties if defined
         self.test_properties = self.check_test_properties(
             self.test_properties,
             self.data_properties)
+        
+        # Check test directory
+        if not os.path.exists(self.test_directory):
+            os.makedirs(self.test_directory)
 
     def check_test_properties(
         self,
@@ -199,7 +209,7 @@ class Tester:
 
     def test(
         self,
-        model_calculator: object,
+        model_calculator: torch.nn.Module,
         test_properties: Optional[Union[str, List[str]]] = None,
         test_directory: Optional[str] = '.',
         test_plot_correlation: Optional[bool] = True,
@@ -213,6 +223,7 @@ class Tester:
         test_npz_file: Optional[str] = 'model_prediction.npz',
         test_scale_per_atom: Optional[Union[str, List[str]]] = ['energy'],
         verbose: Optional[bool] = True,
+        **kwargs,
     ):
         """
 
@@ -278,6 +289,16 @@ class Tester:
             test_properties = self.check_test_properties(
                 test_properties,
                 self.data_properties)
+
+        # Check test output directory
+        if test_directory is None:
+            test_directory = self.test_directory
+        elif not utils.is_string():
+            raise SyntaxError(
+                "Test results output directory input 'test_directory' is not "
+                + "a string for a valid file path.")
+        elif not os.path.exists(test_directory):
+            os.makedirs(test_directory)
 
         # Compare model properties with test properties and store properties
         # to evaluate

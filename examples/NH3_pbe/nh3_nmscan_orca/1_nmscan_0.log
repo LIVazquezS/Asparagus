@@ -1,0 +1,88 @@
+
+Start Normal Mode Scanning at system: nh3_nms.db
+ Index | Frequency (cm**-1) | Vibration (CoM displacemnt)
+---------------------------------------------------------
+     1 |        0.00+49.32j |       (5.8e-03)
+     2 |        0.00+37.77j |       (2.0e-02)
+     3 |         0.00+3.30j |       (4.9e-01)
+     4 |         0.07+0.00j |       (5.0e-01)
+     5 |         2.35+0.00j |       (5.0e-01)
+     6 |        26.55+0.00j |       (3.6e-02)
+     7 |      1053.22+0.00j |   x   (4.6e-05)
+     8 |      1613.37+0.00j |   x   (1.5e-05)
+     9 |      1614.01+0.00j |   x   (1.3e-05)
+    10 |      3358.59+0.00j |   x   (1.7e-06)
+    11 |      3481.35+0.00j |   x   (1.1e-05)
+    12 |      3482.03+0.00j |   x   (3.5e-06)
+Vib. modes: (-7, ) -    3 steps added
+Vib. modes: (-8, ) -    3 steps added
+Vib. modes: (+8, ) -    4 steps added
+Vib. modes: (+7, ) -    4 steps added
+Vib. modes: (-10, ) -    3 steps added
+Vib. modes: (-9, ) -    4 steps added
+Vib. modes: (+9, ) -    4 steps added
+Vib. modes: (+10, ) -    4 steps added
+Vib. modes: (-11, ) -    3 steps added
+Vib. modes: (+11, ) -    3 steps added
+Vib. modes: (+12, ) -    3 steps added
+Vib. modes: (-12, ) -    4 steps added
+Vib. modes: (-7, -8, ) -   21 steps added
+Vib. modes: (-7, +8, ) -   21 steps added
+Vib. modes: (+7, -8, ) -   31 steps added
+Vib. modes: (+7, +8, ) -   31 steps added
+Vib. modes: (-7, -9, ) -   21 steps added
+Vib. modes: (-7, +9, ) -   21 steps added
+Vib. modes: (-7, -10, ) -   21 steps added
+Vib. modes: (-7, +10, ) -   21 steps added
+Vib. modes: (+7, -9, ) -   31 steps added
+Vib. modes: (+7, +9, ) -   31 steps added
+Vib. modes: (+7, +10, ) -   21 steps added
+Vib. modes: (-7, -11, ) -   21 steps added
+Vib. modes: (-7, +11, ) -   21 steps added
+Vib. modes: (-7, -12, ) -   21 steps added
+Vib. modes: (+7, -11, ) -   31 steps added
+Vib. modes: (+7, +11, ) -   31 steps added
+Vib. modes: (+7, -10, ) -   41 steps added
+Vib. modes: (-7, +12, ) -   21 steps added
+Vib. modes: (-8, -9, ) -   21 steps added
+Vib. modes: (+7, +12, ) -   31 steps added
+Vib. modes: (+7, -12, ) -   31 steps added
+Vib. modes: (-8, +9, ) -   21 steps added
+Vib. modes: (+8, +9, ) -   21 steps added
+Vib. modes: (-8, -10, ) -   21 steps added
+Vib. modes: (+8, -9, ) -   31 steps added
+Vib. modes: (-8, +10, ) -   21 steps added
+Vib. modes: (-8, -11, ) -   21 steps added
+Vib. modes: (+8, +10, ) -   21 steps added
+Vib. modes: (+8, -10, ) -   31 steps added
+Vib. modes: (-8, +11, ) -   21 steps added
+Vib. modes: (-8, -12, ) -   21 steps added
+Vib. modes: (+8, -11, ) -   31 steps added
+Vib. modes: (+8, +11, ) -   31 steps added
+Vib. modes: (-8, +12, ) -   21 steps added
+Vib. modes: (+8, +12, ) -   21 steps added
+Vib. modes: (-9, -10, ) -   31 steps added
+Vib. modes: (+8, -12, ) -   31 steps added
+Vib. modes: (-9, +10, ) -   21 steps added
+Vib. modes: (+9, -10, ) -   31 steps added
+Vib. modes: (-9, -11, ) -   21 steps added
+Vib. modes: (-9, +11, ) -   21 steps added
+Vib. modes: (+9, +10, ) -   21 steps added
+Vib. modes: (+9, -11, ) -   21 steps added
+Vib. modes: (+9, +11, ) -   21 steps added
+Vib. modes: (-9, +12, ) -   21 steps added
+Vib. modes: (-9, -12, ) -   21 steps added
+Vib. modes: (-10, -11, ) -   21 steps added
+Vib. modes: (-10, +11, ) -   21 steps added
+Vib. modes: (+9, -12, ) -   21 steps added
+Vib. modes: (+9, +12, ) -   31 steps added
+Vib. modes: (-10, -12, ) -   21 steps added
+Vib. modes: (-10, +12, ) -   21 steps added
+Vib. modes: (+10, -11, ) -   31 steps added
+Vib. modes: (+10, +11, ) -   31 steps added
+Vib. modes: (-11, -12, ) -   21 steps added
+Vib. modes: (+10, +12, ) -   31 steps added
+Vib. modes: (+10, -12, ) -   31 steps added
+Vib. modes: (-11, +12, ) -   31 steps added
+Vib. modes: (+11, -12, ) -   21 steps added
+Vib. modes: (+11, +12, ) -   31 steps added

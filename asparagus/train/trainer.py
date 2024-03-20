@@ -352,7 +352,7 @@ class Trainer:
         # Assign model prediction tester if test set evaluation is requested
         if self.trainer_evaluate_testset:
             self.tester = Tester(
-                config,
+                config=config,
                 data_container=self.data_container,
                 test_datasets='test',
                 test_store_neighbor_list=trainer_store_neighbor_list)
