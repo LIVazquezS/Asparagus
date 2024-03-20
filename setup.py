@@ -20,6 +20,7 @@ setup(
         'tensorboard', 
         'torch', 
         'torch-ema',
+        'tabulate',
         'xtb']
     #TODO: Add more dependencies and option to be read from a file
 )
