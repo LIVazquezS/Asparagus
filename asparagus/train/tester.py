@@ -293,7 +293,7 @@ class Tester:
         # Check test output directory
         if test_directory is None:
             test_directory = self.test_directory
-        elif not utils.is_string():
+        elif not utils.is_string(test_directory):
             raise SyntaxError(
                 "Test results output directory input 'test_directory' is not "
                 + "a string for a valid file path.")

@@ -227,7 +227,10 @@ class TorchNeighborList(NeighborList):
 
             # Check if shifts are needed for periodic boundary conditions
             if cell[iseg].dim() == 1:
-                cell_seg = cell[iseg].diag()
+                if cell[iseg].shape[0] == 3:
+                    cell_seg = cell[iseg].diag()
+                else:
+                    cell_seg = cell[iseg].reshape(3,3)
             else:
                 cell_seg = cell[iseg]
             if torch.any(pbc[iseg]):
@@ -348,13 +351,12 @@ class TorchNeighborList(NeighborList):
             :class:`torch.Tensor`: long tensor of shifts. the center cell and
                 symmetric cells are not included.
         """
-
         reciprocal_cell = cell.inverse().t()
         inverse_lengths = torch.norm(reciprocal_cell, dim=1)
-
+        
         num_repeats = torch.ceil(cutoff*inverse_lengths).to(cell.dtype)
         num_repeats = torch.where(
-            pbc,
+            pbc.flatten(),
             num_repeats,
             torch.Tensor([0], device=cell.device).to(cell.dtype)
         )

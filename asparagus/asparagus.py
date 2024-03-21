@@ -617,7 +617,8 @@ class Asparagus():
         # Assign model calculator trainer
         if self.trainer is None:
             trainer = self._get_trainer(
-                config)
+                config,
+                **kwargs,)
         else:
             trainer = self.trainer
 
@@ -702,7 +703,8 @@ class Asparagus():
         
         trainer = self.get_trainer(
             config=config,
-            config_file=config_file)
+            config_file=config_file,
+            **kwargs)
 
         ########################################
         # # # Run Model Calculator Trainer # # #

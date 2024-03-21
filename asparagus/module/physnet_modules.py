@@ -279,8 +279,6 @@ class Graph_PhysNet(torch.nn.Module):
         Number of residual layers for atomic feature interactions.
     graph_activation_fn: (str, object), optional, default 'shifted_softplus'
         Residual layer activation function.
-    **kwargs: dict, optional
-        Additional arguments
 
     """
     
