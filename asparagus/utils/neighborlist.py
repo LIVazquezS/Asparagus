@@ -146,10 +146,12 @@ class ASENeighborList(NeighborList):
         if torch.any(pbc):
             is_pbc = True
             offset = []
+            # TODO Synchronize Basics and Property data type in database.py
+            cell = cell.to(torch.float64)
         else:
             is_pbc = False
             offset = None
-        print("cell.dtype", cell.dtype)
+
         # Iterate over system segments
         for iseg, idx_off in enumerate(atomic_numbers_cumsum):
 
@@ -164,7 +166,7 @@ class ASENeighborList(NeighborList):
                     cell_seg = cell[iseg].reshape(3,3)
             else:
                 cell_seg = cell[iseg]
-            print("cell_seg.dtype", cell_seg.dtype)
+
             # Generate ASE Atoms object
             seg_atoms = Atoms(
                 numbers=atomic_numbers[select],
@@ -183,9 +185,6 @@ class ASENeighborList(NeighborList):
 
             # Convert pbc position offsets
             if is_pbc:
-                print("cell_seg.dtype", cell_seg.dtype)
-                print("seg_offset.dtype", seg_offset.dtype)
-                print("positions.dtype",positions.dtype)
                 seg_offset = (
                     torch.from_numpy(seg_offset).to(dtype=positions.dtype))
                 seg_offset = torch.mm(seg_offset, cell_seg)
