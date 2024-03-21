@@ -10,7 +10,6 @@ def get_Graph_PhysNet():
     return Graph_PhysNet
 
 def get_Graph_PaiNN():
-    raise NotImplementedError()
     from .painn_modules import Graph_PaiNN
     return Graph_PaiNN
 

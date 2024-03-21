@@ -341,25 +341,25 @@ class Graph_PhysNet(torch.nn.Module):
         self.device = config.get('device')
 
         # Get input to graph module interface parameters 
-        self.input_n_atombasis = config.get('input_n_atombasis')
-        self.input_n_radialbasis = config.get('input_n_radialbasis')
+        self.n_atombasis = config.get('input_n_atombasis')
+        self.n_radialbasis = config.get('input_n_radialbasis')
         
         ####################################
         # # # Graph Module Class Setup # # #
         ####################################
         
         # Initialize activation function
-        self.graph_activation_fn = layer.get_activation_fn(
+        self.activation_fn = layer.get_activation_fn(
             self.graph_activation_fn)
 
         # Initialize message passing blocks
         self.interaction_blocks = torch.nn.ModuleList([
             physnet_layers.InteractionBlock(
-                self.input_n_atombasis, 
-                self.input_n_radialbasis, 
+                self.n_atombasis, 
+                self.n_radialbasis, 
                 self.graph_n_residual_interaction,
                 self.graph_n_residual_features,
-                self.graph_activation_fn,
+                self.activation_fn,
                 device=self.device,
                 dtype=self.dtype)
             for _ in range(self.graph_n_blocks)
@@ -380,6 +380,7 @@ class Graph_PhysNet(torch.nn.Module):
             'graph_n_blocks': self.graph_n_blocks,
             'graph_n_residual_interaction': self.graph_n_residual_interaction,
             'graph_n_residual_features': self.graph_n_residual_features,
+            'graph_activation_fn': self.graph_activation_fn,
             }
 
     def forward(
@@ -537,12 +538,12 @@ class Output_PhysNet(torch.nn.Module):
         input_n_atombasis = config.get('input_n_atombasis')
         graph_n_blocks = config.get('graph_n_blocks')
 
-        # Get model properties to check with output module properties
-        model_properties = config.get('model_properties')
-
         ##########################################
         # # # Check Output Module Properties # # #
         ##########################################
+
+        # Get model properties to check with output module properties
+        model_properties = config.get('model_properties')
 
         # Initialize output module properties
         properties_list = []

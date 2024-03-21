@@ -149,19 +149,28 @@ class ASENeighborList(NeighborList):
         else:
             is_pbc = False
             offset = None
-
+        print("cell.dtype", cell.dtype)
         # Iterate over system segments
         for iseg, idx_off in enumerate(atomic_numbers_cumsum):
 
             # Atom system selection
             select = sys_i == iseg
-
+            
+            # Check cell parameter
+            if cell[iseg].dim() == 1:
+                if cell[iseg].shape[0] == 3:
+                    cell_seg = cell[iseg].diag()
+                else:
+                    cell_seg = cell[iseg].reshape(3,3)
+            else:
+                cell_seg = cell[iseg]
+            print("cell_seg.dtype", cell_seg.dtype)
             # Generate ASE Atoms object
             seg_atoms = Atoms(
                 numbers=atomic_numbers[select],
                 positions=positions[select],
-                cell=cell[iseg],
-                pbc=pbc[iseg])
+                cell=cell_seg,
+                pbc=pbc[iseg].flatten())
 
             seg_idx_i, seg_idx_j, seg_offset = ase_neighbor_list(
                 "ijS", seg_atoms, cutoff, self_interaction=False)
@@ -174,9 +183,12 @@ class ASENeighborList(NeighborList):
 
             # Convert pbc position offsets
             if is_pbc:
+                print("cell_seg.dtype", cell_seg.dtype)
+                print("seg_offset.dtype", seg_offset.dtype)
+                print("positions.dtype",positions.dtype)
                 seg_offset = (
                     torch.from_numpy(seg_offset).to(dtype=positions.dtype))
-                seg_offset = torch.mm(seg_offset, cell[iseg])
+                seg_offset = torch.mm(seg_offset, cell_seg)
 
             # Append pair indices and position offsets
             idx_i.append(seg_idx_i + idx_off)

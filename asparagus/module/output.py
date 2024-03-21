@@ -10,7 +10,6 @@ def get_Output_PhysNet():
     return Output_PhysNet
 
 def get_Output_PaiNN():
-    raise NotImplementedError()
     from .painn_modules import Output_PaiNN
     return Output_PaiNN
 

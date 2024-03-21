@@ -427,7 +427,7 @@ class Asparagus():
             model_calculator=model_calculator,
             model_type=model_type,
             model_checkpoint=model_checkpoint,
-            )
+            **kwargs)
         
         # Assign model calculator
         self.model_calculator = model_calculator
