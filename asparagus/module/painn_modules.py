@@ -527,14 +527,14 @@ class Output_PaiNN(torch.nn.Module):
     #_property_special = ['energy', 'atomic_energies', 'atomic_charges']
     
     
-    # Default output block options for atom-wise properties such as, e.g.,
-    # 'atomic_energies'.
-    _default_output_atomwise = {
+    # Default output block options for atom-wise scalar properties such as, 
+    # e.g., 'atomic_energies'.
+    _default_output_scalar = {
         'aggregation':          None,
         'n_property':           1,
         'n_layer':              2,
-        'activation_fn':        torch.nn.functional.silu,
         'n_neurons':            None,
+        'activation_fn':        torch.nn.functional.silu,
         'bias_layer':           True,
         'bias_last':            True,
         'weight_init_layer':    torch.nn.init.zeros_,
@@ -543,6 +543,21 @@ class Output_PaiNN(torch.nn.Module):
         'bias_init_last':       torch.nn.init.zeros_,
         }
     
+    # Default output block options for atom-wise vector properties such as, 
+    # e.g., 'atomic_dipole'.
+    _default_output_vector = {
+        'aggregation':          None,
+        'n_property':           1,
+        'n_layer':              2,
+        'n_neurons':            None,
+        'activation_fn':        torch.nn.functional.silu,
+        'bias_layer':           True,
+        'bias_last':            True,
+        'weight_init_layer':    torch.nn.init.zeros_,
+        'weight_init_last':     torch.nn.init.zeros_,
+        'bias_init_layer':      torch.nn.init.zeros_,
+        'bias_init_last':       torch.nn.init.zeros_,
+        }
     
     
     def __init__(

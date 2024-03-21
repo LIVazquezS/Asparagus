@@ -314,8 +314,12 @@ class Sampler:
             sample_systems = [sample_systems]
         
         if sample_systems_format is None:
-            sample_systems_format = [
-                system.split('.')[-1] for system in sample_systems]
+            sample_systems_format = []
+            for system in sample_systems:
+                if utils.is_string(system):
+                    sample_systems_format.append(system.split('.')[-1])
+                else:
+                    sample_systems_format.append(None)
         elif utils.is_string(sample_systems_format):
             sample_systems_format = (
                 [sample_systems_format]*len(sample_systems))
@@ -362,7 +366,8 @@ class Sampler:
 
             # Check for ASE Atoms object or read system file
             if utils.is_ase_atoms(source):
-                sample_systems_queue.put((source, isample, str(source), 1))
+                source_string = source.get_chemical_formula()
+                sample_systems_queue.put((source, isample, source_string, 1))
             
             # Check for an Asparagus dataset
             elif source_format.lower() == 'db':
@@ -594,6 +599,8 @@ class Sampler:
         # Print sampling overview
         msg = f"Perform sampling method '{self.sample_tag:s}' on systems:\n"
         for isys, system in enumerate(sample_systems):
+            if utils.is_ase_atoms(system):
+                system = system.get_chemical_formula()
             msg += f" {isys + 1:3d}. '{system:s}'\n"
         logger.info(f"INFO:\n{msg:s}")
 

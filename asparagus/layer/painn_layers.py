@@ -203,20 +203,21 @@ class PaiNNMixing(torch.nn.Module):
         return sfeatures, vfeatures
 
 
-class PaiNNOutput(torch.nn.Module):
+class PaiNNOutput_scalar(torch.nn.Module):
     """
-    Output module for properties from representation of PaiNN.
+    Deep neural network block for scalar property prediction from 
+    atom-wise representations in PaiNN.
 
     Parameters
     ----------
     n_atombasis: int
         Number of atomic features (length of the atomic feature vector)
-    n_properties: int
-        ...
-    n_hiddenlayers: int
-        ...
-    n_hiddenneurons: (int list(int)), optional, default None
-        ...
+    n_property: int
+        Dimension of the predicted property.
+    n_layer: int
+        Number of hidden layer in the output block.
+    n_neurons: (int list(int)), optional, default None
+        Number of neurons of the hidden layers (int) or per hidden layer (list)
     activation_fn: callable, optional, default None
         Residual layer activation function.
     stability_constant: float, optional, default 1e-8
@@ -230,9 +231,9 @@ class PaiNNOutput(torch.nn.Module):
     def __init__(
         self,
         n_atombasis: int,
-        n_properties: int,
-        n_hiddenlayers: int,
-        n_hiddenneurons: Optional[Union[int, List[int]]] = None,
+        n_property: int,
+        n_layer: int,
+        n_neurons: Optional[Union[int, List[int]]] = None,
         activation_fn: Optional[object] = None,
         last_bias: Optional[bool] = True,
         last_init_zero: Optional[bool] = False,
@@ -240,33 +241,33 @@ class PaiNNOutput(torch.nn.Module):
         dtype: Optional[object] = torch.float64,
     ):
         """
-        Initialize PaiNN output block.
+        Initialize PaiNN scalar output block.
         
         """
         
         super(PaiNNOutput, self).__init__()
 
         # Check hidden layer neuron option
-        if n_hiddenlayers:
-            if n_hiddenneurons is None:
+        if n_layer:
+            if n_neurons is None:
                 # Half number of hidden layer neurons with each layer
                 n_neurons = n_atombasis
-                n_hiddenneurons = []
-                for ii in range(n_hiddenlayers):
-                    n_hiddenneurons.append(n_neurons)
-                    n_neurons = max(n_properties, n_neurons)
-                n_hiddenneurons.append(n_properties)
-            elif utils.is_integer(n_hiddenneurons):
-                n_hiddenneurons = [n_hiddenneurons]*n_hiddenlayers
+                n_neurons = []
+                for ii in range(n_layer):
+                    n_neurons.append(n_neurons)
+                    n_neurons = max(n_property, n_neurons)
+                n_neurons.append(n_property)
+            elif utils.is_integer(n_neurons):
+                n_neurons = [n_neurons]*n_layer
         else:
             # If no hidden layer, set hidden neurons to property neuron number
-            n_hiddenneurons = [n_properties]
+            n_neurons = [n_property]
 
         # Initialize output module
         self.output = torch.nn.Sequential(
             DenseLayer(
                 n_atombasis, 
-                n_hiddenneurons[0],
+                n_neurons[0],
                 bias=True,
                 activation_fn=activation_fn,
                 device=device,
@@ -275,11 +276,11 @@ class PaiNNOutput(torch.nn.Module):
             )
         
         # Append hidden layers
-        for ii in range(n_hiddenlayers):
+        for ii in range(n_layer):
             self.output.append(
                 DenseLayer(
-                    n_hiddenneurons[ii], 
-                    n_hiddenneurons[ii + 1],
+                    n_neurons[ii], 
+                    n_neurons[ii + 1],
                     bias=True,
                     activation_fn=activation_fn,
                     device=device,
@@ -290,8 +291,8 @@ class PaiNNOutput(torch.nn.Module):
         # Append output layer
         self.output.append(
             DenseLayer(
-                n_hiddenneurons[ii], 
-                n_hiddenneurons[ii + 1],
+                n_neurons[ii], 
+                n_neurons[ii + 1],
                 activation_fn=None,
                 bias=last_bias,
                 W_init=last_init_zero,
@@ -302,6 +303,27 @@ class PaiNNOutput(torch.nn.Module):
         
         return
 
-    def forward(self):
+    def forward(
+        self,
+        features: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Apply interaction block.
+        
+        Parameters
+        ----------
+        features: torch.Tensor(N_atoms, n_atombasis)
+            Atomic feature vectors
+
+        Returns
+        -------
+        torch.Tensor(N_atoms, n_results)
+            Transformed atomic feature vector to result vector
+        
+        """
+        
+        # Transform to result vector
+        result = self.output(features)
+        
         pass
-    
+
