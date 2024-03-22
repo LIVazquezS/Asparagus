@@ -125,7 +125,7 @@ class PaiNNMixing(torch.nn.Module):
     def __init__(
         self,
         n_atombasis: int,
-        activation_fn: Optional[object] = None,
+        activation_fn: Optional[Callable] = None,
         stability_constant: Optional[float] = 1.e-8,
         device: Optional[str] = 'cpu',
         dtype: Optional[object] = torch.float64,
@@ -205,7 +205,7 @@ class PaiNNMixing(torch.nn.Module):
 
 class PaiNNOutput_scalar(torch.nn.Module):
     """
-    Deep neural network block for scalar property prediction from 
+    Deep neural network output block for scalar property predictions from 
     atom-wise representations in PaiNN.
 
     Parameters
@@ -214,29 +214,44 @@ class PaiNNOutput_scalar(torch.nn.Module):
         Number of atomic features (length of the atomic feature vector)
     n_property: int
         Dimension of the predicted property.
-    n_layer: int
+    n_layer: int, optional, default 2
         Number of hidden layer in the output block.
     n_neurons: (int list(int)), optional, default None
         Number of neurons of the hidden layers (int) or per hidden layer (list)
     activation_fn: callable, optional, default None
         Residual layer activation function.
-    stability_constant: float, optional, default 1e-8
-        Numerical stability added constant
     device: str, optional, default 'cpu'
         Device type for model variable allocation
     dtype: dtype object, optional, default 'torch.float64'
         Model variables data type
 
     """
+    
+    _default_output_scalar = {
+        'n_layer':              2,
+        'n_neurons':            None,
+        'activation_fn':        None,
+        'bias_layer':           True,
+        'bias_last':            True,
+        'weight_init_layer':    torch.nn.init.zeros_,
+        'weight_init_last':     torch.nn.init.zeros_,
+        'bias_init_layer':      torch.nn.init.zeros_,
+        'bias_init_last':       torch.nn.init.zeros_,
+        }
+    
     def __init__(
         self,
         n_atombasis: int,
         n_property: int,
-        n_layer: int,
+        n_layer: Optional[int] = None,
         n_neurons: Optional[Union[int, List[int]]] = None,
-        activation_fn: Optional[object] = None,
-        last_bias: Optional[bool] = True,
-        last_init_zero: Optional[bool] = False,
+        activation_fn: Optional[Callable] = None,
+        bias_layer: Optional[bool] = None,
+        bias_last: Optional[bool] = None,
+        weight_init_layer: Optional[Callable] = None,
+        weight_init_last: Optional[Callable] = None,
+        bias_init_layer: Optional[Callable] = None,
+        bias_init_last: Optional[Callable] = None,
         device: Optional[str] = 'cpu',
         dtype: Optional[object] = torch.float64,
     ):
@@ -245,44 +260,46 @@ class PaiNNOutput_scalar(torch.nn.Module):
         
         """
         
-        super(PaiNNOutput, self).__init__()
+        super(PaiNNOutput_scalar, self).__init__()
+
+        # Check input
+        _ = utils.check_input_args(
+            instance=self,
+            argitems=utils.get_input_args(),
+            check_default=self._default_output_scalar,
+            check_dtype=None)
 
         # Check hidden layer neuron option
-        if n_layer:
-            if n_neurons is None:
+        if self.n_layer:
+            n_neurons_list = [self.n_atombasis]
+            if utils.is_integer(self.n_neurons):
+                n_neurons_list += [self.n_neurons]*(self.n_layer - 1)
+            elif utils.is_integer_array(self.n_neurons):
+                n_neurons_list += list(self.n_neurons)[:(self.n_layer - 1)]
+            else:
                 # Half number of hidden layer neurons with each layer
-                n_neurons = n_atombasis
-                n_neurons = []
-                for ii in range(n_layer):
-                    n_neurons.append(n_neurons)
-                    n_neurons = max(n_property, n_neurons)
-                n_neurons.append(n_property)
-            elif utils.is_integer(n_neurons):
-                n_neurons = [n_neurons]*n_layer
+                ni = self.n_atombasis
+                for ii in range(self.n_layer - 1):
+                    ni = max(self.n_property, ni//2)
+                    n_neurons_list.append(ni)
+            n_neurons_list.append(self.n_property)
         else:
             # If no hidden layer, set hidden neurons to property neuron number
-            n_neurons = [n_property]
+            n_neurons_list = [self.n_property]
 
         # Initialize output module
-        self.output = torch.nn.Sequential(
-            DenseLayer(
-                n_atombasis, 
-                n_neurons[0],
-                bias=True,
-                activation_fn=activation_fn,
-                device=device,
-                dtype=dtype
-                ),
-            )
-        
+        self.output = torch.nn.Sequential()
+
         # Append hidden layers
-        for ii in range(n_layer):
+        for ii in range(n_layer - 1):
             self.output.append(
                 DenseLayer(
-                    n_neurons[ii], 
-                    n_neurons[ii + 1],
-                    bias=True,
-                    activation_fn=activation_fn,
+                    n_neurons_list[ii], 
+                    n_neurons_list[ii + 1],
+                    activation_fn=self.activation_fn,
+                    bias=self.bias_layer,
+                    weight_init=self.weight_init_layer,
+                    bias_init=self.bias_init_layer,
                     device=device,
                     dtype=dtype
                     ),
@@ -291,11 +308,12 @@ class PaiNNOutput_scalar(torch.nn.Module):
         # Append output layer
         self.output.append(
             DenseLayer(
-                n_neurons[ii], 
-                n_neurons[ii + 1],
+                n_neurons_list[-2], 
+                n_neurons_list[-1],
                 activation_fn=None,
-                bias=last_bias,
-                W_init=last_init_zero,
+                bias=self.bias_last,
+                weight_init=self.weight_init_last,
+                bias_init=self.bias_init_last,
                 device=device,
                 dtype=dtype
                 ),
@@ -325,5 +343,120 @@ class PaiNNOutput_scalar(torch.nn.Module):
         # Transform to result vector
         result = self.output(features)
         
-        pass
+        return result
 
+
+class PaiNNOutput_tensor(torch.nn.Module):
+    """
+    Deep neural network output block for tensor like property predictions from 
+    atom-wise representations in PaiNN.
+
+    Parameters
+    ----------
+    n_atombasis: int
+        Number of atomic features (length of the atomic feature vector)
+    n_property: int
+        Dimension of the predicted property.
+    n_layer: int, optional, default 2
+        Number of hidden layer in the output block.
+    scalar_n_neurons: (int list(int)), optional, default None
+        Number of neurons of the scalar hidden layers (int) or per scalar 
+        hidden layer (list)
+    tensor_n_neurons: (int list(int)), optional, default None
+        Number of neurons of the tensor hidden layers (int) or per tensor
+        hidden layer (list)
+    activation_fn: callable, optional, default None
+        Residual layer activation function.
+    bias_layer: bool, optional, default True
+        Add bias parameter for hidden layer neurons
+    bias_last: bool, optional, default True
+        Add bias parameter for last layer neuron(s)
+    weight_init_layer: callable, optional, default 'torch.nn.init.zeros_'
+        Weight parameter initialization function of the hidden layer
+    weight_init_last: callable, optional, default 'torch.nn.init.zeros_'
+        Weight parameter initialization function of the last layer
+    bias_init_layer: callable, optional, default 'torch.nn.init.zeros_'
+        Bias parameter initialization function of the hidden layer
+    bias_init_last: callable, optional, default 'torch.nn.init.zeros_'
+        Bias parameter initialization function of the last layer
+    device: str, optional, default 'cpu'
+        Device type for model variable allocation
+    dtype: dtype object, optional, default 'torch.float64'
+        Model variables data type
+
+    """
+    
+    _default_output_tensor = {
+        'n_layer':              2,
+        'scalar_n_neurons':     None,
+        'tensor_n_neurons':     None,
+        'scalar_activation_fn': None,
+        'tensor_activation_fn': None,
+        'bias_layer':           True,
+        'bias_last':            True,
+        'weight_init_layer':    torch.nn.init.zeros_,
+        'weight_init_last':     torch.nn.init.zeros_,
+        'bias_init_layer':      torch.nn.init.zeros_,
+        'bias_init_last':       torch.nn.init.zeros_,
+        }
+    
+    def __init__(
+        self,
+        n_atombasis: int,
+        n_property: int,
+        n_layer: Optional[int] = None,
+        scalar_n_neurons: Optional[Union[int, List[int]]] = None,
+        tensor_n_neurons: Optional[Union[int, List[int]]] = None,
+        scalar_activation_fn: Optional[Callable] = None,
+        tensor_activation_fn: Optional[Callable] = None,
+        bias_layer: Optional[bool] = True,
+        bias_last: Optional[bool] = True,
+        weight_init_layer: Optional[Callable] = torch.nn.init.zeros_,
+        weight_init_last: Optional[Callable] = torch.nn.init.zeros_,
+        bias_init_layer: Optional[Callable] = torch.nn.init.zeros_,
+        bias_init_last: Optional[Callable] = torch.nn.init.zeros_,
+        device: Optional[str] = 'cpu',
+        dtype: Optional[object] = torch.float64,
+    ):
+        """
+        Initialize PaiNN tensor output block.
+        
+        """
+        
+        super(PaiNNOutput_scalar, self).__init__()
+
+        # Check input
+        _ = utils.check_input_args(
+            instance=self,
+            argitems=utils.get_input_args(),
+            check_default=self._default_output_scalar,
+            check_dtype=None)
+
+        # Check hidden layer neuron option
+        if self.n_layer:
+            scalar_n_neurons_list = [self.n_atombasis]
+            if utils.is_integer(self.scalar_n_neurons):
+                scalar_n_neurons_list += [self.scalar_n_neurons]*(
+                    self.n_layer - 1)
+            elif utils.is_integer_array(self.scalar_n_neurons):
+                scalar_n_neurons_list += list(self.scalar_n_neurons)[
+                    :(self.n_layer - 1)]
+            else:
+                # Half number of hidden layer neurons with each layer
+                ni = self.n_atombasis
+                for ii in range(self.n_layer - 1):
+                    ni = max(self.n_property, ni//2)
+                    scalar_n_neurons_list.append(ni)
+            scalar_n_neurons_list.append(self.n_property)
+        else:
+            # If no hidden layer, set hidden neurons to property neuron number
+            scalar_n_neurons_list = [self.n_property]
+
+        if tensor_n_neurons is None:
+            tensor_n_neurons_list = scalar_n_neurons_list[:-1]
+        elif utils.is_integer(tensor_n_neurons):
+            tensor_n_neurons_list = [tensor_n_neurons]*self.n_layer
+        else:
+            tensor_n_neurons_list = list(tensor_n_neurons)
+
+        return

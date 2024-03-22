@@ -333,7 +333,7 @@ def is_integer_array(x, inhomogeneity=False, verbose=False):
     else:
         result = (
             False, 
-            f"({type(x)})[{type(x[0])}]",
+            f"({type(x)})",
             f"({darr_all})[{dint_all}]")
 
     if verbose:

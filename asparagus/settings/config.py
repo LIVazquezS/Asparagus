@@ -396,12 +396,34 @@ class Configuration():
 
         """
 
+        # Convert config dictionary to json compatible dictionary
+        config_dump = self.make_dumpable(self.config_dict)
+        
+        # Dumb converted config dictionary
+        if config_file is None:
+            config_file = self.config_file
+        with open(self.config_file, 'w') as f:
+            json.dump(
+                config_dump, f, 
+                indent=self.config_indent,
+                default=str)
+        
+        return
+
+    def make_dumpable(
+        self,
+        config_source: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Convert config items to json compatible dictionary
+        """
+        
         # Initialize dictionary with JSON compatible parameter types
         config_dump = {}
 
         # Iterate over configuration parameters
-        for key, item in self.config_dict.items():
-            
+        for key, item in config_source.items():
+        
             # Skip callable class objects
             if utils.is_callable(item):
                 continue
@@ -413,7 +435,7 @@ class Configuration():
                 config_dump[key] = float(item)
             # Also store dictionaries,
             elif utils.is_dictionary(item):
-                config_dump[key] = item
+                config_dump[key] = self.make_dumpable(item)
             # strings or bools
             elif utils.is_string(item) or utils.is_bool(item):
                 config_dump[key] = item
@@ -426,15 +448,7 @@ class Configuration():
             else:
                 continue
 
-        if config_file is None:
-            config_file = self.config_file
-        with open(self.config_file, 'w') as f:
-            json.dump(
-                config_dump, f, 
-                indent=self.config_indent,
-                default=str)
-        
-        return
+        return config_dump
 
     def check(
         self,

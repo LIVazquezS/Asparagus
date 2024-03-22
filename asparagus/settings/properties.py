@@ -27,6 +27,7 @@ _valid_properties = [
     'hessian',
     'charge',
     'atomic_charges',
+    'atomic_dipoles',
     'dipole',
     'polarizability',
 ]
@@ -50,7 +51,10 @@ _alt_property_labels = {
     'charge':           ['Q', 'charges', 'total_charge', 'total_charges'],
     'atomic_charges':    [
         'Qa', 'Qi', 'atom_charge', 'atom_charges', 
-        'atomic_charge', 'atomic_charges'],
+        'atomic_charge'],
+    'atomic_dipoles':    [
+        'Da', 'Fi', 'atom_dipole', 'atom_dipoles', 
+        'atomic_dipole'],
     'dipole':           ['D', 'dipoles'],
     'polarizability':   ['polarizability'],
     }

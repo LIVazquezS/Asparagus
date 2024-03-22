@@ -500,7 +500,7 @@ class Output_PaiNN(torch.nn.Module):
                 },
             'atomic_charges': { # Scalar output of tensor type output block
                 'output_type':          'tensor',
-                'properties':           ['atomic_charges', 'atomic_dipole'],
+                'properties':           ['atomic_charges', 'atomic_dipoles'],
                 'n_property':           1,
                 'n_layer':              2,
                 'n_neurons':            None,
@@ -512,9 +512,9 @@ class Output_PaiNN(torch.nn.Module):
                 'bias_init_layer':      torch.nn.init.zeros_,
                 'bias_init_last':       torch.nn.init.zeros_,
                 },
-            'atomic_dipole': {  # Tensor output of tensor type output block
+            'atomic_dipoles': { # Tensor output of tensor type output block
                 'output_type':          'tensor',
-                'properties':           ['atomic_charges', 'atomic_dipole'],
+                'properties':           ['atomic_charges', 'atomic_dipoles'],
                 'n_property':           1,
                 'n_layer':              2,
                 'n_neurons':            None,
@@ -546,7 +546,7 @@ class Output_PaiNN(torch.nn.Module):
         'output_properties':            None,
         'output_properties_options':    {},
         'output_n_residual':            1,
-        'output_activation_fn':         'shifted_softplus',
+        'output_activation_fn':         'silu',
         'output_scaling_parameter':     None,
         }
 
@@ -569,7 +569,7 @@ class Output_PaiNN(torch.nn.Module):
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
-        'activation_fn':        'silu',
+        'activation_fn':        None,
         'bias_layer':           True,
         'bias_last':            True,
         'weight_init_layer':    torch.nn.init.zeros_,
@@ -586,7 +586,7 @@ class Output_PaiNN(torch.nn.Module):
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
-        'activation_fn':        torch.nn.functional.silu,
+        'activation_fn':        None,
         'bias_layer':           True,
         'bias_last':            True,
         'weight_init_layer':    torch.nn.init.zeros_,
@@ -613,12 +613,12 @@ class Output_PaiNN(torch.nn.Module):
         'energy': [None, ['atomic_energies']],
         'atomic_energies': [_default_output_scalar],
         'forces': [None, ['energy']],
-        'dipole': [None, ['atomic_charges', 'atomic_dipole']],
+        'dipole': [None, ['atomic_charges', 'atomic_dipoles']],
         'atomic_charges': {
             'default': [_default_output_scalar],
-            'atomic_dipole': [_default_output_tensor, 0],
+            'atomic_dipoles': [_default_output_tensor, 0],
             },
-        'atomic_dipole': [_default_output_tensor, 1],
+        'atomic_dipoles': [_default_output_tensor, 1],
         }
     
     def __init__(
@@ -700,7 +700,7 @@ class Output_PaiNN(torch.nn.Module):
                     if out_type == 'scalar':
                         properties_options_scalar[prop] = (
                             self.output_properties_options[prop])
-                    elif out_type == 'scalar':                        
+                    elif out_type == 'tensor':                        
                         properties_options_tensor[prop] = (
                             self.output_properties_options[prop])
                     else:
@@ -719,7 +719,7 @@ class Output_PaiNN(torch.nn.Module):
                     ):
                         raise SyntaxError(
                             f"Model property prediction for '{prop:s}' "
-                            + f"requires property '{instructions[1]:s}', "
+                            + f"requires property '{instructions[1]}', "
                             + "which is not defined!")
                     else:
                         pass
@@ -778,6 +778,47 @@ class Output_PaiNN(torch.nn.Module):
         self.output_property_scalar_block = torch.nn.ModuleDict({})
         self.output_property_tensor_block = torch.nn.ModuleDict({})
         
+        # Initialize property to number of output block predictions dictionary
+        self.output_n_property = {}
+        
+        # Add output blocks for scalar properties
+        for prop, options in properties_options_scalar.items():
+
+            # Get activation function
+            if options.get('activation_fn') is None:
+                activation_fn = layer.get_activation_fn(
+                    self.output_activation_fn)
+            else:
+                activation_fn = layer.get_activation_fn(
+                    options['activation_fn'])
+
+            # Check essential number of property output parameter
+            if options.get('n_property') is None:
+                raise SynaxError(
+                    "Number of output properties 'n_property' for property "
+                    + f"{prop:s} is not defined!")
+            self.output_n_property[prop] = options.get('n_property')
+
+            # Initialize scalar output block
+            self.output_property_scalar_block[prop] = (
+                painn_layers.PaiNNOutput_scalar(
+                    self.n_atombasis,
+                    options.get('n_property'),
+                    n_layer=options.get('n_layer'),
+                    n_neurons=options.get('n_neurons'),
+                    activation_fn=activation_fn,
+                    bias_layer=options.get('bias_last'),
+                    bias_last=options.get('bias_last'),
+                    weight_init_layer=options.get('weight_init_layer'),
+                    weight_init_last=options.get('weight_init_last'),
+                    bias_init_layer=options.get('bias_init_layer'),
+                    bias_init_last=options.get('bias_init_last'),
+                    device=self.device,
+                    dtype=self.dtype)
+                )
+
+
+
 
         ## Collect output block properties
         #self.output_properties_options = settings._default_output_block_properties

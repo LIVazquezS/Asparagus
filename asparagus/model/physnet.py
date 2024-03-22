@@ -156,7 +156,7 @@ class Model_PhysNet(torch.nn.Module):
                 raise SyntaxError(
                     f"Model property label '{prop:s}' is not a valid property "
                     + "label! Valid property labels are:\n"
-                    + list(settings._valid_properties))
+                    + str(list(settings._valid_properties)))
         
         # Check model properties - Energy and energy gradient properties
         self.model_properties = list(self.model_properties)

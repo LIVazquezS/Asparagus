@@ -3,22 +3,96 @@ import json
 import inspect
 import logging
 import platform
-from typing import Optional, List, Dict, Tuple, Union, Any
+from typing import Optional, List, Dict, Tuple, Iterator, Union, Any
 
 from .. import utils
 from .. import settings
 
 # --------------- ** Checking input parameter ** ---------------
 
+def check_input_args(
+    instance: Optional[object] = None,
+    argitems: Optional[Iterator] = None,
+    argsskip: Optional[List[str]] = None,
+    check_default: Optional[Dict] = None,
+    check_dtype: Optional[Dict] = None,
+) -> Dict[str, Any]:
+    """
+    Iterate over arg, item pair, eventually check for default and dtype, 
+    and set as class variable of instance
+
+    Parameters:
+    -----------
+    instance: object, optional, default None
+        Class instance to set arg, item pair as class variable. If None,
+        skip.
+    argitems: iterator, optional, default None
+        Iterator for arg, item pairs. If None, skip.
+    argskipt: list(str), optional, default None
+        List of arguments to skip. 
+    check_default: dict, optional, default None
+        Default argument parameter dictionary.
+    check_dtype: dict, optional, default None
+        Default argument data type dictionary.
+    
+    Return:
+    -------
+    dict[str, any]
+        Updated input arguments
+
+    """
+
+    # Return empty dictionary if no arg, item pair iterator is defined
+    if argitems is None:
+        return {}
+    else:
+        dict_update = {}
+    
+    # Check arguments to skip
+    default_argsskip = ['self', 'kwargs', '__class__']
+    if argsskip is None:
+        argsskip = default_argsskip
+    else:
+        argsskip = default_argsskip + list(argsskip)
+    argsskip.append('default_args')
+    
+    # Iterate over arg, item pairs
+    for arg, item in argitems.items():
+
+        # Skip exceptions
+        if arg in argsskip:
+            continue
+
+        # Check if input parameter is None, if so take default value
+        if check_default is not None and item is None:
+            if arg in check_default:
+                item = check_default[arg]
+
+        # Check datatype of defined arguments
+        if check_dtype is not None and arg in check_dtype:
+            _ = utils.check_input_dtype(
+                arg, item, check_dtype, raise_error=True)
+        
+        # Append arg, item pair to update dictionary
+        dict_update[arg] = item
+
+        # Set item as class parameter arg to instance
+        if instance is not None:
+            setattr(instance, arg, item)
+    
+    return dict_update
+
 def check_input_dtype(
     arg, 
     item, 
     dtypes_args, 
     raise_error=True, 
-    return_info=False):
+    return_info=False
+):
     """
     Check it the item (not None) of arg(ument) matchs the expectation 
     in dtypes_args.
+
     """
     
     if arg in dtypes_args.keys() and len(dtypes_args[arg]) and item is not None:

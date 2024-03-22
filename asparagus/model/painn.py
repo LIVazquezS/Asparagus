@@ -134,7 +134,7 @@ class Model_PaiNN(torch.nn.Module):
                 raise SyntaxError(
                     f"Model property label '{prop:s}' is not a valid property "
                     + "label! Valid property labels are:\n"
-                    + list(settings._valid_properties))
+                    + str(list(settings._valid_properties)))
 
         # Check model properties - Energy and energy gradient properties
         self.model_properties = list(self.model_properties)
@@ -162,7 +162,31 @@ class Model_PaiNN(torch.nn.Module):
                 f"{self.model_type:s} Model cannot predict energy gradient "
                 + "properties such as forces or hessians without predicting "
                 + "energies!")
-        
+
+        # Check model properties - Atomic charges and derivatives
+        if 'dipole' in self.model_properties:
+            self.model_atomic_charges = True
+            self.model_atomic_dipoles = True
+            self.model_dipole = True
+            if 'atomic_charges' not in self.model_properties:
+                self.model_properties.append('atomic_charges')
+            if 'atomic_dipoles' not in self.model_properties:
+                self.model_properties.append('atomic_dipoles')
+        elif 'atomic_dipoles' in self.model_properties:
+            self.model_atomic_charges = True
+            self.model_atomic_dipoles = True
+            self.model_dipole = False
+            if 'atomic_charges' not in self.model_properties:
+                self.model_properties.append('atomic_charges')
+        elif 'atomic_charges' in self.model_properties:
+            self.model_atomic_charges = True
+            self.model_atomic_dipoles = False
+            self.model_dipole = False
+        else:
+            self.model_atomic_dipoles = False
+            self.model_atomic_charges = False
+            self.model_dipole = False
+
         # Check lower cutoff switch-off range
         if self.model_cuton is None:
             if self.model_switch_range > self.model_cutoff:
