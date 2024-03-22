@@ -274,7 +274,7 @@ class Graph_PaiNN(torch.nn.Module):
     # Default arguments for graph module
     _default_args = {
         'graph_n_blocks':               5,
-        'graph_activation_fn':          'shifted_softplus',
+        'graph_activation_fn':          'silu',
         }
 
     # Expected data types of input variables
@@ -481,13 +481,57 @@ class Output_PaiNN(torch.nn.Module):
     output_properties: list(str), optional '['energy', 'forces']'
         List of output properties to compute by the model
         e.g. ['energy', 'forces', 'atomic_charges']
+    output_properties_options: dict(str, Any), optional, default {}
+        Dictionary of output block options (item) for a property (key).
+        Dictionary inputs are, e.g.:
+        output_properties_options = {
+            'atomic_energies': {    # Output of a scalar type output block
+                'output_type':          'scalar',
+                'n_property':           1,
+                'n_layer':              2,
+                'n_neurons':            None,
+                'activation_fn':        torch.nn.functional.silu,
+                'bias_layer':           True,
+                'bias_last':            True,
+                'weight_init_layer':    torch.nn.init.zeros_,
+                'weight_init_last':     torch.nn.init.zeros_,
+                'bias_init_layer':      torch.nn.init.zeros_,
+                'bias_init_last':       torch.nn.init.zeros_,
+                },
+            'atomic_charges': { # Scalar output of tensor type output block
+                'output_type':          'tensor',
+                'properties':           ['atomic_charges', 'atomic_dipole'],
+                'n_property':           1,
+                'n_layer':              2,
+                'n_neurons':            None,
+                'activation_fn':        torch.nn.functional.silu,
+                'bias_layer':           True,
+                'bias_last':            True,
+                'weight_init_layer':    torch.nn.init.zeros_,
+                'weight_init_last':     torch.nn.init.zeros_,
+                'bias_init_layer':      torch.nn.init.zeros_,
+                'bias_init_last':       torch.nn.init.zeros_,
+                },
+            'atomic_dipole': {  # Tensor output of tensor type output block
+                'output_type':          'tensor',
+                'properties':           ['atomic_charges', 'atomic_dipole'],
+                'n_property':           1,
+                'n_layer':              2,
+                'n_neurons':            None,
+                'activation_fn':        torch.nn.functional.silu,
+                'bias_layer':           True,
+                'bias_last':            True,
+                'weight_init_layer':    torch.nn.init.zeros_,
+                'weight_init_last':     torch.nn.init.zeros_,
+                'bias_init_layer':      torch.nn.init.zeros_,
+                'bias_init_last':       torch.nn.init.zeros_,
+                },
+            }
     output_n_residual: int, optional, default 1
         Number of residual layers for transformation from atomic feature vector
         to output results.
     output_activation_fn: (str, callable), optional, default 'shifted_softplus'
         Residual layer activation function.
-    output_block_options: dict(str, Any), optional, default None
-        ...
     output_scaling_parameter: dictionary, optional, default None
         Property average and standard deviation for the use as scaling factor 
         (standard deviation) and shift term (average) parameter pairs
@@ -500,39 +544,32 @@ class Output_PaiNN(torch.nn.Module):
     # Default arguments for graph module
     _default_args = {
         'output_properties':            None,
+        'output_properties_options':    {},
         'output_n_residual':            1,
         'output_activation_fn':         'shifted_softplus',
-        'output_block_options':         {},
         'output_scaling_parameter':     None,
         }
 
     # Expected data types of input variables
     _dtypes_args = {
         'output_properties':            [utils.is_string_array, utils.is_None],
+        'output_properties_options':    [utils.is_dictionary],
         'output_n_residual':            [utils.is_integer],
         'output_activation_fn':         [utils.is_string, utils.is_callable],
-        'output_block_options':         [utils.is_dictionary],
         'output_scaling_parameter':     [utils.is_dictionary],
         }
     
-    # Property exclusion lists for properties (keys) derived from other 
-    # properties (items) but in the model class
-    _property_exclusion = {
-        'energy': ['atomic_energies'],
-        'forces': [], 
-        'hessian': [],
-        'dipole': ['atomic_charges', 'atomic_dipole']}
-        
     # Output module specially handled properties
     #_property_special = ['energy', 'atomic_energies', 'atomic_charges']
     
     # Default output block options for atom-wise scalar properties such as, 
     # e.g., 'atomic_energies'.
     _default_output_scalar = {
+        'output_type':          'scalar',
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
-        'activation_fn':        torch.nn.functional.silu,
+        'activation_fn':        'silu',
         'bias_layer':           True,
         'bias_last':            True,
         'weight_init_layer':    torch.nn.init.zeros_,
@@ -541,9 +578,11 @@ class Output_PaiNN(torch.nn.Module):
         'bias_init_last':       torch.nn.init.zeros_,
         }
     
-    # Default output block options for atom-wise vector properties such as, 
+    # Default output block options for atom-wise tensor properties such as, 
     # e.g., 'atomic_dipole'.
-    _default_output_vector = {
+    _default_output_tensor = {
+        'output_type':          'tensor',
+        'properties':           [None, None],
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
@@ -559,27 +598,27 @@ class Output_PaiNN(torch.nn.Module):
     
     # Default output block assignment to properties
     # key: output property
-    # item: list -> [0]:    str, Output block type 'scalar' or 'vector'
+    # item: list -> [0]:    str, Output block type 'scalar' or 'tensor'
     #                       None, no output block (skip property)
     #               [1]:    dict, output block options if [0] str
     #                       str, dependency to other property if [0] None
-    #               [2]:    optional, int: scalar or vector result from a
-    #                           'vector' type output block
+    #               [2]:    optional, int: scalar or tensor result from a
+    #                           'tensor' type output block
     #       dict -> key:    str, either default case or case if respective
     #                           property included in output properties list
     #               item:   list -> [0]: Output block type (see item -> list)
     #                               [1]: Output block options ...
     #                               [2]: 'Vector' output block result ...
     _default_property_assignment = {
-        'energy': [None, 'atomic_energies'],
-        'atomic_energies': ['scalar', _default_output_scalar],
-        'forces': [None, 'energy'],
-        'dipole': [None, 'atomic_charges'],
+        'energy': [None, ['atomic_energies']],
+        'atomic_energies': [_default_output_scalar],
+        'forces': [None, ['energy']],
+        'dipole': [None, ['atomic_charges', 'atomic_dipole']],
         'atomic_charges': {
-            'default': ['scalar', _default_output_scalar]
-            'atomic_dipoles': ['vector', _default_output_vector, 0]
+            'default': [_default_output_scalar],
+            'atomic_dipole': [_default_output_tensor, 0],
             },
-        'atomic_dipoles': ['vector', _default_output_vector, 1],
+        'atomic_dipole': [_default_output_tensor, 1],
         }
     
     def __init__(
@@ -587,9 +626,9 @@ class Output_PaiNN(torch.nn.Module):
         config: Optional[Union[str, dict, object]] = None,
         config_file: Optional[str] = None,
         output_properties: Optional[List[str]] = None,
+        output_properties_options: Optional[Dict[str, Any]] = None,
         output_n_residual: Optional[int] = None,
         output_activation_fn: Optional[Union[str, object]] = None,
-        output_block_options: Optional[Dict[str, Any]] = None,
         output_scaling_parameter: Optional[Dict[str, List[float]]] = None,
         **kwargs
     ):
@@ -636,68 +675,113 @@ class Output_PaiNN(torch.nn.Module):
 
         # Get model properties to check with output module properties
         model_properties = config.get('model_properties')
+        properties_all = []
+        if self.output_properties is not None:
+            properties_all += list(self.output_properties) 
+        if model_properties is not None:
+            properties_all += list(model_properties)
 
         # Initialize output module properties
         properties_list = []
-        properties_assignment = {}
+        properties_options_scalar = {}
+        properties_options_tensor = {}
         
         # Check defined output properties
-        if self.output_properties is not None:
-            for prop in self.output_properties:
-                # Check if property is available
-                if prop in self._default_property_assignment:
-                    instructions = self._default_property_assignment[prop]
-                    # If skip label is found in instructions
-                    if utils.is_list(instructions) and instructions[0] is None:
-                        # Check dependencies and skip property
-                        if not (
-                            instructions[1] in self.output_properties
-                            or instructions[1] in model_properties
-                        ):
-                            raise SyntaxError(
-                                "Model property prediction requires property "
-                                + f"{instructions[1]:s}, which is not "
-                                + "defined!")
-                        else:
-                            pass
-                    elif utils.is_list(instructions):
-                        properties_list.append(prop)
-                        if output_block_options
-                        properties_assignment.append(instructions)
-                else:
-                    raise NotImplementedError(
-                        f"Output module of type {self.output_type:s} "
-                        + "does not support the property prediction of "
-                        + f"{prop:s}!")
-
-        # Check output module properties with model properties
-        for prop in model_properties:
-            if (
-                prop not in properties_list
-                and prop in self._property_exclusion
-            ):
-                for prop_der in self._property_exclusion[prop]:
-                    if prop_der not in properties_list:
-                        properties_list.append(prop_der)
-            elif prop not in properties_list:
-                properties_list.append(prop)
+        for prop in properties_all:
+            # Check if property is available
+            if prop in self._default_property_assignment:
+                instructions = self._default_property_assignment[prop]
+                # Add custom output options if defined
+                if prop in self.output_properties_options:
+                    # Add property and output options
+                    properties_list.append(prop)
+                    out_type = (
+                        self.output_properties_options[prop]['output_type'])
+                    if out_type == 'scalar':
+                        properties_options_scalar[prop] = (
+                            self.output_properties_options[prop])
+                    elif out_type == 'scalar':                        
+                        properties_options_tensor[prop] = (
+                            self.output_properties_options[prop])
+                    else:
+                        raise SyntaxError(
+                            "Costum output block options for property "
+                            + f"{prop:s} has unknown type '{out_type:s}'!")
+                # If skip label is found in instructions
+                elif (
+                    utils.is_array_like(instructions)
+                    and instructions[0] is None
+                ):
+                    # Check dependencies and skip property
+                    if any([
+                        prop_required not in properties_all
+                        for prop_required in instructions[1]]
+                    ):
+                        raise SyntaxError(
+                            f"Model property prediction for '{prop:s}' "
+                            + f"requires property '{instructions[1]:s}', "
+                            + "which is not defined!")
+                    else:
+                        pass
+                # If output instructions are given
+                elif utils.is_array_like(instructions):
+                    # Add property
+                    properties_list.append(prop)
+                    # Prepare output block options
+                    option = instructions[0]
+                    if len(instructions) == 1:
+                        properties_options_scalar[prop] = option
+                    elif len(instructions) > 1 and 'properties' in option:
+                        option['properties'][instructions[1]] = prop
+                        properties_options_tensor[prop] = option
+                    else:
+                        raise SyntaxError()
+                # If case sensitive output instructions are given
+                elif utils.is_dictionary(instructions):
+                    # Get respective output instructions
+                    for case_prop, case_instructions in instructions.items():
+                        if case_prop == 'default':
+                            instructions = instructions.get('default')
+                        elif case_prop in properties_all:
+                            instructions = case_instructions
+                            break
+                    # Add property
+                    properties_list.append(prop)
+                    # Prepare output block options
+                    option = instructions[0]
+                    if len(instructions) == 1:
+                        properties_options_scalar[prop] = option
+                    elif len(instructions) > 1 and 'properties' in option:
+                        option['properties'][instructions[1]] = prop
+                        properties_options_tensor[prop] = option
+                    else:
+                        raise SyntaxError()
+            else:
+                raise NotImplementedError(
+                    f"Output module of type {self.output_type:s} does not "
+                    + f"support the property prediction of {prop:s}!")
 
         # Update output property list and global configuration dictionary
         self.output_properties = properties_list
+        self.output_properties_options = {
+            **properties_options_scalar, **properties_options_tensor}
         config_update = {
-            'output_properties': self.output_properties}
+            'output_properties': self.output_properties,
+            'output_properties_options': self.output_properties_options}
         config.update(config_update)
-
+        
         #####################################
         # # # Output Module Class Setup # # #
         #####################################
         
-        
+        # Initialize property to output blocks dictionary
+        self.output_property_scalar_block = torch.nn.ModuleDict({})
+        self.output_property_tensor_block = torch.nn.ModuleDict({})
         
 
         ## Collect output block properties
-        #self.output_block_options = settings._default_output_block_properties
-        #self.output_block_options.update(output_block_options)
+        #self.output_properties_options = settings._default_output_block_properties
+        #self.output_properties_options.update(output_properties_options)
 
         ## Initialize output block dictionary for properties
         #self.output_block_dict = torch.nn.ModuleDict({})
@@ -713,12 +797,12 @@ class Output_PaiNN(torch.nn.Module):
             ## Initialize output block
             #self.output_block_dict[prop] = self.create_output_block(
                 #self.input_n_atombasis,
-                #self.output_block_options['n_outputneurons'],
-                #self.output_block_options['n_hiddenlayers'],
-                #n_hiddenneurons=self.output_block_options['n_hiddenneurons'],
+                #self.output_properties_options['n_outputneurons'],
+                #self.output_properties_options['n_hiddenlayers'],
+                #n_hiddenneurons=self.output_properties_options['n_hiddenneurons'],
                 #activation_fn=self.activation_fn,
-                #output_bias=self.output_block_options['output_bias'],
-                #output_init_zero=self.output_block_options['output_init_zero'],
+                #output_bias=self.output_properties_options['output_bias'],
+                #output_init_zero=self.output_properties_options['output_init_zero'],
                 #device=self.device,
                 #dtype=self.dtype,
                 #)

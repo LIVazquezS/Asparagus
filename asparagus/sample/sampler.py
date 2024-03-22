@@ -252,8 +252,10 @@ class Sampler:
         ase_calculator, ase_calculator_tag = (
             interface.get_ase_calculator(
                 self.sample_calculator,
-                self.sample_calculator_args)
-            )
+                self.sample_calculator_args))
+        
+        # Assign calculator tag for info dictionary
+        self.sample_calculator_tag = ase_calculator_tag
 
         # Check requested system properties
         self.check_properties(ase_calculator)

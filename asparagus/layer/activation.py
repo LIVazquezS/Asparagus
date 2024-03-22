@@ -251,6 +251,7 @@ def linear(
 
 functions_avaiable = {
     'swish'.lower(): swish,
+    'silu'.lower(): torch.nn.functional.silu,
     'softplus'.lower(): softplus,
     'shifted_softplus'.lower(): shifted_softplus,
     'scaled_shifted_softplus'.lower(): scaled_shifted_softplus,
