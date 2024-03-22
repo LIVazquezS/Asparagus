@@ -258,9 +258,6 @@ class Sampler:
         # Check requested system properties
         self.check_properties(ase_calculator)
 
-        # Store calculator tag name
-        self.sample_calculator_tag = ase_calculator_tag
-        
         # Check number of calculation threads
         if self.sample_num_threads <= 0:
             raise ValueError(
@@ -366,8 +363,15 @@ class Sampler:
 
             # Check for ASE Atoms object or read system file
             if utils.is_ase_atoms(source):
-                source_string = source.get_chemical_formula()
-                sample_systems_queue.put((source, isample, source_string, 1))
+                
+                # Store ASE Atoms object as xyf file
+                source_file = os.path.join(
+                    self.sample_directory,
+                    f"{self.sample_counter:d}_sample_system_{isample:d}.xyz")
+                ase.io.write(source_file, source, format='xyz')
+
+                # Add sample system to queue
+                sample_systems_queue.put((source, isample, source_file, 1))
             
             # Check for an Asparagus dataset
             elif source_format.lower() == 'db':

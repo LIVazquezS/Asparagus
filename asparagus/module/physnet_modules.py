@@ -109,7 +109,7 @@ class Input_PhysNet(torch.nn.Module):
         """
 
         super(Input_PhysNet, self).__init__()
-        input_type = 'PhysNet'
+        self.input_type = 'PhysNet'
 
         ####################################
         # # # Check Module Class Input # # #
@@ -314,7 +314,7 @@ class Graph_PhysNet(torch.nn.Module):
         """
         
         super(Graph_PhysNet, self).__init__()
-        graph_type = 'PhysNet'
+        self.graph_type = 'PhysNet'
         
         ####################################
         # # # Check Module Class Input # # #
@@ -507,7 +507,7 @@ class Output_PhysNet(torch.nn.Module):
         """
 
         super(Output_PhysNet, self).__init__()
-        output_type = 'PhysNet'
+        self.output_type = 'PhysNet'
 
         ####################################
         # # # Check Module Class Input # # #

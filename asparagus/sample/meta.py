@@ -190,10 +190,10 @@ class MetaSampler(sample.Sampler):
         for icv, cv in enumerate(self.meta_cv):
             
             # Check cv data type
-            if not utils.is_integer_array(cv):
+            if not utils.is_array_like(cv):
                 raise ValueError(
                     f"Collective variable number {icv:d} is not an integer "
-                    + f"list but of type '{type(cv):s}'!")
+                    + f"list but of type '{type(cv)}'!")
             
             # Get cv type
             if self.cv_type_dict.get(len(cv)) is None:

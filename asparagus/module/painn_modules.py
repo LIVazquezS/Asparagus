@@ -502,7 +502,7 @@ class Output_PaiNN(torch.nn.Module):
         'output_properties':            None,
         'output_n_residual':            1,
         'output_activation_fn':         'shifted_softplus',
-        'output_block_options':         None,
+        'output_block_options':         {},
         'output_scaling_parameter':     None,
         }
 
@@ -511,7 +511,7 @@ class Output_PaiNN(torch.nn.Module):
         'output_properties':            [utils.is_string_array, utils.is_None],
         'output_n_residual':            [utils.is_integer],
         'output_activation_fn':         [utils.is_string, utils.is_callable],
-        'output_block_options':         [utils.is_dictionary, utils.is_None],
+        'output_block_options':         [utils.is_dictionary],
         'output_scaling_parameter':     [utils.is_dictionary],
         }
     
@@ -526,11 +526,9 @@ class Output_PaiNN(torch.nn.Module):
     # Output module specially handled properties
     #_property_special = ['energy', 'atomic_energies', 'atomic_charges']
     
-    
     # Default output block options for atom-wise scalar properties such as, 
     # e.g., 'atomic_energies'.
     _default_output_scalar = {
-        'aggregation':          None,
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
@@ -546,7 +544,6 @@ class Output_PaiNN(torch.nn.Module):
     # Default output block options for atom-wise vector properties such as, 
     # e.g., 'atomic_dipole'.
     _default_output_vector = {
-        'aggregation':          None,
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
@@ -559,6 +556,31 @@ class Output_PaiNN(torch.nn.Module):
         'bias_init_last':       torch.nn.init.zeros_,
         }
     
+    
+    # Default output block assignment to properties
+    # key: output property
+    # item: list -> [0]:    str, Output block type 'scalar' or 'vector'
+    #                       None, no output block (skip property)
+    #               [1]:    dict, output block options if [0] str
+    #                       str, dependency to other property if [0] None
+    #               [2]:    optional, int: scalar or vector result from a
+    #                           'vector' type output block
+    #       dict -> key:    str, either default case or case if respective
+    #                           property included in output properties list
+    #               item:   list -> [0]: Output block type (see item -> list)
+    #                               [1]: Output block options ...
+    #                               [2]: 'Vector' output block result ...
+    _default_property_assignment = {
+        'energy': [None, 'atomic_energies'],
+        'atomic_energies': ['scalar', _default_output_scalar],
+        'forces': [None, 'energy'],
+        'dipole': [None, 'atomic_charges'],
+        'atomic_charges': {
+            'default': ['scalar', _default_output_scalar]
+            'atomic_dipoles': ['vector', _default_output_vector, 0]
+            },
+        'atomic_dipoles': ['vector', _default_output_vector, 1],
+        }
     
     def __init__(
         self,
@@ -617,13 +639,36 @@ class Output_PaiNN(torch.nn.Module):
 
         # Initialize output module properties
         properties_list = []
+        properties_assignment = {}
+        
+        # Check defined output properties
         if self.output_properties is not None:
             for prop in self.output_properties:
-                if prop in self._property_exclusion:
-                    for prop_der in self._property_exclusion[prop]:
-                        properties_list.append(prop_der)
+                # Check if property is available
+                if prop in self._default_property_assignment:
+                    instructions = self._default_property_assignment[prop]
+                    # If skip label is found in instructions
+                    if utils.is_list(instructions) and instructions[0] is None:
+                        # Check dependencies and skip property
+                        if not (
+                            instructions[1] in self.output_properties
+                            or instructions[1] in model_properties
+                        ):
+                            raise SyntaxError(
+                                "Model property prediction requires property "
+                                + f"{instructions[1]:s}, which is not "
+                                + "defined!")
+                        else:
+                            pass
+                    elif utils.is_list(instructions):
+                        properties_list.append(prop)
+                        if output_block_options
+                        properties_assignment.append(instructions)
                 else:
-                    properties_list.append(prop)
+                    raise NotImplementedError(
+                        f"Output module of type {self.output_type:s} "
+                        + "does not support the property prediction of "
+                        + f"{prop:s}!")
 
         # Check output module properties with model properties
         for prop in model_properties:
@@ -646,6 +691,9 @@ class Output_PaiNN(torch.nn.Module):
         #####################################
         # # # Output Module Class Setup # # #
         #####################################
+        
+        
+        
 
         ## Collect output block properties
         #self.output_block_options = settings._default_output_block_properties
