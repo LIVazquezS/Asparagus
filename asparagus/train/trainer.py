@@ -117,7 +117,7 @@ class Trainer:
         'trainer_validation_interval':  5,
         'trainer_evaluate_testset':     True,
         'trainer_max_checkpoints':      1,
-        'trainer_store_neighbor_list':  True,
+        'trainer_store_neighbor_list':  False,
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         }
@@ -735,7 +735,7 @@ class Trainer:
 
                 # Predict model properties from data batch
                 prediction = self.model_calculator(batch)
-
+                return
                 # Compute total and single loss values for training properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, loss_fn=loss_fn)

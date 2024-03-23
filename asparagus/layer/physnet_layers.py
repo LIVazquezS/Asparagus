@@ -1,3 +1,5 @@
+from memory_profiler import profile
+
 from typing import Optional, Callable
 
 import torch
@@ -73,6 +75,7 @@ class InteractionBlock(torch.nn.Module):
 
         return
 
+    @profile
     def forward(
         self,
         features: torch.Tensor,
@@ -206,6 +209,7 @@ class InteractionLayer(torch.nn.Module):
 
         return
 
+    @profile
     def forward(
         self,
         features: torch.Tensor,

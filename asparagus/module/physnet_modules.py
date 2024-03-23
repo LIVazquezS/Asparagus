@@ -1,3 +1,5 @@
+from memory_profiler import profile
+
 import logging
 import numpy as np
 from typing import Optional, Union, List, Dict, Callable, Any
@@ -196,6 +198,7 @@ class Input_PhysNet(torch.nn.Module):
             'input_n_maxatom': self.input_n_maxatom,
             }
 
+    @profile
     def forward(
         self, 
         atomic_numbers: torch.Tensor,
@@ -383,6 +386,7 @@ class Graph_PhysNet(torch.nn.Module):
             'graph_activation_fn': self.graph_activation_fn,
             }
 
+    @profile
     def forward(
         self, 
         features: torch.Tensor,

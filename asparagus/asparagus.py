@@ -776,7 +776,7 @@ class Asparagus():
         # # # Assign and Run Tester # # #
         #################################
 
-        tester = Tester(
+        tester = train.Tester(
             config=config,
             config_file=config_file,
             data_container=data_container,
