@@ -534,8 +534,8 @@ class Output_PhysNet(torch.nn.Module):
         self.device = config.get('device')
 
         # Get input and graph to output module interface parameters 
-        self.input_n_maxatom = config.get('input_n_maxatom')
-        input_n_atombasis = config.get('input_n_atombasis')
+        self.n_maxatom = config.get('input_n_maxatom')
+        n_atombasis = config.get('input_n_atombasis')
         graph_n_blocks = config.get('graph_n_blocks')
 
         ##########################################
@@ -600,7 +600,7 @@ class Output_PhysNet(torch.nn.Module):
             # PhysNet energy and atom charges output block
             output_block = torch.nn.ModuleList([
                 physnet_layers.OutputBlock(
-                    input_n_atombasis,
+                    n_atombasis,
                     self.output_n_property['atomic_energies_charges'],
                     self.output_n_residual,
                     self.activation_fn,
@@ -632,7 +632,7 @@ class Output_PhysNet(torch.nn.Module):
             # PhysNet energy only output block
             output_block = torch.nn.ModuleList([
                 physnet_layers.OutputBlock(
-                    input_n_atombasis,
+                    n_atombasis,
                     self.output_n_property[prop],
                     self.output_n_residual,
                     self.activation_fn,
@@ -665,7 +665,7 @@ class Output_PhysNet(torch.nn.Module):
             self.output_n_property[prop] = 1
             output_block = torch.nn.ModuleList([
                 layer.physnet_layers.OutputBlock(
-                    input_n_atombasis,
+                    n_atombasis,
                     self.output_n_property[prop],
                     self.output_n_residual,
                     self.activation_fn,
@@ -725,7 +725,7 @@ class Output_PhysNet(torch.nn.Module):
             
                 output_scaling[prop] = torch.nn.Parameter(
                     torch.tensor(
-                        [[1.0, 0.0] for _ in range(self.input_n_maxatom)],
+                        [[1.0, 0.0] for _ in range(self.n_maxatom)],
                         device=self.device, 
                         dtype=self.dtype)
                     )
@@ -736,7 +736,7 @@ class Output_PhysNet(torch.nn.Module):
                 (shift, scale) = scaling_parameter.get(prop)
                 output_scaling[prop] = torch.nn.Parameter(
                     torch.tensor(
-                        [[scale, shift] for _ in range(self.input_n_maxatom)],
+                        [[scale, shift] for _ in range(self.n_maxatom)],
                         device=self.device, 
                         dtype=self.dtype)
                     )

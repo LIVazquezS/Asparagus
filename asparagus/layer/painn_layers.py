@@ -203,6 +203,159 @@ class PaiNNMixing(torch.nn.Module):
         return sfeatures, vfeatures
 
 
+class PaiNNGatedEquivarience(torch.nn.Module):
+    """
+    Gated equivariant block of the PaiNN model.
+    
+    Parameters
+    ----------
+    scalar_n_input: int
+        Number of input scalar representation features.
+    vector_n_input: int
+        Number of input vector representation features.
+    scalar_n_output: int
+        Number of output scalar representation features.
+    vector_n_output: int
+        Number of output vector representation features.
+    hidden_n_neurons: int
+        Number of hidden neurons
+    scalar_activation_fn: callable, optional, default None
+        Activation function on scalar features. If None, identity is used.
+    hidden_activation_fn: callable, optional, default None
+        Activation function on hidden layer . If None, identity is used.
+    bias: bool, optional, default True
+        If True, apply bias shift on neuron output.
+    weight_init: callable, optional, default 'torch.nn.init.xavier_normal_'
+        By Default, use Xavier initialization for neuron weight else zero
+        weights are used.
+    bias_init: callable, optional, default 'torch.nn.init.zeros_'
+        By Default, zero bias values are initialized.
+    device: str, optional, default 'cpu'
+        Device type for model variable allocation
+    dtype: dtype object, optional, default 'torch.float64'
+        Model variables data type
+
+    """
+    def __init__(
+        self,
+        scalar_n_input: int,
+        vector_n_input: int,
+        scalar_n_output: int,
+        vector_n_output: int,
+        hidden_n_neurons: int,
+        scalar_activation_fn: 
+            Optional[Union[Callable, torch.nn.Module]] = None,
+        hidden_activation_fn: 
+            Optional[Union[Callable, torch.nn.Module]] = None,
+        bias: Optional[bool] = True,
+        weight_init: Optional[Callable] = torch.nn.init.xavier_normal_,
+        bias_init: Optional[Callable] = torch.nn.init.zeros_,
+        device: Optional[str] = 'cpu',
+        dtype: Optional[object] = torch.float64,
+    ):
+        """
+        Initialize gated equivariant block.
+        
+        """
+        
+        super(PaiNNGatedEquivarience).__init__()
+        
+        # Input and output feature vector dimensions
+        self.scalar_n_input = scalar_n_input
+        self.vector_n_input = vector_n_input
+        self.scalar_n_output = scalar_n_output
+        self.vector_n_output = vector_n_output
+        
+        # Number of hidden layer
+        self.n_hidden = n_hidden
+        
+        # Dense module to branch vector features for normalization to a scalar
+        # feature vector and keeping a vector representation for scaling
+        self.branch_vector = DenseLayer(
+            vector_n_input,
+            2*vector_n_output,
+            activation_fn=None,
+            bias=false,
+            weight_init=weight_init,
+            device=device,
+            dtype=dtype)
+        
+        # Mixed scalar/norm(vector) representation network
+        self.mixed_scalars = nn.Sequential(
+            DenseLayer(
+                scalar_n_input + vector_n_output,
+                n_hidden,
+                activation=hidden_activation,
+                bias=bias,
+                weight_init=weight_init,
+                bias_init=bias_init,
+                device=device,
+                dtype=dtype),
+            DenseLayer(
+                n_hidden,
+                scalar_n_output + vector_n_output,
+                activation=None,
+                bias=bias,
+                weight_init=weight_init,
+                bias_init=bias_init,
+                device=device,
+                dtype=dtype),
+        )
+
+        # Scalar feature activation function
+        self.scalar_activation_fn = scalar_activation_fn
+
+        return
+
+    def forward(
+        self,
+        sfeatures: torch.Tensor,
+        vfeatures: torch.Tensor,
+    ) -> List[torch.Tensor]:
+        """
+        Forward pass of the gated equivariant block.
+        
+        Parameter
+        ---------
+        sfeatures: torch.tensor(N_atoms, n_atombasis)
+            Scalar atomic feature vectors
+        vfeatures: torch.tensor(N_atoms, 3, n_atombasis)
+            Vector atomic feature vectors
+        
+        Returns
+        -------
+        sfeatures: torch.tensor(N_atoms, n_atombasis)
+            Modified scalar atomic feature vectors
+        vfeatures: torch.tensor(N_atoms, 3, n_atombasis)
+            Modified vector atomic feature vectors
+        
+        """
+        
+        # Branch vector features
+        vmix = self.branch_vector(vfeatures)
+        vfeatures_norm, vfeatures_keep = torch.split(
+            vmix, self.vector_n_output, dim=-1)
+        
+        # Normalize vector features
+        vfeatures_norm = torch.norm(vfeatures_norm, dim=-2)
+        
+        # Pass mixed features to network
+        output = self.mixed_scalars(
+            torch.cat([sfeatures, vfeatures_norm], dim=-1))
+        
+        # Split output into scalar features and vector scaling features
+        sfeatures_out, vfeatures_scale = torch.split(
+            output, [self.scalar_n_output, self.vector_n_output], dim=-1)
+        
+        # Scale vector features
+        vfeatures_out = vfeatures_keep*vfeatures_scale[:, None, :]
+
+        # Apply scalar activation function
+        sfeatures_out = self.scalar_activation_fn(sfeatures_out)
+        
+        return sfeatures_out, vfeatures_out
+
+
 class PaiNNOutput_scalar(torch.nn.Module):
     """
     Deep neural network output block for scalar property predictions from 
@@ -269,7 +422,7 @@ class PaiNNOutput_scalar(torch.nn.Module):
             check_default=self._default_output_scalar,
             check_dtype=None)
 
-        # Check hidden layer neuron option
+        # Check hidden layer neuron options
         if self.n_layer:
             n_neurons_list = [self.n_atombasis]
             if utils.is_integer(self.n_neurons):
@@ -285,7 +438,7 @@ class PaiNNOutput_scalar(torch.nn.Module):
             n_neurons_list.append(self.n_property)
         else:
             # If no hidden layer, set hidden neurons to property neuron number
-            n_neurons_list = [self.n_property]
+            n_neurons_list = [self.n_atombasis, self.n_property]
 
         # Initialize output module
         self.output = torch.nn.Sequential()
@@ -335,12 +488,12 @@ class PaiNNOutput_scalar(torch.nn.Module):
 
         Returns
         -------
-        torch.Tensor(N_atoms, n_results)
-            Transformed atomic feature vector to result vector
+        torch.Tensor(N_atoms, n_property)
+            Transformed atomic feature vector to result property vector
         
         """
         
-        # Transform to result vector
+        # Transform to result properties
         result = self.output(features)
         
         return result
@@ -348,7 +501,7 @@ class PaiNNOutput_scalar(torch.nn.Module):
 
 class PaiNNOutput_tensor(torch.nn.Module):
     """
-    Deep neural network output block for tensor like property predictions from 
+    Gated equivariant output block for tensor like property predictions from 
     atom-wise representations in PaiNN.
 
     Parameters
@@ -359,14 +512,16 @@ class PaiNNOutput_tensor(torch.nn.Module):
         Dimension of the predicted property.
     n_layer: int, optional, default 2
         Number of hidden layer in the output block.
-    scalar_n_neurons: (int list(int)), optional, default None
-        Number of neurons of the scalar hidden layers (int) or per scalar 
+    n_neurons: (int list(int)), optional, default None
+        Number of neurons of the input and output neurons of the layer in the
+        gated equivariant block.
+    hidden_n_neurons: (int list(int)), optional, default None
+        Number of neurons of the hidden layers (int) or per tensor
         hidden layer (list)
-    tensor_n_neurons: (int list(int)), optional, default None
-        Number of neurons of the tensor hidden layers (int) or per tensor
-        hidden layer (list)
-    activation_fn: callable, optional, default None
-        Residual layer activation function.
+    scalar_activation_fn: callable, optional, default None
+        Scalar feature activation function.
+    hidden_activation_fn: callable, optional, default None
+        Hidden layer activation function.
     bias_layer: bool, optional, default True
         Add bias parameter for hidden layer neurons
     bias_last: bool, optional, default True
@@ -388,10 +543,10 @@ class PaiNNOutput_tensor(torch.nn.Module):
     
     _default_output_tensor = {
         'n_layer':              2,
-        'scalar_n_neurons':     None,
-        'tensor_n_neurons':     None,
+        'n_neurons':            None,
+        'hidden_n_neurons':     None,
         'scalar_activation_fn': None,
-        'tensor_activation_fn': None,
+        'hidden_activation_fn': None,
         'bias_layer':           True,
         'bias_last':            True,
         'weight_init_layer':    torch.nn.init.zeros_,
@@ -405,10 +560,10 @@ class PaiNNOutput_tensor(torch.nn.Module):
         n_atombasis: int,
         n_property: int,
         n_layer: Optional[int] = None,
-        scalar_n_neurons: Optional[Union[int, List[int]]] = None,
-        tensor_n_neurons: Optional[Union[int, List[int]]] = None,
+        n_neurons: Optional[Union[int, List[int]]] = None,
+        hidden_n_neurons: Optional[Union[int, List[int]]] = None,
         scalar_activation_fn: Optional[Callable] = None,
-        tensor_activation_fn: Optional[Callable] = None,
+        hidden_activation_fn: Optional[Callable] = None,
         bias_layer: Optional[bool] = True,
         bias_last: Optional[bool] = True,
         weight_init_layer: Optional[Callable] = torch.nn.init.zeros_,
@@ -432,31 +587,112 @@ class PaiNNOutput_tensor(torch.nn.Module):
             check_default=self._default_output_scalar,
             check_dtype=None)
 
-        # Check hidden layer neuron option
+        # Check hidden scalar layer neuron options
         if self.n_layer:
-            scalar_n_neurons_list = [self.n_atombasis]
-            if utils.is_integer(self.scalar_n_neurons):
-                scalar_n_neurons_list += [self.scalar_n_neurons]*(
+            n_neurons_list = [self.n_atombasis]
+            if utils.is_integer(self.n_neurons):
+                n_neurons_list += [self.n_neurons]*(
                     self.n_layer - 1)
-            elif utils.is_integer_array(self.scalar_n_neurons):
-                scalar_n_neurons_list += list(self.scalar_n_neurons)[
+            elif utils.is_integer_array(self.n_neurons):
+                n_neurons_list += list(self.n_neurons)[
                     :(self.n_layer - 1)]
             else:
                 # Half number of hidden layer neurons with each layer
                 ni = self.n_atombasis
                 for ii in range(self.n_layer - 1):
                     ni = max(self.n_property, ni//2)
-                    scalar_n_neurons_list.append(ni)
-            scalar_n_neurons_list.append(self.n_property)
+                    n_neurons_list.append(ni)
+            n_neurons_list.append(self.n_property)
         else:
             # If no hidden layer, set hidden neurons to property neuron number
-            scalar_n_neurons_list = [self.n_property]
+            n_neurons_list = [self.n_atombasis, self.n_property]
 
-        if tensor_n_neurons is None:
-            tensor_n_neurons_list = scalar_n_neurons_list[:-1]
-        elif utils.is_integer(tensor_n_neurons):
-            tensor_n_neurons_list = [tensor_n_neurons]*self.n_layer
+        # Check hidden layer neuron options
+        if hidden_n_neurons is None:
+            hidden_n_neurons_list = n_neurons_list[:-1]
+        elif utils.is_integer(hidden_n_neurons):
+            hidden_n_neurons_list = [hidden_n_neurons]*self.n_layer
         else:
-            tensor_n_neurons_list = list(tensor_n_neurons)
+            hidden_n_neurons_list = list(hidden_n_neurons)[:self.n_layer]
+
+        # Initialize output module
+        self.output = torch.nn.Sequential()
+
+        # Append hidden layers
+        for ii in range(n_layer - 1):
+            self.output.append(
+                PaiNNGatedEquivarience(
+                    n_neurons_list[ii],
+                    n_neurons_list[ii],
+                    n_neurons_list[ii + 1],
+                    n_neurons_list[ii + 1],
+                    hidden_n_neurons_list[ii],
+                    scalar_activation_fn=self.scalar_activation_fn,
+                    hidden_activation_fn=self.hidden_activation_fn,
+                    bias=self.bias_layer,
+                    weight_init=self.weight_init_layer,
+                    bias_init=self.bias_init_layer,
+                    device=device,
+                    dtype=dtype
+                    ),
+                )
+        
+        # Append output layer
+        self.output.append(
+            PaiNNGatedEquivarience(
+                scalar_n_neurons_list[-2],
+                scalar_n_neurons_list[-2],
+                scalar_n_neurons_list[-1],
+                scalar_n_neurons_list[-1],
+                tensor_n_neurons_list[-2],
+                scalar_activation_fn=self.scalar_activation_fn,
+                tensor_activation_fn=None,
+                bias=self.bias_last,
+                weight_init=self.weight_init_last,
+                bias_init=self.bias_init_last,
+                device=device,
+                dtype=dtype
+                ),
+            )
 
         return
+
+    def forward(
+        self,
+        sfeatures: torch.Tensor,
+        vfeatures: torch.Tensor,
+    ) -> List[torch.Tensor]:
+        """
+        Apply scalar output block.
+        
+        Parameters
+        ----------
+        sfeatures: torch.tensor(N_atoms, n_atombasis)
+            Scalar atomic feature vectors
+        vfeatures: torch.tensor(N_atoms, 3, n_atombasis)
+            Vector atomic feature vectors
+        
+        Returns
+        -------
+        torch.Tensor(N_atoms, n_property)
+            Resulting atomic scalar property vector
+        torch.Tensor(N_atoms, 3, n_property)
+            Resulting atomic vector properties.
+        
+        Parameter
+        ---------
+        
+        Returns
+        -------
+        scalar_result: torch.tensor(N_atoms, n_atombasis)
+            Modified scalar atomic feature vectors
+        vector_result: torch.tensor(N_atoms, 3, n_atombasis)
+            Modified vector atomic feature vectors
+        
+        """
+        
+        # Transform to scalar and vector results
+        scalar_result, vector_result = self.output(sfeatures, vfeatures)
+        
+        return scalar_result, vector_result
+        

@@ -415,8 +415,10 @@ class Graph_PaiNN(torch.nn.Module):
 
         Returns
         -------
-        features_list: [torch.tensor(N_atoms, n_atombasis)]*1
-            List of modified atomic feature vectors
+        sfeatures: torch.tensor(N_atoms, n_atombasis)
+            Modified scalar atomic feature vectors
+        vfeatures: torch.tensor(N_atoms, 3, n_atombasis)
+            Modified vector atomic feature vectors
 
         """
         
@@ -434,7 +436,7 @@ class Graph_PaiNN(torch.nn.Module):
         fsize = features.shape # (len(atomic_numbers), n_atombasis)
         sfeatures = features[:, None, :]
 
-        # Initialize vectorial feature vectors
+        # Initialize vector feature vectors
         vfeatures = torch.zeros((fsize[0], 3, fsize[1]), device=self.device)
 
         # Apply message passing model to modify from isolated atomic features
@@ -490,25 +492,26 @@ class Output_PaiNN(torch.nn.Module):
                 'n_property':           1,
                 'n_layer':              2,
                 'n_neurons':            None,
-                'activation_fn':        torch.nn.functional.silu,
+                'activation_fn':        'silu',
                 'bias_layer':           True,
                 'bias_last':            True,
-                'weight_init_layer':    torch.nn.init.zeros_,
-                'weight_init_last':     torch.nn.init.zeros_,
+                'weight_init_layer':    torch.nn.init.xavier_uniform_,
+                'weight_init_last':     torch.nn.init.xavier_uniform_,
                 'bias_init_layer':      torch.nn.init.zeros_,
                 'bias_init_last':       torch.nn.init.zeros_,
-                },
+                }
             'atomic_charges': { # Scalar output of tensor type output block
                 'output_type':          'tensor',
                 'properties':           ['atomic_charges', 'atomic_dipoles'],
                 'n_property':           1,
                 'n_layer':              2,
                 'n_neurons':            None,
-                'activation_fn':        torch.nn.functional.silu,
+                'scalar_activation_fn': 'silu',
+                'hidden_activation_fn': 'silu',
                 'bias_layer':           True,
                 'bias_last':            True,
-                'weight_init_layer':    torch.nn.init.zeros_,
-                'weight_init_last':     torch.nn.init.zeros_,
+                'weight_init_layer':    torch.nn.init.xavier_uniform_,
+                'weight_init_last':     torch.nn.init.xavier_uniform_,
                 'bias_init_layer':      torch.nn.init.zeros_,
                 'bias_init_last':       torch.nn.init.zeros_,
                 },
@@ -518,11 +521,12 @@ class Output_PaiNN(torch.nn.Module):
                 'n_property':           1,
                 'n_layer':              2,
                 'n_neurons':            None,
-                'activation_fn':        torch.nn.functional.silu,
+                'scalar_activation_fn': 'silu',
+                'hidden_activation_fn': 'silu',
                 'bias_layer':           True,
                 'bias_last':            True,
-                'weight_init_layer':    torch.nn.init.zeros_,
-                'weight_init_last':     torch.nn.init.zeros_,
+                'weight_init_layer':    torch.nn.init.xavier_uniform_,
+                'weight_init_last':     torch.nn.init.xavier_uniform_,
                 'bias_init_layer':      torch.nn.init.zeros_,
                 'bias_init_last':       torch.nn.init.zeros_,
                 },
@@ -530,8 +534,6 @@ class Output_PaiNN(torch.nn.Module):
     output_n_residual: int, optional, default 1
         Number of residual layers for transformation from atomic feature vector
         to output results.
-    output_activation_fn: (str, callable), optional, default 'shifted_softplus'
-        Residual layer activation function.
     output_scaling_parameter: dictionary, optional, default None
         Property average and standard deviation for the use as scaling factor 
         (standard deviation) and shift term (average) parameter pairs
@@ -546,7 +548,6 @@ class Output_PaiNN(torch.nn.Module):
         'output_properties':            None,
         'output_properties_options':    {},
         'output_n_residual':            1,
-        'output_activation_fn':         'silu',
         'output_scaling_parameter':     None,
         }
 
@@ -555,7 +556,6 @@ class Output_PaiNN(torch.nn.Module):
         'output_properties':            [utils.is_string_array, utils.is_None],
         'output_properties_options':    [utils.is_dictionary],
         'output_n_residual':            [utils.is_integer],
-        'output_activation_fn':         [utils.is_string, utils.is_callable],
         'output_scaling_parameter':     [utils.is_dictionary],
         }
     
@@ -569,11 +569,11 @@ class Output_PaiNN(torch.nn.Module):
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
-        'activation_fn':        None,
+        'activation_fn':        'silu',
         'bias_layer':           True,
         'bias_last':            True,
-        'weight_init_layer':    torch.nn.init.zeros_,
-        'weight_init_last':     torch.nn.init.zeros_,
+        'weight_init_layer':    torch.nn.init.xavier_uniform_,
+        'weight_init_last':     torch.nn.init.xavier_uniform_,
         'bias_init_layer':      torch.nn.init.zeros_,
         'bias_init_last':       torch.nn.init.zeros_,
         }
@@ -586,11 +586,12 @@ class Output_PaiNN(torch.nn.Module):
         'n_property':           1,
         'n_layer':              2,
         'n_neurons':            None,
-        'activation_fn':        None,
+        'scalar_activation_fn': 'silu',
+        'hidden_activation_fn': 'silu',
         'bias_layer':           True,
         'bias_last':            True,
-        'weight_init_layer':    torch.nn.init.zeros_,
-        'weight_init_last':     torch.nn.init.zeros_,
+        'weight_init_layer':    torch.nn.init.xavier_uniform_,
+        'weight_init_last':     torch.nn.init.xavier_uniform_,
         'bias_init_layer':      torch.nn.init.zeros_,
         'bias_init_last':       torch.nn.init.zeros_,
         }
@@ -627,8 +628,6 @@ class Output_PaiNN(torch.nn.Module):
         config_file: Optional[str] = None,
         output_properties: Optional[List[str]] = None,
         output_properties_options: Optional[Dict[str, Any]] = None,
-        output_n_residual: Optional[int] = None,
-        output_activation_fn: Optional[Union[str, object]] = None,
         output_scaling_parameter: Optional[Dict[str, List[float]]] = None,
         **kwargs
     ):
@@ -778,19 +777,17 @@ class Output_PaiNN(torch.nn.Module):
         self.output_property_scalar_block = torch.nn.ModuleDict({})
         self.output_property_tensor_block = torch.nn.ModuleDict({})
         
-        # Initialize property to number of output block predictions dictionary
+        # Initialize number of property per output block dictionary and 
+        # output block tag list
         self.output_n_property = {}
+        self.output_tag_properties = {}
         
         # Add output blocks for scalar properties
         for prop, options in properties_options_scalar.items():
 
             # Get activation function
-            if options.get('activation_fn') is None:
-                activation_fn = layer.get_activation_fn(
-                    self.output_activation_fn)
-            else:
-                activation_fn = layer.get_activation_fn(
-                    options['activation_fn'])
+            activation_fn = layer.get_activation_fn(
+                options.get('activation_fn'))
 
             # Check essential number of property output parameter
             if options.get('n_property') is None:
@@ -816,36 +813,193 @@ class Output_PaiNN(torch.nn.Module):
                     device=self.device,
                     dtype=self.dtype)
                 )
-
-
-
-
-        ## Collect output block properties
-        #self.output_properties_options = settings._default_output_block_properties
-        #self.output_properties_options.update(output_properties_options)
-
-        ## Initialize output block dictionary for properties
-        #self.output_block_dict = torch.nn.ModuleDict({})
         
-        ## Create output layer for properties with certain exceptions
-        #for prop in self.output_properties:
+        # Add output blocks for (scalar +) tensor properties
+        for prop, options in properties_options_tensor.items():
+
+            # Get activation function
+            scalar_activation_fn = layer.get_activation_fn(
+                options.get('scalar_activation_fn'))
+            hidden_activation_fn = layer.get_activation_fn(
+                options.get('hidden_activation_fn'))
+
+            # Get combined scalar and tensor property tag, skip if already done
+            prop_tuple = tuple(options.get('properties'))
+            prop_tag = '_&_'.join([str(p) for p in prop_tuple])
+            self.output_tag_properties[prop_tag] = prop_tuple
+            if prop_tag in self.output_tag_properties:
+                continue
+
+            # Check essential number of property output parameter
+            if options.get('n_property') is None:
+                raise SynaxError(
+                    "Number of output properties 'n_property' for property "
+                    + f"{prop:s} is not defined!")
+            self.output_n_property[prop_tag] = options.get('n_property')
+
+            # Initialize scalar output block
+            self.output_property_scalar_block[prop_tag] = (
+                painn_layers.PaiNNOutput_scalar(
+                    self.n_atombasis,
+                    options.get('n_property'),
+                    n_layer=options.get('n_layer'),
+                    n_neurons=options.get('n_neurons'),
+                    activation_fn=activation_fn,
+                    bias_layer=options.get('bias_last'),
+                    bias_last=options.get('bias_last'),
+                    weight_init_layer=options.get('weight_init_layer'),
+                    weight_init_last=options.get('weight_init_last'),
+                    bias_init_layer=options.get('bias_init_layer'),
+                    bias_init_last=options.get('bias_init_last'),
+                    device=self.device,
+                    dtype=self.dtype)
+                )
+        
+        # Initialize property scaling dictionary and atomic energy shift
+        self.set_property_scaling(self.output_scaling_parameter)
+        
+    def set_property_scaling(
+        self,
+        scaling_parameter: Dict[str, List[float]],
+    ):
+        """
+        Update output property scaling factor and shift term dictionary.
+        
+        Parameters
+        ----------
+        scaling_parameter: dict(str, torch.Tensor(2))
+            Property average and standard deviation for the use as
+            scaling factor (standard deviation) and shift term (average) 
+            parameter pairs (item) for each property (key).
+
+        """
+
+        # Set scaling factor and shifts for output properties
+        output_scaling = {}
+        for prop in self.output_properties:
             
-            ## No output_block for derivatives of properties such as atom 
-            ## forces, Hessian or molecular dipole
-            #if prop in ['forces', 'hessian', 'dipole']:
-                #continue
+            # If property scaling input is missing, initialize default
+            if (
+                scaling_parameter is None
+                or scaling_parameter.get(prop) is None
+            ):
             
-            ## Initialize output block
-            #self.output_block_dict[prop] = self.create_output_block(
-                #self.input_n_atombasis,
-                #self.output_properties_options['n_outputneurons'],
-                #self.output_properties_options['n_hiddenlayers'],
-                #n_hiddenneurons=self.output_properties_options['n_hiddenneurons'],
-                #activation_fn=self.activation_fn,
-                #output_bias=self.output_properties_options['output_bias'],
-                #output_init_zero=self.output_properties_options['output_init_zero'],
-                #device=self.device,
-                #dtype=self.dtype,
-                #)
+                output_scaling[prop] = torch.nn.Parameter(
+                    torch.tensor(
+                        [[1.0, 0.0] for _ in range(self.n_maxatom)],
+                        device=self.device, 
+                        dtype=self.dtype)
+                    )
+
+            else:
+                
+                # Assign scaling factor and shift
+                (shift, scale) = scaling_parameter.get(prop)
+                output_scaling[prop] = torch.nn.Parameter(
+                    torch.tensor(
+                        [[scale, shift] for _ in range(self.n_maxatom)],
+                        device=self.device, 
+                        dtype=self.dtype)
+                    )
+
+        # Convert model scaling to torch dictionary
+        self.output_scaling = torch.nn.ParameterDict(output_scaling)
+
+        return
+    
+    def __str__(self):
+        return self.output_type
+    
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Return class information
+        """
+
+        return {
+            'output_type': self.output_type,
+            'output_properties': self.output_properties,
+            'output_properties_options': self.output_properties_options,
+            }
+    
+    def forward(
+        self,
+        features_list: List[torch.Tensor],
+        atomic_numbers: Optional[torch.Tensor] = None,
+        properties: Optional[List[str]] = None,
+    ) -> Dict[str, torch.Tensor]:
+
+        """
+        Forward pass of output module
+
+        Parameters
+        ----------
+        sfeatures: torch.tensor(N_atoms, n_atombasis)
+            Scalar atomic feature vectors
+        vfeatures: torch.tensor(N_atoms, 3, n_atombasis)
+            Vector atomic feature vectors
+        atomic_numbers: torch.Tensor(N_atoms), optional, default None
+            List of atomic numbers
+        properties: list(str), optional, default None
+            List of properties to compute by the model. If None, all properties
+            are predicted.
+
+        Returns
+        -------
+        dict(str, torch.Tensor)
+            Dictionary of predicted properties
+
+        """
+        
+        # Initialize predicted properties dictionary
+        output_prediction = {}
+        
+        # Check requested properties
+        if properties is None:
+            predict_all = True
+        else:
+            predict_all = False
+
+        # Iterate over scalar output blocks
+        for prop, output_block in self.output_property_scalar_block.items():
             
+            # Skip if property not requested
+            if not predict_all and prop not in properties:
+                continue
             
+            # Compute prediction
+            output_prediction[prop] = output_block(sfeatures, vfeatures)
+            
+            # Flatten prediction for scalar properties
+            if self.output_n_property[prop] == 1:
+                output_prediction[prop] = torch.flatten(
+                    output_prediction[prop], start_dim=0)
+
+        # Iterate over tensor output blocks
+        for prop, output_block in self.output_property_tensor_block.items():
+            
+            # Get scalar and tensor property tags
+            (sprop, vprop) = self.output_tag_properties[prop]
+            
+            # Skip if property not requested
+            if (
+                not predict_all 
+                and not any([propi in properties for prop_i in (sprop, vprop)])
+            ):
+                continue
+            
+            # Compute prediction
+            output_prediction[sprop], output_prediction[vprop] = (
+                output_block(sfeatures, vfeatures))
+
+            # Flatten prediction for scalar properties
+            if self.output_n_property[sprop] == 1:
+                output_prediction[sprop] = torch.flatten(
+                    output_prediction[sprop], start_dim=0)
+
+        # Apply property scaling
+        for prop, scaling in self.output_scaling.items():
+            (scale, shift) = scaling[atomic_numbers].T
+            output_prediction[prop] = (
+                output_prediction[prop]*scale + shift)
+
+        return output_prediction
