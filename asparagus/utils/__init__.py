@@ -34,5 +34,5 @@ from .functions import(
 )
 
 from .neighborlist import(
-    ASENeighborList, TorchNeighborList
+    TorchNeighborListRangeSeparated
 )

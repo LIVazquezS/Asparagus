@@ -17,9 +17,9 @@ flag_sampler_all = False
 flag_sampler_shell = False
 flag_sampler_slurm = False
 flag_model_physnet = False
-flag_model_painn = True
+flag_model_painn = False
 flag_train_physnet = False
-flag_ase_physnet = False
+flag_ase_physnet = True
 
 
 #==============================================================================
@@ -626,8 +626,8 @@ if flag_sampler_slurm:
         config='test/calc_nh3.json',
         sample_directory='test',
         sample_data_file='test/smpl_nh3.db',
-        sample_systems='data/nh3_c3v.xyz',
-        sample_systems_format='xyz',
+        sample_systems='data/meta_nh3.traj',
+        sample_systems_format='traj',
         sample_calculator='slurm',
         sample_calculator_args = {
             'files': [
@@ -646,7 +646,7 @@ if flag_sampler_slurm:
             'directory': 'test/slurm',
             'result_properties': ['energy', 'forces', 'dipole']
             },
-        sample_num_threads=1,
+        sample_num_threads=20,
         )
     sampler.run()
 
@@ -798,10 +798,30 @@ if flag_train_physnet:
     config_file = 'test/train.json'
     model = asparagus.Asparagus(
         config_file=config_file,
-        data_file='data/nms_nh3.db',
+        data_file='data/train_nh3.db',
+        data_source='data/nms_nh3.db',
+        data_overwrite=True,
         model_directory='test/physnet',
         model_num_threads=2,
-        trainer_max_epochs=100,
+        trainer_validation_interval=2,
+        trainer_max_epochs=5,
+        )
+    trainer = model.get_trainer()
+    model.train()
+    model.test()
+    
+    
+    config_file = 'test/train.json'
+    model = asparagus.Asparagus(
+        config_file=config_file,
+        data_file='data/train_nh3.db',
+        data_source='data/nms_nh3.db',
+        data_overwrite=True,
+        model_directory='test/physnet',
+        model_num_threads=2,
+        model_cutoff=8.0,
+        input_radial_cutoff=3.0,
+        trainer_max_epochs=5,
         )
     trainer = model.get_trainer()
     model.train()
@@ -821,9 +841,13 @@ if flag_ase_physnet:
     # Get data container
     data = model.get_data_container()
     Ndata = len(data)
-    results_energy = np.zeros([Ndata, 2], dtype=float)
+    Ncalc = int(len(data)*0.1)
+    results_energy = np.zeros([Ncalc, 2], dtype=float)
     for idata, data_i in enumerate(data):
-    
+
+        if idata >= Ncalc:
+            break
+
         # Set system from data container
         system = Atoms(
             data_i['atomic_numbers'],
@@ -832,15 +856,9 @@ if flag_ase_physnet:
         
         # Compute model properties
         model_energy = calc.get_potential_energy(system)
-        
-        # Compare results
-        #print(
-            #"Reference and model energy (error): "
-            #+ f"{system_energy:.4f} eV, {model_energy:.4f} eV "
-            #+ f"({system_energy - model_energy:.4f} eV)")
-        
+
         # Append to result list
-        results_energy[idata, 0] = system_energy
+        results_energy[idata, 0] = system_energy[0]
         results_energy[idata, 1] = model_energy
         
     # Show RMSE

@@ -63,9 +63,6 @@ class Tester:
         model properties will be evaluated if available in the test set.
     test_directory: str, optional, default '.'
         Directory to store evaluation graphics and data.
-    test_store_neighbor_list: bool, optional, default True
-        Store neighbor list parameter in the database file instead of
-        computing in situ.
 
     """
 
@@ -74,7 +71,6 @@ class Tester:
         'test_datasets':                ['test'],
         'tester_properties':            None,
         'test_directory':               '.',
-        'test_store_neighbor_list':     False,
         }
 
     # Expected data types of input variables
@@ -84,7 +80,6 @@ class Tester:
         'tester_properties':            [
             utils.is_string, utils.is_string_array, utils.is_None],
         'test_directory':               [utils.is_string],
-        'test_store_neighbor_list':     [utils.is_bool],
         }
 
     def __init__(
@@ -95,7 +90,6 @@ class Tester:
         test_datasets: Optional[Union[str, List[str]]] = None,
         test_properties: Optional[Union[str, List[str]]] = None,
         test_directory: Optional[str] = None,
-        test_store_neighbor_list: Optional[bool] = None,
         **kwargs
     ):
         """
@@ -322,10 +316,19 @@ class Tester:
         # Loop over all requested data set
         for label, datasubset in self.test_data.items():
 
+            # Get model and descriptor cutoffs
+            model_cutoff = model_calculator.model_cutoff
+            if hasattr(model_calculator.input_module, 'input_radial_cutoff'):
+                input_cutoff = (
+                    model_calculator.input_module.input_radial_cutoff)
+                if input_cutoff != model_cutoff:
+                    cutoff = [input_cutoff, model_cutoff]
+            else:
+                cutoff = [model_cutoff]
+            
             # Set maximum model cutoff for neighbor list calculation
             datasubset.init_neighbor_list(
-                cutoff=model_calculator.model_cutoff,
-                store=self.test_store_neighbor_list)
+                cutoff=model_calculator.model_cutoff)
 
             # Prepare dictionary for property values and number of atoms per
             # system
@@ -361,7 +364,7 @@ class Tester:
                             for isys in range(Nsys)]
                         data_reference = [
                             list(data_reference[isys]) for isys in range(Nsys)]
-                    elif data_prediction.shape[0] == len(batch['sys_ij']):
+                    elif data_prediction.shape[0] == len(batch['idx_i']):
                         data_prediction = [
                             list(data_prediction[isys])
                             for isys in range(Nsys)]

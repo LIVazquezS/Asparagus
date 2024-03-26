@@ -1,4 +1,4 @@
-from memory_profiler import profile
+#from memory_profiler import profile
 
 import logging
 import numpy as np
@@ -198,15 +198,18 @@ class Input_PhysNet(torch.nn.Module):
             'input_n_maxatom': self.input_n_maxatom,
             }
 
-    @profile
+    #@profile
     def forward(
         self, 
         atomic_numbers: torch.Tensor,
         positions: torch.Tensor,
         idx_i: torch.Tensor,
         idx_j: torch.Tensor,
-        pbc_offset: Optional[torch.Tensor] = None,
-    ) -> (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor):
+        pbc_offset_ij: Optional[torch.Tensor] = None,
+        idx_u: Optional[torch.Tensor] = None,
+        idx_v: Optional[torch.Tensor] = None,
+        pbc_offset_uv: Optional[torch.Tensor] = None,
+    ) -> List[torch.Tensor]:
         """
         Forward pass of the input module.
 
@@ -222,6 +225,12 @@ class Input_PhysNet(torch.nn.Module):
             Atom j pair index
         pbc_offset : torch.Tensor(N_pairs, 3), optional, default None
             Position offset from periodic boundary condition
+        idx_u : torch.Tensor(N_pairs), optional, default None
+            Long-range atom u pair index
+        idx_v : torch.Tensor(N_pairs), optional, default None
+            Long-range atom v pair index
+        pbc_offset_uv : torch.Tensor(N_pairs, 3), optional, default None
+            Long-range position offset from periodic boundary condition
 
         Returns
         -------
@@ -233,6 +242,8 @@ class Input_PhysNet(torch.nn.Module):
             Atom pair distance cutoffs
         rbfs: torch.tensor(N_pairs, n_radialbasis)
             Atom pair radial basis functions
+        distances_uv: torch.tensor(N_pairs_uv)
+            Long-range atom pair distances
 
         """
         
@@ -240,14 +251,26 @@ class Input_PhysNet(torch.nn.Module):
         features = self.atom_features(atomic_numbers)
 
         # Compute atom pair distances
-        if pbc_offset is None:
+        if pbc_offset_ij is None:
             distances = torch.norm(
                 positions[idx_j] - positions[idx_i],
                 dim=-1)
         else:
             distances = torch.norm(
-                positions[idx_j] - positions[idx_i] + pbc_offset,
+                positions[idx_j] - positions[idx_i] + pbc_offset_ij,
                 dim=-1)
+
+        # Compute long-range cutoffs
+        if pbc_offset_uv is None and idx_u is not None:
+            distances_uv = torch.norm(
+                positions[idx_u] - positions[idx_v],
+                dim=-1)
+        elif idx_u is not None:
+            distances_uv = torch.norm(
+                positions[idx_v] - positions[idx_u] + pbc_offset_uv,
+                dim=-1)
+        else:
+            distances_uv = distances
 
         # Compute distance cutoff values
         cutoffs = self.cutoff(distances)
@@ -255,7 +278,7 @@ class Input_PhysNet(torch.nn.Module):
         # Compute radial basis functions
         rbfs = self.radial_fn(distances)
 
-        return features, distances, cutoffs, rbfs
+        return features, distances, cutoffs, rbfs, distances_uv
 
 
 #======================================
@@ -386,7 +409,7 @@ class Graph_PhysNet(torch.nn.Module):
             'graph_activation_fn': self.graph_activation_fn,
             }
 
-    @profile
+    #@profile
     def forward(
         self, 
         features: torch.Tensor,

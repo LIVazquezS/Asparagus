@@ -87,9 +87,6 @@ class Trainer:
     trainer_max_checkpoints: int, optional, default 1
         Maximum number of checkpoint files stored before deleting the
         oldest ones up to the number threshold.
-    trainer_store_neighbor_list: bool, optional, default True
-        Store neighbor list parameter in the database file instead of
-        computing in situ.
     trainer_summary_writer: bool, optional, default False
         Write training process to a tensorboard summary writer instance
     trainer_print_progress_bar: bool, optional, default True
@@ -117,7 +114,6 @@ class Trainer:
         'trainer_validation_interval':  5,
         'trainer_evaluate_testset':     True,
         'trainer_max_checkpoints':      1,
-        'trainer_store_neighbor_list':  False,
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         }
@@ -140,7 +136,6 @@ class Trainer:
         'trainer_validation_interval':  [utils.is_integer],
         'trainer_evaluate_testset':     [utils.is_bool],
         'trainer_max_checkpoints':      [utils.is_integer],
-        'trainer_store_neighbor_list':  [utils.is_bool],
         'trainer_summary_writer':       [utils.is_bool],
         'trainer_print_progress_bar':   [utils.is_bool],
         }
@@ -167,7 +162,6 @@ class Trainer:
         trainer_validation_interval: Optional[int] = None,
         trainer_evaluate_testset: Optional[bool] = None,
         trainer_max_checkpoints: Optional[int] = None,
-        trainer_store_neighbor_list: Optional[bool] = None,
         trainer_summary_writer: Optional[bool] = None,
         trainer_print_progress_bar: Optional[bool] = None,
         **kwargs
@@ -354,8 +348,7 @@ class Trainer:
             self.tester = Tester(
                 config=config,
                 data_container=self.data_container,
-                test_datasets='test',
-                test_store_neighbor_list=trainer_store_neighbor_list)
+                test_datasets='test')
 
         #############################
         # # # Save Model Config # # #
@@ -684,15 +677,25 @@ class Trainer:
         # Initialize training time estimation per epoch
         train_time_estimation = np.nan
 
-        # Set maximum model cutoff for neighbor list calculation
+        # Get model and descriptor cutoffs
+        model_cutoff = self.model_calculator.model_cutoff
+        if hasattr(self.model_calculator.input_module, 'input_radial_cutoff'):
+            input_cutoff = (
+                self.model_calculator.input_module.input_radial_cutoff)
+            if input_cutoff != model_cutoff:
+                cutoff = [input_cutoff, model_cutoff]
+        else:
+            cutoff = [model_cutoff]
+
+        # Set model and descriptor cutoffs for neighbor list calculation
         self.data_train.init_neighbor_list(
-            cutoff=self.model_calculator.model_cutoff,
-            store=self.trainer_store_neighbor_list,
-            func_neighbor_list='torch')
+            cutoff=cutoff,
+            device=self.device,
+            dtype=self.dtype)
         self.data_valid.init_neighbor_list(
-            cutoff=self.model_calculator.model_cutoff,
-            store=self.trainer_store_neighbor_list,
-            func_neighbor_list='torch')
+            cutoff=cutoff,
+            device=self.device,
+            dtype=self.dtype)
 
         ##########################
         # # # Start Training # # #
@@ -704,7 +707,7 @@ class Trainer:
 
         # Loop over epochs
         for epoch in torch.arange(
-            trainer_epoch_start, self.trainer_max_epochs
+            trainer_epoch_start, self.trainer_max_epochs + 1
         ):
 
             # Start epoch train timer
@@ -735,7 +738,7 @@ class Trainer:
 
                 # Predict model properties from data batch
                 prediction = self.model_calculator(batch)
-                return
+
                 # Compute total and single loss values for training properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, loss_fn=loss_fn)

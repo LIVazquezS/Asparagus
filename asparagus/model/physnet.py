@@ -108,7 +108,7 @@ class Model_PhysNet(torch.nn.Module):
         model_dispersion_trainable: Optional[bool] = None,
         model_num_threads: Optional[int] = None,
         device: Optional[str] = None,
-        dtype: Optional[str] = None,
+        dtype: Optional[object] = None,
         **kwargs
     ):
         """
@@ -206,18 +206,26 @@ class Model_PhysNet(torch.nn.Module):
                     + f"({self.model_switch_range:.2f}) is larger than the "
                     + f"upper cutoff range ({self.model_cutoff:.2f})!")
             self.model_cuton = self.model_cutoff - self.model_switch_range
-        elif self.model_cuton < 0.0:
+        elif self.model_cuton > self.model_cutoff:
+            msg = (
+                "Lower atom pair cutoff distance 'model_cuton' "
+                + f"({self.model_cuton:.2f}) is larger than the upper cutoff "
+                + f"distance ({self.model_cutoff:.2f})!\n")
+            if self.model_switch_range is None:
+                raise SyntaxError(msg)
+            else:
+                self.model_cuton = self.model_cutoff - self.model_switch_range
+                logger.warning(
+                    f"WARNING:\n{msg:s}"
+                    + "Lower atom pair cutoff distance is changed switched "
+                    + f"to '{self.model_cuton:.2f}'.\n")
+        else:
+            self.model_switch_range = self.model_cutoff - self.model_cuton
+        if self.model_cuton < 0.0:
             raise SyntaxError(
                 "Lower atom pair cutoff distance 'model_cuton' is negative "
                 + f"({self.model_cuton:.2f})!")
-        elif self.model_cuton > self.model_cutoff:
-            raise SyntaxError(
-                "Lower atom pair cutoff distance 'model_cuton' "
-                + f"({self.model_cuton:.2f}) is larger than the upper cutoff "
-                + f"distance ({self.model_cutoff:.2f})!")
-        else:
-            self.model_switch_range = self.model_cutoff - self.model_cuton
-
+        
         # Check module electrostatic and dispersion module requirement
         if self.model_electrostatic and not self.model_energy:
             raise SyntaxError(
@@ -552,13 +560,22 @@ class Model_PhysNet(torch.nn.Module):
         idx_i = batch['idx_i']
         idx_j = batch['idx_j']
         sys_i = batch['sys_i']
+
+        # Long-range atom pair cutoff
+        if batch.get('idx_u') is None:
+            idx_u = idx_i
+            idx_v = idx_j
+        else:
+            idx_u = batch.get('idx_u')
+            idx_v = batch.get('idx_v')
         
         # PBC: Offset method
-        pbc_offset = batch.get('pbc_offset')
+        pbc_offset_ij = batch.get('pbc_offset_ij')
+        pbc_offset_uv = batch.get('pbc_offset_uv')
         
         # PBC: Supercluster method
         pbc_atoms = batch.get('pbc_atoms')
-        pbc_idx = batch.get('pbc_idx')
+        pbc_idx_pointer = batch.get('pbc_idx')
         pbc_idx_j = batch.get('pbc_idx_j')
     
         # Activate back propagation if derivatives with regard to atom positions 
@@ -567,13 +584,15 @@ class Model_PhysNet(torch.nn.Module):
             positions.requires_grad_(True)
 
         # Run input model
-        features, distances, cutoffs, rbfs = self.input_module(
-            atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
+        features, distances, cutoffs, rbfs, distances_uv = self.input_module(
+            atomic_numbers, positions, 
+            idx_i, idx_j, pbc_offset_ij=pbc_offset_ij,
+            idx_u=idx_u, idx_v=idx_v, pbc_offset_uv=pbc_offset_uv)
 
         # PBC: Supercluster approach - Point from image atoms to primary atoms
-        if pbc_idx is not None:
-            idx_i = pbc_idx[idx_i]
-            idx_j = pbc_idx[pbc_idx_j]
+        if pbc_idx_pointer is not None:
+            idx_i = pbc_idx_pointer[idx_i]
+            idx_j = pbc_idx_pointer[pbc_idx_j]
 
         # Run graph model
         features_list = self.graph_module(
@@ -593,7 +612,7 @@ class Model_PhysNet(torch.nn.Module):
             results['atomic_energies'] = (
                 results['atomic_energies']
                 + self.dispersion_module(
-                    atomic_numbers, distances, idx_i, idx_j))
+                    atomic_numbers, distances_uv, idx_u, idx_v))
 
         # Scale atomic charges to ensure correct total charge
         if self.model_atomic_charges:
@@ -612,7 +631,7 @@ class Model_PhysNet(torch.nn.Module):
                 results['atomic_energies']
                 + self.electrostatic_module(
                     results['atomic_charges'], 
-                    distances, idx_i, idx_j))
+                    distances_uv, idx_u, idx_v))
 
         # Compute property - Energy
         if self.model_energy:

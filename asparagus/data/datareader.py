@@ -59,8 +59,7 @@ class DataReader():
 
         # Default property labels
         self.default_property_labels = [
-            'atoms_number', 'atomic_numbers', 'cell', 'pbc',
-            'idx_i', 'idx_j', 'pbc_offset']
+            'atoms_number', 'atomic_numbers', 'cell', 'pbc']
 
         # Assign dataset format with respective load function
         self.data_file_format_load = {
