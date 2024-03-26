@@ -43,11 +43,7 @@ class MDSampler(sample.Sampler):
     md_equilibration_time: float, optional, default 0 (no equilibration)
         Total MD Simulation time in fs for a equilibration run prior to
         the production run.
-    md_initial_velocities: bool, optional, default False
-        Instruction flag if initial atom velocities are assigned with
-        respect to a Maxwell-Boltzmann distribution at temperature
-        'md_initial_temperature'.
-    md_initial_temperature: float, optional, default 300
+    md_initial_temperature: float, optional, default 0
         Temperature for initial atom velocities according to a Maxwell-
         Boltzmann distribution.
 
@@ -66,8 +62,7 @@ class MDSampler(sample.Sampler):
         'md_save_interval':             100,
         'md_langevin_friction':         1.E-2,
         'md_equilibration_time':        None,
-        'md_initial_velocities':        False,
-        'md_initial_temperature':       300.,
+        'md_initial_temperature':       0.,
         })
     
     # Expected data types of input variables
@@ -78,7 +73,6 @@ class MDSampler(sample.Sampler):
         'md_save_interval':             [utils.is_integer],
         'md_langevin_friction':         [utils.is_numeric],
         'md_equilibration_time':        [utils.is_numeric],
-        'md_initial_velocities':        [utils.is_bool],
         'md_initial_temperature':       [utils.is_numeric],
         })
 
@@ -92,7 +86,6 @@ class MDSampler(sample.Sampler):
         md_save_interval: Optional[float] = None,
         md_langevin_friction: Optional[float] = None,
         md_equilibration_time: Optional[float] = None,
-        md_initial_velocities: Optional[bool] = None,
         md_initial_temperature: Optional[float] = None,
         **kwargs,
     ):
@@ -156,7 +149,6 @@ class MDSampler(sample.Sampler):
             'md_save_interval': self.md_save_interval,
             'md_langevin_friction': self.md_langevin_friction,
             'md_equilibration_time': self.md_equilibration_time,
-            'md_initial_velocities': self.md_initial_velocities,
             'md_initial_temperature': self.md_initial_temperature,
             })
         
@@ -326,8 +318,6 @@ class MDSampler(sample.Sampler):
         equilibration_time: float, optional, default None
             Total MD Simulation time in fs for a equilibration run prior to
             the production run.
-        initial_velocities: bool, optional, default None
-            Instruction flag if initial atom velocities are assigned.
         initial_temperature: float, optional, default None
             Temperature for initial atom velocities according to a Maxwell-
             Boltzmann distribution.
@@ -355,8 +345,6 @@ class MDSampler(sample.Sampler):
             langevin_friction = self.md_langevin_friction
         if equilibration_time is None:
             equilibration_time = self.md_equilibration_time
-        if initial_velocities is None:
-            initial_velocities = self.md_initial_velocities
         if initial_temperature is None:
             initial_temperature = self.md_initial_temperature
 
@@ -364,7 +352,7 @@ class MDSampler(sample.Sampler):
         Nsample = 0
 
         # Set initial atom velocities if requested
-        if initial_velocities:
+        if initial_temperature > 0.:
             MaxwellBoltzmannDistribution(
                 system, 
                 temperature_K=initial_temperature)

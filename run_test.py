@@ -808,7 +808,8 @@ if flag_train_physnet:
         )
     trainer = model.get_trainer()
     model.train()
-    model.test()
+    model.test(
+        test_directory='test/physnet')
     
     
     config_file = 'test/train.json'
@@ -825,7 +826,8 @@ if flag_train_physnet:
         )
     trainer = model.get_trainer()
     model.train()
-    model.test()
+    model.test(
+        test_directory='test/physnet')
 
 # Test ASE calculator
 if flag_ase_physnet:
