@@ -2,7 +2,7 @@
 
 **Authors**: K. Toepfer, L.I. Vazquez-Salazar
 
-![alt text](https://github.com/LIVazquezS/Asparagus/blob/master/logo_low.png?raw=true)
+!(https://github.com/LIVazquezS/Asparagus/blob/master/logo.png?raw=true)
 
 ## What is this?
  - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch. 
@@ -18,6 +18,9 @@
   - TensorBoardX <img src="https://latex.codecogs.com/svg.image?\geq&space;" title="\geq " /> 2.4
   - Atomic Simulation Environment (ASE) <img src="https://latex.codecogs.com/svg.image?\geq&space;" title="\geq " /> 3.21
   - xtb
+  - pandas
+  - scipy
+  
 ### Setting up the environment
 
 We recommend to use [Mamba](https://mamba.readthedocs.io/en/latest/user_guide/mamba.html) for the creation of a virtual environment. 
@@ -95,6 +98,9 @@ Please check our documentation [here](http://asparagus-bundle.readthedocs.io/en/
   - [x] ASE calculator for dynamics
 - Documentation:
   - [X] Improve documentation
-  - [ ] Add examples
-  - [ ] Add tutorials
+  - [x] Add examples
+  - [x] Add tutorials
   
+## Contact
+
+For any questions, please open an issue in the repository.

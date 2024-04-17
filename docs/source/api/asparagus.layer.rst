@@ -28,6 +28,14 @@ asparagus.layer.cutoff module
    :undoc-members:
    :show-inheritance:
 
+asparagus.layer.painn\_layers module
+------------------------------------
+
+.. automodule:: asparagus.layer.painn_layers
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 asparagus.layer.physnet\_layers module
 --------------------------------------
 

@@ -48,6 +48,7 @@ class DenseLayer(torch.nn.Linear):
     ):
         """
         Initialize dense layer.
+
         """
 
         self.weight_init = weight_init

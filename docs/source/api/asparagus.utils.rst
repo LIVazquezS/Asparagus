@@ -36,14 +36,6 @@ asparagus.utils.data module
    :undoc-members:
    :show-inheritance:
 
-asparagus.utils.filemanager module
-----------------------------------
-
-.. automodule:: asparagus.utils.filemanager
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 asparagus.utils.functions module
 --------------------------------
 

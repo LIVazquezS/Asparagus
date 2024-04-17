@@ -108,7 +108,7 @@ class Model_PhysNet(torch.nn.Module):
         model_dispersion_trainable: Optional[bool] = None,
         model_num_threads: Optional[int] = None,
         device: Optional[str] = None,
-        dtype: Optional[str] = None,
+        dtype: Optional[object] = None,
         **kwargs
     ):
         """
@@ -119,9 +119,9 @@ class Model_PhysNet(torch.nn.Module):
         super(Model_PhysNet, self).__init__()
         model_type = 'PhysNet'
 
-        ##########################################
-        # # # Check PhysNet Calculator Input # # #
-        ##########################################
+        #############################
+        # # # Check Class Input # # #
+        #############################
         
         # Get configuration object
         config = settings.get_config(
@@ -146,9 +146,9 @@ class Model_PhysNet(torch.nn.Module):
         if config.get('model_num_threads') is not None:
             torch.set_num_threads(config.get('model_num_threads'))
 
-        ##########################################
-        # # # Check PhysNet Model Properties # # #
-        ##########################################
+        #####################################
+        # # # Check PhysNet Model Input # # #
+        #####################################
 
         # Check model properties - Labels
         for prop in self.model_properties:
@@ -156,7 +156,7 @@ class Model_PhysNet(torch.nn.Module):
                 raise SyntaxError(
                     f"Model property label '{prop:s}' is not a valid property "
                     + "label! Valid property labels are:\n"
-                    + list(settings._valid_properties))
+                    + str(list(settings._valid_properties)))
         
         # Check model properties - Energy and energy gradient properties
         self.model_properties = list(self.model_properties)
@@ -206,18 +206,26 @@ class Model_PhysNet(torch.nn.Module):
                     + f"({self.model_switch_range:.2f}) is larger than the "
                     + f"upper cutoff range ({self.model_cutoff:.2f})!")
             self.model_cuton = self.model_cutoff - self.model_switch_range
-        elif self.model_cuton < 0.0:
+        elif self.model_cuton > self.model_cutoff:
+            msg = (
+                "Lower atom pair cutoff distance 'model_cuton' "
+                + f"({self.model_cuton:.2f}) is larger than the upper cutoff "
+                + f"distance ({self.model_cutoff:.2f})!\n")
+            if self.model_switch_range is None:
+                raise SyntaxError(msg)
+            else:
+                self.model_cuton = self.model_cutoff - self.model_switch_range
+                logger.warning(
+                    f"WARNING:\n{msg:s}"
+                    + "Lower atom pair cutoff distance is changed switched "
+                    + f"to '{self.model_cuton:.2f}'.\n")
+        else:
+            self.model_switch_range = self.model_cutoff - self.model_cuton
+        if self.model_cuton < 0.0:
             raise SyntaxError(
                 "Lower atom pair cutoff distance 'model_cuton' is negative "
                 + f"({self.model_cuton:.2f})!")
-        elif self.model_cuton > self.model_cutoff:
-            raise SyntaxError(
-                "Lower atom pair cutoff distance 'model_cuton' "
-                + f"({self.model_cuton:.2f}) is larger than the upper cutoff "
-                + f"distance ({self.model_cutoff:.2f})!")
-        else:
-            self.model_switch_range = self.model_cutoff - self.model_cuton
-
+        
         # Check module electrostatic and dispersion module requirement
         if self.model_electrostatic and not self.model_energy:
             raise SyntaxError(
@@ -552,13 +560,22 @@ class Model_PhysNet(torch.nn.Module):
         idx_i = batch['idx_i']
         idx_j = batch['idx_j']
         sys_i = batch['sys_i']
+
+        # Long-range atom pair cutoff
+        if batch.get('idx_u') is None:
+            idx_u = idx_i
+            idx_v = idx_j
+        else:
+            idx_u = batch.get('idx_u')
+            idx_v = batch.get('idx_v')
         
         # PBC: Offset method
-        pbc_offset = batch.get('pbc_offset')
+        pbc_offset_ij = batch.get('pbc_offset_ij')
+        pbc_offset_uv = batch.get('pbc_offset_uv')
         
         # PBC: Supercluster method
         pbc_atoms = batch.get('pbc_atoms')
-        pbc_idx = batch.get('pbc_idx')
+        pbc_idx_pointer = batch.get('pbc_idx')
         pbc_idx_j = batch.get('pbc_idx_j')
     
         # Activate back propagation if derivatives with regard to atom positions 
@@ -567,20 +584,22 @@ class Model_PhysNet(torch.nn.Module):
             positions.requires_grad_(True)
 
         # Run input model
-        features, distances, cutoffs, rbfs = self.input_module(
-            atomic_numbers, positions, idx_i, idx_j, pbc_offset=pbc_offset)
+        features, distances, cutoffs, rbfs, distances_uv = self.input_module(
+            atomic_numbers, positions, 
+            idx_i, idx_j, pbc_offset_ij=pbc_offset_ij,
+            idx_u=idx_u, idx_v=idx_v, pbc_offset_uv=pbc_offset_uv)
 
         # PBC: Supercluster approach - Point from image atoms to primary atoms
-        if pbc_idx is not None:
-            idx_i = pbc_idx[idx_i]
-            idx_j = pbc_idx[pbc_idx_j]
+        if pbc_idx_pointer is not None:
+            idx_i = pbc_idx_pointer[idx_i]
+            idx_j = pbc_idx_pointer[pbc_idx_j]
 
         # Run graph model
         features_list = self.graph_module(
             features, distances, cutoffs, rbfs, idx_i, idx_j)
 
         # Run output model
-        output = self.output_module(
+        results = self.output_module(
             features_list, 
             atomic_numbers=atomic_numbers)
         
@@ -590,56 +609,56 @@ class Model_PhysNet(torch.nn.Module):
 
         # Add dispersion model contributions
         if self.model_dispersion:
-            output['atomic_energies'] = (
-                output['atomic_energies']
+            results['atomic_energies'] = (
+                results['atomic_energies']
                 + self.dispersion_module(
-                    atomic_numbers, distances, idx_i, idx_j))
+                    atomic_numbers, distances_uv, idx_u, idx_v))
 
         # Scale atomic charges to ensure correct total charge
         if self.model_atomic_charges:
             charge_deviation = (
                 charge - utils.segment_sum(
-                    output['atomic_charges'], sys_i, device=self.device)
+                    results['atomic_charges'], sys_i, device=self.device)
                 / atoms_number
                 )
-            output['atomic_charges'] = (
-                output['atomic_charges'] + charge_deviation[sys_i])
+            results['atomic_charges'] = (
+                results['atomic_charges'] + charge_deviation[sys_i])
 
         # Add electrostatic model contribution
         if self.model_electrostatic:
             # Apply electrostatic model
-            output['atomic_energies'] = (
-                output['atomic_energies']
+            results['atomic_energies'] = (
+                results['atomic_energies']
                 + self.electrostatic_module(
-                    output['atomic_charges'], 
-                    distances, idx_i, idx_j))
+                    results['atomic_charges'], 
+                    distances_uv, idx_u, idx_v))
 
         # Compute property - Energy
         if self.model_energy:
-            output['energy'] = torch.squeeze(
+            results['energy'] = torch.squeeze(
                 utils.segment_sum(
-                    output['atomic_energies'], sys_i, device=self.device)
+                    results['atomic_energies'], sys_i, device=self.device)
                 )
 
         # Compute gradients and Hessian if demanded
         if self.model_forces:
 
             gradient = torch.autograd.grad(
-                torch.sum(output['energy']),
+                torch.sum(results['energy']),
                 positions,
                 create_graph=True)[0]
 
             # Avoid crashing if forces are none
             if gradient is not None:
-                output['forces'] = -gradient
+                results['forces'] = -gradient
             else:
                 logger.warning(
                     "WARNING:\nError in force calculation "
                     + "(backpropagation)!")
-                output['forces'] = torch.zeros_like(positions)
+                results['forces'] = torch.zeros_like(positions)
 
             if self.model_hessian:
-                hessian = output['energy'].new_zeros(
+                hessian = results['energy'].new_zeros(
                     (gradient.size(0), gradient.size(0)))
                 for ig in range(gradient.size(0)):
                     hessian_ig = torch.autograd.grad(
@@ -648,25 +667,19 @@ class Model_PhysNet(torch.nn.Module):
                         retain_graph=(ig < gradient.size(0)))[0]
                     if hessian_ig is not None:
                         hessian[ig] = hessian_ig.view(-1)
-                output['hessian'] = hessian
+                results['hessian'] = hessian
 
         # Compute molecular dipole of demanded
         if self.model_dipole:
             if pbc_atoms is None:
-                output['dipole'] = utils.segment_sum(
-                    output['atomic_charges'][..., None]*positions,
+                results['dipole'] = utils.segment_sum(
+                    results['atomic_charges'][..., None]*positions,
                     sys_i, device=self.device).reshape(-1, 3)
             else:
-                output['dipole'] = utils.segment_sum(
-                    output['atomic_charges'][..., None]
+                results['dipole'] = utils.segment_sum(
+                    results['atomic_charges'][..., None]
                     *positions[pbc_atoms],
                     sys_i, device=self.device).reshape(-1, 3)
 
-        #print('properties predicted: ', output.keys())
-        #print('energy: ', output['energy'])
-        #print('forces: ', output['forces'])
-        #print('atomic charges: ', output['atomic_charges'])
-        #print('dipole: ', output['dipole'])
-
-        return output
+        return results
 

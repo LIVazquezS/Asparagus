@@ -55,7 +55,6 @@ class ASE_Calculator(ase_calc.Calculator):
         atoms: Optional[object] = None,
         atoms_charge: Optional[float] = None,
         implemented_properties: Optional[List[str]] = None,
-        use_ase_neighbor_list: Optional[bool] = None,
         **kwargs
     ):
         """
@@ -113,27 +112,38 @@ class ASE_Calculator(ase_calc.Calculator):
 
         # Get model interaction cutoff and set evaluation mode
         if self.model_ensemble:
-            self.interaction_cutoff = 0.0
+            model_cutoff = 0.0
+            input_cutoff = 0.0
             for calc in self.model_calculator_list:
                 cutoff = calc.model_cutoff
-                if self.interaction_cutoff < cutoff:
-                    self.interaction_cutoff = cutoff
+                if model_cutoff < cutoff:
+                    model_cutoff = cutoff
+                if hasattr(calc.input_module, 'input_radial_cutoff'):
+                    input_cutoff = calc.input_module.input_radial_cutoff
+                else:
+                    input_cutoff = None
                 calc.eval()
         else:
-            self.interaction_cutoff = (
+            model_cutoff = (
                 self.model_calculator.model_cutoff)
+            if hasattr(
+                self.model_calculator.input_module, 'input_radial_cutoff'
+            ):
+                input_cutoff = (
+                    self.model_calculator.input_module.input_radial_cutoff)
+            else:
+                input_cutoff = None
             self.model_calculator.eval()
 
-        # Flag for the use atoms neighbor list function to potentially reduce
-        # the number atom pairs
-        if use_ase_neighbor_list is None:
-            self.use_ase_neighbor_list = True
+        # Initialize neighbor list function
+        if input_cutoff is None or input_cutoff == model_cutoff:
+            cutoff = [model_cutoff]
         else:
-            if utils.is_bool(use_ase_neighbor_list):
-                self.use_ase_neighbor_list = use_ase_neighbor_list
-            else:
-                raise SyntaxError(
-                    "Input flag 'use_ase_neighbor_list' must be a boolean!")
+            cutoff = [input_cutoff, model_cutoff]
+        self.neighbor_list = utils.TorchNeighborListRangeSeparated(
+            cutoff,
+            self.model_calculator.device,
+            self.model_calculator.dtype)
 
         # Get property unit conversions from model units to ASE units
         self.model_unit_properties = (
@@ -241,14 +251,22 @@ class ASE_Calculator(ase_calc.Calculator):
         atoms_batch['atoms_number'] = torch.tensor(
             [Natoms], dtype=torch.int64)
 
-        # Atom positions
-        atoms_batch['positions'] = torch.zeros(
-            [Natoms, 3], dtype=torch.float64)
-
         # Atomic number
         atoms_batch['atomic_numbers'] = torch.tensor(
             self.atoms.get_atomic_numbers(), dtype=torch.int64)
 
+        # Atom positions
+        atoms_batch['positions'] = torch.zeros(
+            [Natoms, 3], dtype=torch.float64)
+        
+        # Atom periodic boundary conditions
+        atoms_batch['pbc'] = torch.tensor(
+            self.atoms.get_pbc(), dtype=torch.bool)
+        
+        # Atom cell information
+        atoms_batch['cell'] = torch.tensor(
+            self.atoms.get_cell()[:], dtype=torch.int64)
+        
         # Atom segment indices, just one atom segment allowed
         atoms_batch['sys_i'] = torch.zeros(
             Natoms, dtype=torch.int64)
@@ -291,34 +309,8 @@ class ASE_Calculator(ase_calc.Calculator):
             self.atoms.get_positions(), dtype=torch.float64)
 
         # Create and assign atom pair indices and periodic offsets
-        if self.use_ase_neighbor_list or any(self.atoms.get_pbc()):
-            idx_i, idx_j, pbc_offset = neighbor_list(
-                'ijS',
-                self.atoms,
-                100.0,
-                self_interaction=False)
-            atoms_batch['idx_i'] = torch.tensor(idx_i, dtype=torch.int64)
-            atoms_batch['idx_j'] = torch.tensor(idx_j, dtype=torch.int64)
-            pbc_offset = np.sum(
-                (pbc_offset.reshape(-1, 3, 1)
-                    *self.atoms.get_cell().reshape(1, 3, 3)
-                ),
-                axis=-1)
-            atoms_batch['pbc_offset'] = torch.tensor(
-                pbc_offset, dtype=torch.float64)
-        else:
-            idx = torch.arange(
-                end=atoms_batch['atoms_number'][0], dtype=torch.int64)
-            atoms_batch['idx_i'] = idx.repeat(
-                atoms_batch['atoms_number'][0] - 1)
-            atoms_batch['idx_j'] = torch.roll(idx, -1, dims=0)
-            atoms_batch['pbc_offset'] = torch.zeros(
-                (atoms_batch['atoms_number'], 3), dtype=torch.float64)
-
-        # Atom pairs segment index, also just one atom pair segment allowed
-        atoms_batch['sys_ij'] = torch.zeros_like(
-            atoms_batch['idx_i'], dtype=torch.int64)
-
+        atoms_batch = self.neighbor_list(atoms_batch)
+        
         return atoms_batch
 
     def initialize_model_input_list(
@@ -424,48 +416,7 @@ class ASE_Calculator(ase_calc.Calculator):
                 i_atom += 1
 
         # Create and assign atom pair indices and periodic offsets
-        idx_i, idx_j, pbc_offset = [], [], []
-        for shift, (i_atom, atoms) in zip(
-                atoms_batch['Natoms_cumsum'][:-1],
-                enumerate(atoms_list)):
-            if self.use_ase_neighbor_list or any(atoms.get_pbc()):
-                atoms_idx_i, atoms_idx_j, atoms_pbc_offset = neighbor_list(
-                    'ijS',
-                    atoms,
-                    self.interaction_cutoff,
-                    self_interaction=False)
-                atoms_idx_i = torch.tensor(atoms_idx_i, dtype=torch.int64)
-                atoms_idx_j = torch.tensor(atoms_idx_j, dtype=torch.int64)
-                atoms_pbc_offset = np.sum(
-                    (atoms_pbc_offset.reshape(-1, 3, 1)
-                        * atoms.get_cell().reshape(1, 3, 3)
-                    ),
-                    axis=-1)
-                atoms_pbc_offset = torch.tensor(
-                    atoms_pbc_offset, dtype=torch.float64)
-            else:
-                idx = torch.arange(
-                    end=atoms_batch['atoms_number'][i_atom],
-                    dtype=torch.int64)
-                atoms_idx_i = idx.repeat(
-                    atoms_batch['atoms_number'][i_atom] - 1)
-                atoms_idx_j = torch.roll(idx, -1, dims=0)
-                atoms_pbc_offset = torch.zeros(
-                    (atoms_batch['atoms_number'][i_atom], 3),
-                    dtype=torch.float64)
-            idx_i.append(atoms_idx_i + shift)
-            idx_j.append(atoms_idx_j + shift)
-            pbc_offset.append(atoms_pbc_offset)
-        atoms_batch['idx_i'] = torch.cat(idx_i, dim=0)
-        atoms_batch['idx_j'] = torch.cat(idx_j, dim=0)
-        atoms_batch['pbc_offset'] = torch.cat(pbc_offset, dim=0)
-
-        # Atom pairs segment
-        Npairs = torch.tensor(
-            [len(atoms_idx_i) for atoms_idx_i in idx_i])
-        atoms_batch['sys_ij'] = torch.repeat_interleave(
-            torch.arange(atoms_batch['Nsys'], dtype=torch.int64),
-            repeats=Npairs, dim=0)
+        atoms_batch = self.neighbor_list(atoms_batch)
 
         return atoms_batch
 
@@ -629,10 +580,12 @@ class ASE_Calculator(ase_calc.Calculator):
                 atoms_results.append(
                     all_results[iatoms:(iatoms + Natoms)])
                 iatoms = iatoms + Natoms
-        elif all_results.shape[0] == atoms_batch['sys_ij'].shape[0]:
+        elif all_results.shape[0] == atoms_batch['idx_i'].shape[0]:
             atoms_results = [
                 [] for _ in atoms_batch['atoms_number']]
-            for ipair, isys in enumerate(atoms_batch['sys_ij']):
+            for ipair, isys in enumerate(
+                atoms_batch['sys_i'][atoms_batch['idx_i']]
+            ):
                 atoms_results[isys].append(all_results[ipair])
         else:
             raise SyntaxError(

@@ -77,9 +77,11 @@ def get_optimizer(
             if trainer_optimizer.lower() in optimizer_argumens.keys():
                 trainer_optimizer_args.update(
                     optimizer_argumens[trainer_optimizer.lower()])
-            optimizer_input = []
+
             # Prepare optimiizer input
             if utils.is_dictionary(model_parameter):
+
+                optimizer_input = []
 
                 # Iterate over parameter sets
                 for key, parameters in model_parameter.items():

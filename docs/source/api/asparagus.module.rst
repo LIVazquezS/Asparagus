@@ -44,6 +44,14 @@ asparagus.module.output module
    :undoc-members:
    :show-inheritance:
 
+asparagus.module.painn\_modules module
+--------------------------------------
+
+.. automodule:: asparagus.module.painn_modules
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 asparagus.module.physnet\_modules module
 ----------------------------------------
 

@@ -134,9 +134,9 @@ class InteractionLayer(torch.nn.Module):
 
     def __init__(
         self,
-        input_n_atombasis: int,
-        input_n_radialbasis: int,
-        graph_n_residual_interaction: int,
+        n_atombasis: int,
+        n_radialbasis: int,
+        n_residual_interaction: int,
         activation_fn: Optional[Callable] = None,
         device: Optional[str] = 'cpu',
         dtype: Optional[object] = torch.float64,
@@ -153,8 +153,8 @@ class InteractionLayer(torch.nn.Module):
         # Dense layer for the conversion from radial basis vector to atomic 
         # feature vector length
         self.radial2atom = DenseLayer(
-            input_n_radialbasis,
-            input_n_atombasis,
+            n_radialbasis,
+            n_atombasis,
             bias=False,
             weight_init=torch.nn.init.zeros_,
             device=device,
@@ -162,16 +162,16 @@ class InteractionLayer(torch.nn.Module):
 
         # Dense layer for atomic feature vector for atom i
         self.dense_i = DenseLayer(
-            input_n_atombasis,
-            input_n_atombasis,
+            n_atombasis,
+            n_atombasis,
             activation_fn=activation_fn,
             device=device,
             dtype=dtype)
         
         # Dense layer for atomic feature vector for atom j
         self.dense_j = DenseLayer(
-            input_n_atombasis,
-            input_n_atombasis,
+            n_atombasis,
+            n_atombasis,
             activation_fn=activation_fn,
             device=device,
             dtype=dtype)
@@ -180,23 +180,23 @@ class InteractionLayer(torch.nn.Module):
         # the message vector
         self.residuals_ij = torch.nn.ModuleList([
             ResidualLayer(
-                input_n_atombasis,
+                n_atombasis,
                 activation_fn=activation_fn,
                 device=device,
                 dtype=dtype)
-            for _ in range(graph_n_residual_interaction)])
+            for _ in range(n_residual_interaction)])
 
         # Dense layer for message vector interaction
         self.dense_out = DenseLayer(
-            input_n_atombasis,
-            input_n_atombasis,
+            n_atombasis,
+            n_atombasis,
             device=device,
             dtype=dtype)
         
         # Scaling vector for mixing of initial atomic feature vector with
         # message vector
         self.scaling = torch.nn.Parameter(
-            torch.ones([input_n_atombasis], device=device, dtype=dtype))
+            torch.ones([n_atombasis], device=device, dtype=dtype))
         
         # Special case flag for variable assignment on CPU's
         if device.lower() == 'cpu':

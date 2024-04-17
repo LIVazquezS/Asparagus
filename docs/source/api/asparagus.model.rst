@@ -20,6 +20,14 @@ asparagus.model.filemanager module
    :undoc-members:
    :show-inheritance:
 
+asparagus.model.painn module
+----------------------------
+
+.. automodule:: asparagus.model.painn
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 asparagus.model.physnet module
 ------------------------------
 

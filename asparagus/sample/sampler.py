@@ -252,15 +252,14 @@ class Sampler:
         ase_calculator, ase_calculator_tag = (
             interface.get_ase_calculator(
                 self.sample_calculator,
-                self.sample_calculator_args)
-            )
+                self.sample_calculator_args))
+        
+        # Assign calculator tag for info dictionary
+        self.sample_calculator_tag = ase_calculator_tag
 
         # Check requested system properties
         self.check_properties(ase_calculator)
 
-        # Store calculator tag name
-        self.sample_calculator_tag = ase_calculator_tag
-        
         # Check number of calculation threads
         if self.sample_num_threads <= 0:
             raise ValueError(
@@ -314,8 +313,12 @@ class Sampler:
             sample_systems = [sample_systems]
         
         if sample_systems_format is None:
-            sample_systems_format = [
-                system.split('.')[-1] for system in sample_systems]
+            sample_systems_format = []
+            for system in sample_systems:
+                if utils.is_string(system):
+                    sample_systems_format.append(system.split('.')[-1])
+                else:
+                    sample_systems_format.append(None)
         elif utils.is_string(sample_systems_format):
             sample_systems_format = (
                 [sample_systems_format]*len(sample_systems))
@@ -362,7 +365,15 @@ class Sampler:
 
             # Check for ASE Atoms object or read system file
             if utils.is_ase_atoms(source):
-                sample_systems_queue.put((source, isample, str(source), 1))
+                
+                # Store ASE Atoms object as xyf file
+                source_file = os.path.join(
+                    self.sample_directory,
+                    f"{self.sample_counter:d}_sample_system_{isample:d}.xyz")
+                ase.io.write(source_file, source, format='xyz')
+
+                # Add sample system to queue
+                sample_systems_queue.put((source, isample, source_file, 1))
             
             # Check for an Asparagus dataset
             elif source_format.lower() == 'db':
@@ -594,6 +605,8 @@ class Sampler:
         # Print sampling overview
         msg = f"Perform sampling method '{self.sample_tag:s}' on systems:\n"
         for isys, system in enumerate(sample_systems):
+            if utils.is_ase_atoms(system):
+                system = system.get_chemical_formula()
             msg += f" {isys + 1:3d}. '{system:s}'\n"
         logger.info(f"INFO:\n{msg:s}")
 
