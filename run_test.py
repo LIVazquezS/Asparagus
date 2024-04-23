@@ -14,7 +14,7 @@ flag_dictionary_initialization = False
 flag_database_sql = False
 flag_database_hdf5 = False
 flag_sampler_all = False
-flag_sampler_shell = True
+flag_sampler_shell = False
 flag_sampler_slurm = False
 flag_model_physnet = False
 flag_model_painn = False
@@ -868,3 +868,17 @@ if flag_ase_physnet:
         np.mean((results_energy[:, 0] - results_energy[:, 1])**2))
     print(f"RMSE(energy) = {rmse_energy:.4f} eV")
 
+
+
+
+# Debug
+if True:
+    
+    # Open DataBase file
+    model = asparagus.Asparagus(
+        config='test_config',
+        data_file='test_data.db',
+        data_file_format='sql',
+        data_source=['data/md.db', 'data/meta_rp1.db', 'data/meta_rp2.db']
+        )
+    model.train()

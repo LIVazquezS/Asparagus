@@ -250,6 +250,8 @@ class InteractionLayer(torch.nn.Module):
 
         # Combine descriptor weighted neighbor atoms feature vector for each
         # central atom i
+        print(gxj.shape, idx_i.shape)
+        print(idx_i)
         xj = utils.segment_sum(gxj, idx_i, device=gxj.device)
 
         # Combine features to message vector

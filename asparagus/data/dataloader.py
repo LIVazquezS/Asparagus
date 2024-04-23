@@ -199,6 +199,7 @@ class DataLoader(torch.utils.data.DataLoader):
         coll_batch = self.neighbor_list(
             coll_batch,
             atomic_numbers_cumsum=atomic_numbers_cumsum)
-
+        print([(key, item.shape) for key, item in coll_batch.items()])
+        print("")
         return coll_batch
 
