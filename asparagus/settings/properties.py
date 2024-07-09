@@ -1,14 +1,5 @@
 
 #======================================
-# Cutoff function labels
-#======================================
-
-# Valid cutoff function labels
-_valid_cutoff_fn = [
-    'Poly6',
-]
-
-#======================================
 # Property labels
 #======================================
 
@@ -74,17 +65,9 @@ _default_units = {
     'dipole':           'e*Ang',
     }
 
-# Default output block options for properties
-_default_output_block_options = {
-    'energy':           {
-        'aggregation':      ['sum', 'atomic_energies'],
-        },
-    'atomic_energies':      {
-        'aggregation':      None,
-        'n_outputneurons':  1,
-        'n_hiddenlayers':   2,
-        'n_hiddenneurons':  None,
-        'output_bias':      True,
-        'output_init_zero': True,
-        },
-    }
+# Valid property labels
+_related_unit_properties = [
+    ['energy', 'atomic_energies'],
+    ['charge', 'atomic_charges'],
+    ['dipole', 'atomic_dipoles'],
+    ]

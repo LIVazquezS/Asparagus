@@ -168,6 +168,14 @@ class DataContainer():
                 )
             )
 
+        # Update global configuration dictionary
+        config.update(
+            {
+                'data_load_properties': self.data_load_properties,
+                'data_unit_properties': self.data_unit_properties,
+                }, 
+            config_from=self)
+
         #########################
         # # # DataSet Setup # # #
         #########################
@@ -267,6 +275,8 @@ class DataContainer():
         metadata = self.dataset.metadata
         self.data_source = metadata.get('data_source')
         self.data_source_format = metadata.get('data_source_format')
+
+        return
 
     def dataset_setup(
         self,
@@ -700,10 +710,10 @@ class DataContainer():
         # Check for unknown property labels in 'data_unit_properties'
         # and replace if possible with internally used property label in
         # 'data_alt_property_labels'
-        props = list(data_unit_properties.keys())
-        for prop in props:
+        for prop in data_unit_properties:
             match, modified, new_prop = utils.check_property_label(
-                prop,                valid_property_labels=settings._valid_properties,
+                prop,
+                valid_property_labels=settings._valid_properties,
                 alt_property_labels=data_alt_property_labels)
             if match and modified:
                 logger.warning(
@@ -716,25 +726,46 @@ class DataContainer():
                 raise ValueError(
                     f"Unknown property ('{prop}') in 'data_unit_properties'!")
 
-        # Check if all units from data_load_properties are defined in
-        # data_unit_properties, if not assign default units
-        for prop in data_load_properties:
-            if prop not in data_unit_properties.keys():
-                logger.warning(
-                    f"WARNING:\nNo unit defined for property '{prop}'!\n"
-                    + f"Default unit of '{settings._default_units[prop]}' "
-                    + "will be used.\n")
-                data_unit_properties[prop] = settings._default_units[prop]
+        # Initialize checked property units dictionary
+        checked_data_unit_properties = {}
 
-        # Check if positions unit is defined in data_unit_properties
+        # Check if positions unit is defined in 'data_unit_properties'
+        # or 'data_unit_positions'.
         if (
             'positions' not in data_unit_properties 
             and data_unit_positions is not None
         ):
-            data_unit_properties['positions'] = data_unit_positions
-            
+            checked_data_unit_properties['positions'] = data_unit_positions
+        elif data_unit_positions is not None:
+            checked_data_unit_properties['positions'] = (
+                data_unit_properties['positions'])
+        else:
+            checked_data_unit_properties['positions'] = (
+                settings._default_units['positions'])
+
+        # Check if charge unit is defined in 'data_unit_properties'.
+        if 'charge' not in data_unit_properties:
+            checked_data_unit_properties['charge'] = (
+                settings._default_units['charge'])
+        else:
+            checked_data_unit_properties['charge'] = (
+                data_unit_properties['charge'])
+
+        # Check if all units from 'data_load_properties' are defined in
+        # 'data_unit_properties', if not assign default units.
+        for prop in data_load_properties:
+            if prop not in data_unit_properties:
+                logger.warning(
+                    f"WARNING:\nNo unit defined for property '{prop}'!\n"
+                    + f"Default unit of '{settings._default_units[prop]}' "
+                    + "will be used.\n")
+                checked_data_unit_properties[prop] = (
+                    settings._default_units[prop])
+            else:
+                checked_data_unit_properties[prop] = data_unit_properties[prop]
+    
         return (
-            data_load_properties, data_unit_properties, 
+            data_load_properties, checked_data_unit_properties, 
             data_alt_property_labels)
 
     def check_data_source(

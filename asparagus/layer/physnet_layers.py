@@ -357,9 +357,9 @@ class OutputBlock(torch.nn.Module):
         """
 
         # Apply residual layers on atomic features
-        for residual in self.residuals:
+        for ir, residual in enumerate(self.residuals):
             features = residual(features)
-
+        
         # Apply last activation function
         features = self.activation_fn(features)
 

@@ -65,19 +65,15 @@ class Model_PhysNet(torch.nn.Module):
     # Default arguments for graph module
     _default_args = {
         'model_properties':             ['energy', 'forces', 'dipole'],
-        'model_unit_properties':        { "positions": "Ang",
-                                          "charge": "e",
-                                          "atomic_charges": "e",
-                                          "energy": "eV",
-                                          "atomic_energies": "eV",
-                                          "forces": "eV/Ang",
-                                          "dipole": "eAng"},
+        'model_unit_properties':        {'energy': 'eV',
+                                         'forces': 'eV/Ang',
+                                         'dipole': 'eAng'},
         'model_cutoff':                 12.0,
         'model_cuton':                  None,
         'model_switch_range':           2.0,
         'model_repulsion':              False,
         'model_repulsion_trainable':    True,
-        'model_electrostatic':          True,
+        'model_electrostatic':          None,
         'model_dispersion':             True,
         'model_dispersion_trainable':   True,
         'model_num_threads':            4,
@@ -92,7 +88,7 @@ class Model_PhysNet(torch.nn.Module):
         'model_switch_range':           [utils.is_numeric],
         'model_repulsion':              [utils.is_bool],
         'model_repulsion_trainable':    [utils.is_bool],
-        'model_electrostatic':          [utils.is_bool],
+        'model_electrostatic':          [utils.is_bool, utils.is_None],
         'model_dispersion':             [utils.is_bool],
         'model_dispersion_trainable':   [utils.is_bool],
         'model_num_threads':            [utils.is_integer],
@@ -232,6 +228,20 @@ class Model_PhysNet(torch.nn.Module):
             self.model_atomic_charges = False
             self.model_dipole = False
 
+        # Check model property units
+        self.model_unit_properties = self.check_model_properties(
+            self.model_properties,
+            self.model_unit_properties,
+            )
+
+        # If electrostatic energy contribution is undefined, activate 
+        # contribution if atomic charges are predicted.
+        if self.model_electrostatic is None:
+            if self.model_atomic_charges:
+                self.model_electrostatic = True
+            else:
+                self.model_electrostatic = False
+
         # Check lower cutoff switch-off range
         if self.model_cuton is None:
             if self.model_switch_range > self.model_cutoff:
@@ -282,6 +292,7 @@ class Model_PhysNet(torch.nn.Module):
         # Update global configuration dictionary
         config_update = {
             'model_properties': self.model_properties,
+            'model_unit_properties': self.model_unit_properties,
             'model_cutoff': self.model_cutoff,
             'model_cuton': self.model_cuton,
             'model_switch_range': self.model_switch_range}
@@ -460,6 +471,72 @@ class Model_PhysNet(torch.nn.Module):
             'model_dispersion': self.model_dispersion,
             'model_dispersion_trainable': self.model_dispersion_trainable,
         }
+
+    def check_model_properties(
+        self,
+        properties, 
+        unit_properties,
+    ) -> Dict[str, str]:
+        """
+        Check model property units input.
+        
+        Parameters
+        ----------
+        properties: list(str)
+            Properties to predict by calculator model
+        unit_properties: dict
+            Unit labels of the predicted model properties.
+
+        Returns
+        ----------
+        dict(str, str)
+            Checked unit labels of the predicted model properties.
+
+        """
+
+        # Initialize checked property units dictionary
+        checked_unit_properties = {}
+
+        # Check if positions unit is defined in 'unit_properties'.
+        if 'positions' not in unit_properties:
+            checked_unit_properties['positions'] = (
+                settings._default_units['positions'])
+        else:
+            checked_unit_properties['positions'] = (
+                unit_properties['positions'])
+
+        # Check if charge unit is defined in 'unit_properties'.
+        if 'charge' not in unit_properties:
+            checked_unit_properties['charge'] = (
+                settings._default_units['charge'])
+        else:
+            checked_unit_properties['charge'] = (
+                unit_properties['charge'])
+
+        # Check if all units from 'properties' are defined in 
+        # 'unit_properties'.
+        for prop in properties:
+            if prop not in unit_properties:
+                # Check if a related property unit is defined
+                for rel_props in settings._related_unit_properties:
+                    if prop in rel_props:
+                        for rprop in rel_props:
+                            if rprop in unit_properties:
+                                checked_unit_properties[prop] = (
+                                    unit_properties[rprop])
+                                break
+                # Else, take default
+                logger.warning(
+                    f"WARNING:\nNo unit defined for property '{prop}'!\n"
+                    + f"Default unit of '{settings._default_units[prop]}' "
+                    + "will be used.\n")
+                checked_unit_properties[prop] = (
+                    settings._default_units[prop])
+            else:
+                checked_unit_properties[prop] = (
+                    unit_properties[prop])
+
+        return checked_unit_properties
 
     def set_property_scaling(
             self,

@@ -92,7 +92,10 @@ class Trainer:
         Write training process to a tensorboard summary writer instance
     trainer_print_progress_bar: bool, optional, default True
         Print progress bar to stout.
-        
+    trainer_debug_mode: bool, optional, default False
+        Perform model training in debug mode, which check repeatedly for
+        'NaN' results.
+
 
     """
 
@@ -105,7 +108,7 @@ class Trainer:
         'trainer_properties_weights':   {
             'energy': 1., 'forces': 50., 'dipole': 25., 'else': 1.},
         'trainer_optimizer':            'AMSgrad',
-        'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-5},
+        'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-1},
         'trainer_scheduler':            'ExponentialLR',
         'trainer_scheduler_args':       {'gamma': 0.99},
         'trainer_ema':                  True,
@@ -117,6 +120,7 @@ class Trainer:
         'trainer_max_checkpoints':      1,
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
+        'trainer_debug_mode':           False,
         }
 
     # Expected data types of input variables
@@ -139,6 +143,7 @@ class Trainer:
         'trainer_max_checkpoints':      [utils.is_integer],
         'trainer_summary_writer':       [utils.is_bool],
         'trainer_print_progress_bar':   [utils.is_bool],
+        'trainer_debug_mode':           [utils.is_bool],
         }
 
     def __init__(
@@ -165,6 +170,7 @@ class Trainer:
         trainer_max_checkpoints: Optional[int] = None,
         trainer_summary_writer: Optional[bool] = None,
         trainer_print_progress_bar: Optional[bool] = None,
+        trainer_debug_mode: Optional[bool] = None,
         device: Optional[str] = None,
         dtype: Optional[object] = None,
         **kwargs
@@ -630,7 +636,6 @@ class Trainer:
         self,
         reset_best_loss=False,
         verbose=True,
-        debug=False,
         **kwargs,
     ):
         """
@@ -643,8 +648,6 @@ class Trainer:
             loss value. Else, reset best loss value to None.
         verbose: bool, optional, default True
             Show progress bar for the current epoch.
-        debug: bool, optional, dafault False
-            Enable torch autograd anomaly detection.
 
         """
 
@@ -684,7 +687,7 @@ class Trainer:
         # Initialize training mode for calculator
         self.model_calculator.train()
         torch.set_grad_enabled(True)
-        if debug:
+        if self.trainer_debug_mode:
             torch.autograd.set_detect_anomaly(True)
 
         # Reset property metrics
@@ -761,11 +764,26 @@ class Trainer:
 
                 # Predict model properties from data batch
                 prediction = self.model_calculator(batch)
+                
+                # Check for NaN predictions
+                if self.trainer_debug_mode:
+                    for prop, item in prediction.items():
+                        if torch.any(torch.isnan(item)):
+                            raise SyntaxError(
+                                f"Property prediction of '{prop:s}' contains "
+                                + f"{torch.sum(torch.isnan(item))} elements "
+                                + "of value 'NaN'!")
 
                 # Compute total and single loss values for training properties
                 metrics_batch = self.compute_metrics(
                     prediction, batch, loss_fn=loss_fn)
                 loss = metrics_batch['loss']
+
+                # Check for NaN loss value
+                if self.trainer_debug_mode:
+                    if torch.isnan(loss):
+                        raise SyntaxError(
+                            "Loss value of training batch is 'NaN'!")
 
                 # Predict parameter gradients by backwards propagation
                 loss.backward()
@@ -947,13 +965,15 @@ class Trainer:
             batch['pbc_offset'])
 
     def reset_metrics(self):
-
-        '''
+        """
         Reset metrics dictionary.
+        
         Returns
         -------
+        dict(str, float)
+            Metric values dictionary set to zero.
 
-        '''
+        """
 
         # Initialize metrics dictionary
         metrics = {}
@@ -978,8 +998,7 @@ class Trainer:
         metrics: Dict[str, float],
         metrics_update: Dict[str, float],
     ) -> Dict[str, float]:
-
-        '''
+        """
         Update metrics dictionary.
 
         Parameters
@@ -991,8 +1010,10 @@ class Trainer:
 
         Returns
         -------
+        dict(str, float)
+            Updated metric values dictionary with new batch results
 
-        '''
+        """
 
         # Get data sizes and metric ratio
         Ndata = metrics['Ndata']
@@ -1021,8 +1042,7 @@ class Trainer:
         loss_fn: Optional[object] = None,
         loss_only: Optional[bool] = True,
     ) -> Dict[str, float]:
-
-        '''
+        """
         Compute metrics. This function evaluates the loss function.
 
         Parameters
@@ -1038,8 +1058,10 @@ class Trainer:
 
         Returns
         -------
+        dict(str, float)
+            Metric values dictionary
 
-        '''
+        """
 
         # Check loss function input
         if loss_fn is None:
@@ -1067,6 +1089,12 @@ class Trainer:
                 torch.flatten(prediction[prop])
                 * self.model_conversion[prop],
                 torch.flatten(reference[prop]))
+
+            # Check for NaN loss value
+            if self.trainer_debug_mode:
+                if torch.isnan(metrics[prop]['loss']):
+                    raise SyntaxError(
+                        f"Loss value for property '{prop:s}' is 'NaN'!")
 
             # Weight and add to total loss
             if ip:

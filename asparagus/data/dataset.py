@@ -78,10 +78,10 @@ class DataSet():
             metadata,
             data_load_properties,
             data_unit_properties)
-        
+
         # Set metadata
         self.set_metadata(metadata)
-        
+
         # Initialize DataReader variable
         self.datareader = None
 
@@ -399,7 +399,19 @@ class DataSet():
         ):
             metadata['unit_properties'] = {}
         elif metadata.get('unit_properties') is None:
-            metadata['unit_properties'] = data_unit_properties
+            metadata['unit_properties'] = {}
+            msg = ""
+            for prop in data_load_properties:
+                if prop in data_unit_properties:
+                    metadata['unit_properties'][prop] = (
+                        data_unit_properties[prop])
+                else:
+                    msg += f"No Property unit defined for '{prop:s}'.\n"
+            if len(msg):
+                raise SyntaxError(
+                    "DataSet 'load_properties' input contains properties with"
+                    + "unkown property units in 'unit_properties'!\n"
+                    + msg)
         elif data_unit_properties is None:
             data_unit_properties = metadata['unit_properties']
         else:
