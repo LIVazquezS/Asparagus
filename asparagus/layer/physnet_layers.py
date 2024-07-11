@@ -272,6 +272,9 @@ class InteractionLayer(torch.nn.Module):
         # Mix initial atomic feature vector with message vector
         x = self.scaling*x + self.dense_out(message)
 
+        # Normalize feature vectors
+        #x = torch.nn.functional.normalize(x)
+        
         return x
 
 

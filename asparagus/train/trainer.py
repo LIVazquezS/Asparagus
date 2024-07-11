@@ -310,7 +310,7 @@ class Trainer:
 
         # Refine atomic energies shift
         if (
-            trainer_guess_shifts
+            self.trainer_guess_shifts
             and 'atomic_energies' in model_properties_scaling
         ):
             atomic_energies_shifts = self.refine_atomic_energies_shifts(
