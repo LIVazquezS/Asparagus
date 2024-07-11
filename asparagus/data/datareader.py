@@ -253,7 +253,7 @@ class DataReader():
                 if (
                         prop in data_load_properties
                         or prop in self.default_property_labels
-                        or prop == 'positions'
+                        or prop in ['positions', 'charge']
                 ):
                     load_str = "   x   "
                 else:
@@ -273,14 +273,13 @@ class DataReader():
             for prop in assigned_properties.keys():
                 if source_metadata['unit_properties'].get(prop) is None:
                     source_metadata['unit_properties'][prop] = 'None'
-                    unit_conversion[prop] = 1.0
-                    unit_mismatch[prop] = False
-                else:
-                    unit_conversion[prop], unit_mismatch[prop] = (
-                        utils.check_units(
-                            data_unit_properties[prop],
-                            source_metadata['unit_properties'].get(prop))
-                        )
+                if data_unit_properties.get(prop) is None:
+                    data_unit_properties[prop] = 'None'
+                unit_conversion[prop], unit_mismatch[prop] = (
+                    utils.check_units(
+                        data_unit_properties[prop],
+                        source_metadata['unit_properties'][prop])
+                    )
 
             message = (
                 "INFO:\nProperty assignment from database "
@@ -293,7 +292,7 @@ class DataReader():
                 if (
                         prop in data_load_properties
                         or prop in self.default_property_labels
-                        or prop == 'positions'
+                        or prop in ['positions', 'charge']
                 ):
                     load_str = "   x   "
                 else:
@@ -491,6 +490,8 @@ class DataReader():
             unit_mismatch = {}
 
             for prop in assigned_properties.keys():
+                if data_unit_properties.get(prop) is None:
+                    data_unit_properties[prop] = 'None'
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
                         data_unit_properties[prop],
@@ -795,19 +796,13 @@ class DataReader():
             for prop in assigned_properties.keys():
                 if source_unit_properties.get(prop) is None:
                     source_unit_properties[prop] = 'None'
-                    unit_conversion[prop] = 1.0
-                    unit_mismatch[prop] = False
-                elif source_unit_properties.get(prop) is None:
-                    source_unit_properties[prop] = 'None'
-                    unit_conversion[prop] = 1.0
-                    unit_mismatch[prop] = False
-
-                else:
-                    unit_conversion[prop], unit_mismatch[prop] = (
-                        utils.check_units(
-                            data_unit_properties[prop],
-                            source_unit_properties.get(prop))
-                        )
+                if data_unit_properties.get(prop) is None:
+                    data_unit_properties[prop] = 'None'
+                unit_conversion[prop], unit_mismatch[prop] = (
+                    utils.check_units(
+                        data_unit_properties[prop],
+                        source_unit_properties[prop])
+                    )
 
             message = (
                 "INFO:\nProperty assignment from database "
@@ -1064,14 +1059,11 @@ class DataReader():
                         + "within 'data_unit_properties' input!")
                 elif data_unit_properties.get(prop) is None:
                     data_unit_properties[prop] = settings._default_units[prop]
-                    unit_conversion[prop] = 1.0
-                    unit_mismatch[prop] = False
-                else:
-                    unit_conversion[prop], unit_mismatch[prop] = (
-                        utils.check_units(
-                            data_unit_properties[prop],
-                            None)
-                        )
+                unit_conversion[prop], unit_mismatch[prop] = (
+                    utils.check_units(
+                        data_unit_properties[prop],
+                        None)
+                    )
 
             message = (
                 "INFO:\nProperty assignment from database "
@@ -1232,8 +1224,8 @@ class DataReader():
             # Check units of positions and properties
             unit_conversion = {}
             unit_mismatch = {}
-            for prop in data_unit_properties.keys():
 
+            for prop in data_unit_properties.keys():
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
                         data_unit_properties[prop],

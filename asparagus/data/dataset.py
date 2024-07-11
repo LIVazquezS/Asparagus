@@ -432,6 +432,17 @@ class DataSet():
                 logger.error("Error:\n" + msg)
                 raise SyntaxError(msg)
 
+        # Check for position and charge entry in 'unit_properties' in 
+        # metadata
+        for prop in ['positions', 'charge']:
+            if prop not in metadata['unit_properties']:
+                if prop in data_unit_properties:
+                    metadata['unit_properties'][prop] = (
+                        data_unit_properties[prop])
+                else:
+                    metadata['unit_properties'][prop] = (
+                        settings._default_units[prop])
+
         return metadata
 
 

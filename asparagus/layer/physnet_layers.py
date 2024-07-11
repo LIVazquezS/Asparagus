@@ -334,7 +334,7 @@ class OutputBlock(torch.nn.Module):
             device,
             dtype,
             weight_init=torch.nn.init.zeros_)
-        
+
         return
 
     def forward(
@@ -356,12 +356,14 @@ class OutputBlock(torch.nn.Module):
         
         """
 
-        # Apply residual layers on atomic features
+        # Apply residual layers on atomic features and normalize
         for ir, residual in enumerate(self.residuals):
             features = residual(features)
+            features = torch.nn.functional.normalize(features)
         
-        # Apply last activation function
+        # Apply last activation function and normalize
         features = self.activation_fn(features)
+        features = torch.nn.functional.normalize(features)
 
         # Transform to result vector
         result = self.output(features)

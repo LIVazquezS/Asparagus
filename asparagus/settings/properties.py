@@ -63,6 +63,7 @@ _default_units = {
     'charge':           'e',
     'atomic_charges':   'e',
     'dipole':           'e*Ang',
+    'atomic_dipoles':   'e*Ang',
     }
 
 # Valid property labels

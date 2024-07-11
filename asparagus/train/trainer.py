@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Optional, List, Dict, Tuple, Union, Any
+from typing import Optional, List, Dict, Tuple, Union, Any, Callable
 
 import torch
 
@@ -95,6 +95,12 @@ class Trainer:
     trainer_debug_mode: bool, optional, default False
         Perform model training in debug mode, which check repeatedly for
         'NaN' results.
+    trainer_guess_shifts: bool, optional, default False
+        Guess atomic energy shifts by minimizing deviation between the
+        reference energies in the training data and the sum of atomic energy
+        shifts according to the system composition. If only one system
+        composition is available in the training data, the minimizing is
+        skipped.
 
 
     """
@@ -108,7 +114,7 @@ class Trainer:
         'trainer_properties_weights':   {
             'energy': 1., 'forces': 50., 'dipole': 25., 'else': 1.},
         'trainer_optimizer':            'AMSgrad',
-        'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-1},
+        'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-5},
         'trainer_scheduler':            'ExponentialLR',
         'trainer_scheduler_args':       {'gamma': 0.99},
         'trainer_ema':                  True,
@@ -121,6 +127,7 @@ class Trainer:
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         'trainer_debug_mode':           False,
+        'trainer_guess_shifts':         False,
         }
 
     # Expected data types of input variables
@@ -144,6 +151,7 @@ class Trainer:
         'trainer_summary_writer':       [utils.is_bool],
         'trainer_print_progress_bar':   [utils.is_bool],
         'trainer_debug_mode':           [utils.is_bool],
+        'trainer_guess_shifts':         [utils.is_bool],
         }
 
     def __init__(
@@ -171,6 +179,7 @@ class Trainer:
         trainer_summary_writer: Optional[bool] = None,
         trainer_print_progress_bar: Optional[bool] = None,
         trainer_debug_mode: Optional[bool] = None,
+        trainer_guess_shifts: Optional[bool] = None,
         device: Optional[str] = None,
         dtype: Optional[object] = None,
         **kwargs
@@ -299,8 +308,22 @@ class Trainer:
                 model_properties_scaling[prop] = (
                     np.array(item)/self.model_conversion[prop])
 
+        # Refine atomic energies shift
+        if (
+            trainer_guess_shifts
+            and 'atomic_energies' in model_properties_scaling
+        ):
+            atomic_energies_shifts = self.refine_atomic_energies_shifts(
+                model_properties_scaling['atomic_energies'],
+                self.data_train,
+                config.get('input_n_maxatom'))
+        else:
+            atomic_energies_shifts = None
+
         # Set current model property scaling
-        self.model_calculator.set_property_scaling(model_properties_scaling)
+        self.model_calculator.set_property_scaling(
+            model_properties_scaling,
+            atomic_energies_shifts=atomic_energies_shifts)
 
         #############################
         # # # Prepare Optimizer # # #
@@ -311,7 +334,6 @@ class Trainer:
             self.trainer_optimizer,
             self.model_calculator.get_trainable_parameters(),
             self.trainer_optimizer_args)
-
 
         # Check maximum gradient norm
         if self.trainer_max_gradient_norm is None:
@@ -764,7 +786,7 @@ class Trainer:
 
                 # Predict model properties from data batch
                 prediction = self.model_calculator(batch)
-                
+
                 # Check for NaN predictions
                 if self.trainer_debug_mode:
                     for prop, item in prediction.items():
@@ -1118,3 +1140,135 @@ class Trainer:
                     torch.flatten(reference[prop]))
 
         return metrics
+
+    def refine_atomic_energies_shifts(
+        self,
+        atomic_energies_scaling: torch.Tensor,
+        data_loader: Callable,
+        n_maxatom: int,
+    ) -> torch.Tensor:
+        """
+        Refine the initial guess for atomic energy shifts according to the
+        total energy and system compilation of a dataset.
+        
+        Parameters
+        ----------
+        atomic_energies_scaling: torch.Tensor
+            Initial atomic energy scaling factors and shifts
+        data_loader: 
+            Reference data loader
+        n_maxatom: int
+            Max atomic number
+        
+        Returns
+        -------
+        torch.Tensor
+            Refined atomic energy shifts
+
+        """
+        
+        # Collect reference data
+        for ib, batch in enumerate(data_loader):
+            if ib:
+                atoms_number = torch.cat(
+                    (atoms_number, batch['atoms_number']))
+                atomic_numbers = torch.cat(
+                    (atomic_numbers, batch['atomic_numbers']))
+                energy = torch.cat((energy, batch['energy']))
+                sys_i = torch.cat((sys_i, batch['sys_i'] + sys_i[-1] + 1))
+            else:
+                atoms_number = batch['atoms_number']
+                atomic_numbers = batch['atomic_numbers']
+                energy = batch['energy']
+                sys_i = batch['sys_i']
+        
+        # Detach reference data
+        atoms_number = atoms_number.cpu().detach().numpy()
+        atomic_numbers = atomic_numbers.cpu().detach().numpy()
+        energy = energy.cpu().detach().numpy()
+        sys_i = sys_i.cpu().detach().numpy()
+        sys_number = atoms_number.shape[0]
+        
+        # Check if only one system composition is available
+        multiple_systems = False
+        # Check for different system sizes
+        if len(np.unique(atoms_number)) == 1:
+            for ii in np.unique(sys_i):
+                if ii:
+                    # Get system information
+                    atom_types_i, atom_counts_i = np.unique(
+                        atomic_numbers[sys_i == ii], return_counts=True)
+                    # Check for same atom types and count
+                    if not (
+                        np.all(atom_types_ref == atom_types_i)
+                        and np.all(atom_counts_ref == atom_counts_i)
+                    ):
+                        multiple_systems = True
+                        break
+                else:
+                    # Get reference system to compare
+                    atom_types_ref, atom_counts_ref = np.unique(
+                        atomic_numbers[sys_i == ii], return_counts=True)
+        else:
+            multiple_systems = True
+            
+        # Get list of available elements
+        atomic_numbers_available, atomic_numbers_indices = np.unique(
+            atomic_numbers, return_inverse=True)
+
+        # Initialize atomic energies shifts for available elements
+        atomic_energies_shifts = np.full(
+            atomic_numbers_available.shape,
+            atomic_energies_scaling[0],
+            dtype=float)
+
+        # Define energy function
+        idcs = np.arange(energy.shape[0], dtype=int)
+        def energy_func(shift):
+            
+            # Initialize predicted energies
+            prediction = np.zeros_like(energy)
+            
+            # Collect atomic energies per atom type
+            atomic_energies = np.array(shift)[atomic_numbers_indices]
+            
+            # Collect atomic energies per atom type
+            np.add.at(prediction, sys_i, atomic_energies)
+            
+            return prediction
+        
+        def energy_eval(shift, reference=energy, nominator=sys_number):
+            
+            # Compute energy prediction
+            prediction = energy_func(shift)
+
+            # Compute root mean square error between reference and prediction
+            rmse = np.sqrt(np.mean((reference - prediction)**2)/nominator)
+
+            return rmse
+                
+
+        # Skip optimizing atomic energies shift if only one system composition
+        # is available
+        if multiple_systems:
+            # Start fitting procedure
+            from scipy.optimize import minimize
+            result = minimize(
+                energy_eval,
+                atomic_energies_shifts,
+                method='bfgs')
+            atomic_energies_shifts = result.x
+
+        # Compute energy per atom root mean square error
+        rmse_energy = energy_eval(atomic_energies_shifts)
+        logger.info(
+            "INFO:\nEnergy prediction by optimized atomic energy shifts "
+            + "result an energy RMSE of "
+            + f"{rmse_energy:.2E} {self.model_units['energy']:s}.\n")
+
+        # Convert to dictionary
+        atomic_energies_shifts_dict = {}
+        for ia, shift in zip(atomic_numbers_available, atomic_energies_shifts):
+            atomic_energies_shifts_dict[ia] = torch.tensor(shift)
+
+        return atomic_energies_shifts_dict

@@ -10,11 +10,11 @@ import time
 #==============================================================================
 
 
-flag_dictionary_initialization = True
-flag_database_sql = True
+flag_dictionary_initialization = False
+flag_database_sql = False
 flag_database_hdf5 = False
-flag_sampler_all = True
-flag_sampler_shell = True
+flag_sampler_all = False
+flag_sampler_shell = False
 flag_sampler_slurm = False
 
 flag_model_physnet = True
@@ -776,9 +776,9 @@ if flag_sampler_slurm:
 # Initialize PhysNet model calculator
 if flag_model_physnet:
     
-    config_file = 'test/model_physnet.json'
+    config_file1 = 'test/model_physnet.json'
     model = asparagus.Asparagus(
-        config_file=config_file,
+        config_file=config_file1,
         model_type='physnet')
     mcalc = model.get_model_calculator(
         model_directory='test/physnet') # Default model type: 'PhysNet'
@@ -790,13 +790,14 @@ if flag_model_physnet:
 # Initialize PhysNet model training
 if flag_train_physnet:
     
-    config_file = 'test/train_physnet.json'
+    config_file2 = 'test/train_physnet.json'
     model = asparagus.Asparagus(
-        config_file=config_file,
+        config=config_file1,
+        config_file=config_file2,
         data_file='data/nms_nh3.db',
         model_directory='test/physnet',
         model_num_threads=2,
-        trainer_max_epochs=10,
+        trainer_max_epochs=100,
         )
     trainer = model.get_trainer()
     model.train()
@@ -862,9 +863,9 @@ if flag_ase_physnet:
 # Initialize PaiNN model calculator
 if flag_model_painn:
 
-    config_file = 'test/model_painn.json'
+    config_file1 = 'test/model_painn.json'
     model = asparagus.Asparagus(
-        config_file=config_file,
+        config_file=config_file1,
         model_type='painn')
     mcalc = model.get_model_calculator(
         model_directory='test/painn') # Default model type: 'PhysNet'
@@ -876,9 +877,10 @@ if flag_model_painn:
 # Initialize PaiNN model training
 if flag_train_painn:
 
-    config_file = 'test/train_painn.json'
+    config_file2 = 'test/train_painn.json'
     model = asparagus.Asparagus(
-        config_file=config_file,
+        config=config_file1,
+        config_file=config_file2,
         data_file='data/nms_nh3.db',
         model_directory='test/painn',
         model_num_threads=2,
