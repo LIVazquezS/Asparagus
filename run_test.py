@@ -797,7 +797,7 @@ if flag_train_physnet:
         data_file='data/nms_nh3.db',
         model_directory='test/physnet',
         model_num_threads=2,
-        trainer_max_epochs=1000,
+        trainer_max_epochs=10,
         trainer_debug_mode=False,
         )
     trainer = model.get_trainer()

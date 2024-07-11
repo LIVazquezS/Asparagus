@@ -127,7 +127,7 @@ class Trainer:
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         'trainer_debug_mode':           False,
-        'trainer_guess_shifts':         False,
+        'trainer_guess_shifts':         True,
         }
 
     # Expected data types of input variables
@@ -1247,10 +1247,10 @@ class Trainer:
 
             return rmse
                 
-
         # Skip optimizing atomic energies shift if only one system composition
         # is available
         if multiple_systems:
+
             # Start fitting procedure
             from scipy.optimize import minimize
             result = minimize(
@@ -1259,12 +1259,12 @@ class Trainer:
                 method='bfgs')
             atomic_energies_shifts = result.x
 
-        # Compute energy per atom root mean square error
-        rmse_energy = energy_eval(atomic_energies_shifts)
-        logger.info(
-            "INFO:\nEnergy prediction by optimized atomic energy shifts "
-            + "result an energy RMSE of "
-            + f"{rmse_energy:.2E} {self.model_units['energy']:s}.\n")
+            # Compute energy per atom root mean square error
+            rmse_energy = energy_eval(atomic_energies_shifts)
+            logger.info(
+                "INFO:\nEnergy prediction by optimized atomic energy shifts "
+                + "result an energy RMSE of "
+                + f"{rmse_energy:.2E} {self.model_units['energy']:s}.\n")
 
         # Convert to dictionary
         atomic_energies_shifts_dict = {}

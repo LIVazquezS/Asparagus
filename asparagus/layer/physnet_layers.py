@@ -263,7 +263,7 @@ class InteractionLayer(torch.nn.Module):
         # Combine features to message vector
         message = xi + xj
 
-        # Apply residual layers and acitvation function for message vector
+        # Apply residual layers and activation function for message vector
         # interaction
         for residual in self.residuals_ij:
             message = residual(message)
