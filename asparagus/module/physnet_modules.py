@@ -766,7 +766,6 @@ class Output_PhysNet(torch.nn.Module):
                 
                 # Assign scaling factor and shift
                 (shift, scale) = scaling_parameter.get(prop)
-                #shift *= scale
                 output_scaling[prop] = torch.nn.Parameter(
                     torch.tensor(
                         [[scale, shift] for _ in range(self.n_maxatom + 1)],
@@ -824,10 +823,8 @@ class Output_PhysNet(torch.nn.Module):
             
             # Set atomic energy shift
             with torch.no_grad():
-                scale = (
-                    self.output_scaling['atomic_energies'][atomic_number][0])
                 self.output_scaling['atomic_energies'][atomic_number][1] = (
-                    shift/scale)
+                    shift)
 
         return
 
@@ -925,6 +922,6 @@ class Output_PhysNet(torch.nn.Module):
         for prop, scaling in self.output_scaling.items():
             (scale, shift) = scaling[atomic_numbers].T
             output_prediction[prop] = (
-                (output_prediction[prop]*scale + shift))
+                output_prediction[prop]*scale + shift)
 
         return output_prediction

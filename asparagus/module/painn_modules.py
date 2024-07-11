@@ -939,7 +939,6 @@ class Output_PaiNN(torch.nn.Module):
                 
                 # Assign scaling factor and shift
                 (shift, scale) = scaling_parameter.get(prop)
-                shift /= scale
                 output_scaling[prop] = torch.nn.Parameter(
                     torch.tensor(
                         [[scale, shift] for _ in range(self.n_maxatom + 1)],
@@ -997,10 +996,8 @@ class Output_PaiNN(torch.nn.Module):
             
             # Set atomic energy shift
             with torch.no_grad():
-                scale = (
-                    self.output_scaling['atomic_energies'][atomic_number][0])
                 self.output_scaling['atomic_energies'][atomic_number][1] = (
-                    shift/scale)
+                    shift)
 
         return
 
@@ -1106,7 +1103,7 @@ class Output_PaiNN(torch.nn.Module):
                 [atomic_numbers.shape[0]]
                 + (len(output_prediction[prop].shape) - 1)*[1])
             output_prediction[prop] = (
-                (output_prediction[prop] + shift.reshape(compatible_shape))
-                *scale.reshape(compatible_shape))
+                output_prediction[prop]*scale.reshape(compatible_shape)
+                + shift.reshape(compatible_shape))
 
         return output_prediction

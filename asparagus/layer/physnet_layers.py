@@ -356,14 +356,13 @@ class OutputBlock(torch.nn.Module):
         
         """
 
-        # Apply residual layers on atomic features and normalize
+        # Apply residual layers on atomic features
         for ir, residual in enumerate(self.residuals):
             features = residual(features)
-            features = torch.nn.functional.normalize(features)
         
-        # Apply last activation function and normalize
+        # Apply last activation function
         features = self.activation_fn(features)
-        features = torch.nn.functional.normalize(features)
+        #features = torch.nn.functional.normalize(features)
 
         # Transform to result vector
         result = self.output(features)
