@@ -3,26 +3,26 @@ import asparagus
 
 import torch
 import numpy as np
-import time
 
 #==============================================================================
 # Test Parameter
 #==============================================================================
 
 
-flag_dictionary_initialization = False
+flag_dictionary_initialization = True
 flag_database_sql = False
+flag_database_npz = True
 flag_database_hdf5 = False
 flag_sampler_all = False
 flag_sampler_shell = False
 flag_sampler_slurm = False
 
-flag_model_physnet = True
-flag_train_physnet = True
-flag_ase_physnet = True
+flag_model_physnet = False
+flag_train_physnet = False
+flag_ase_physnet = False
 
-flag_model_painn = True
-flag_train_painn = True
+flag_model_painn = False
+flag_train_painn = False
 
 flag_train_cuda = False
 
@@ -35,7 +35,7 @@ config_file = 'test/init.json'
 config = {
     'config_file': config_file}
 device = 'cpu'
-dtype=torch.float32
+dtype = torch.float32
 
 # Dictionary initialization
 if flag_dictionary_initialization:
@@ -110,8 +110,10 @@ if flag_database_sql:
     print("\nDatabase entry '0': ", data[0]['energy'])
     print("\nDatabase Train entry '1': ", data.get_train(1)['atoms_number'])
     print("\nDatabase Valid entry '2': ", data.get_valid(2)['cell'])
+    print("\nDatabase Valid entry '2': ", data.get_valid(2)['pbc'])
     print("\nDatabase Test entry  '3': ", data.get_test(3)['positions'])
-    
+    print("\nDatabase Test entry  '3': ", data.get_test(4)['forces'])
+
     # Load Numpy .npz files
     model.set_data_container(
         config=config_file,
@@ -126,7 +128,6 @@ if flag_database_sql:
     print("\nDatabase Valid entry '2': ", data.get_valid(2)['charge'])
     print("\nDatabase Test entry  '3': ", data.get_test(3)['pbc'])
 
-    
     # Load multiple source files files
     model.set_data_container(
         config=config_file,
@@ -134,7 +135,7 @@ if flag_database_sql:
         data_source=['data/h2co_B3LYP_cc-pVDZ_4001.npz', 'data/nms_nh3.db'],
         data_overwrite=True,
     )
-    
+
     # Check if repeated data source is skipped
     model.set_data_container(
         config=config_file,
@@ -142,7 +143,7 @@ if flag_database_sql:
         data_source=['data/nms_nh3.db'],
         data_overwrite=False,
     )
-    
+
     # Load ASE trajectory file
     model.set_data_container(
         config=config_file,
@@ -150,7 +151,7 @@ if flag_database_sql:
         data_source='data/meta_nh3.traj',
         data_overwrite=True,
     )
-    
+
     # TODO Check automatic unit conversion
     # Load ASE trajectory file with different property units
     model.set_data_container(
@@ -162,6 +163,19 @@ if flag_database_sql:
             'positions': 'Bohr',
             'energy': 'kcal/mol',
             'forces': 'kcal/mol/Bohr'},
+        data_overwrite=True,
+    )
+
+# Numpy npz
+if flag_database_npz:
+
+    # Create new DataBase file
+    data = model.get_data_container(
+        config=config_file,
+        data_file='test/nms_nh3_test.db.npz',
+        data_file_format='npz',
+        data_source='data/nms_nh3.db',
+        data_source_format='db',
         data_overwrite=True,
     )
 

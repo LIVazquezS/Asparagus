@@ -2,13 +2,10 @@ import os
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any
 
-import numpy as np 
-
 import ase
 import ase.db as ase_db
 
-
-import torch
+import numpy as np
 
 from .. import data
 from .. import utils
@@ -22,17 +19,17 @@ __all__ = ['DataReader']
 class DataReader():
     """
     DataReader class that contain functions to read and adapt data.
-    
+
     Parameters
     ----------
     data_file: str, optional, default None
-        if None, the data read by this class are returned as list. Else, the 
+        if None, the data read by this class are returned as list. Else, the
         data are stored in the reference database file and just the data file
         path is returned.
     data_load_properties: List(str)
         Subset of properties to load to dataset file
     alt_property_labels: dictionary, optional, default None
-        Dictionary of alternative property labeling to replace non-valid 
+        Dictionary of alternative property labeling to replace non-valid
         property labels with the valid one if possible.
     """
 
@@ -44,9 +41,12 @@ class DataReader():
         alt_property_labels: Optional[Dict[str, List[str]]] = None,
     ):
 
-        # Assign reference data set path and format
+        # Assign reference database path and format
         self.data_file = data_file
         self.data_file_format = data_file_format
+
+        # Get reference database connect function
+        self.connect = data.get_connect(self.data_file_format)
 
         # Assign property list
         self.data_load_properties = data_load_properties
@@ -69,7 +69,6 @@ class DataReader():
             'sqlite3':  self.load_db,
             'hdf5':     self.load_db,
             'h5py':     self.load_db,
-            'npz':      self.load_db,
             'numpy':    self.load_db,
             'asedb':    self.load_ase,
             'npz':      self.load_npz,
@@ -341,9 +340,7 @@ class DataReader():
 
             # Add atom systems to database
             all_atoms_properties = self.data_file
-            with data.connect(
-                self.data_file, self.data_file_format, mode='a'
-            ) as db:
+            with self.connect(self.data_file, mode='a') as db:
 
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database " +
@@ -549,9 +546,7 @@ class DataReader():
 
             # Add atom systems to database
             all_atoms_properties = self.data_file
-            with data.connect(
-                self.data_file, self.data_file_format, mode='a'
-            ) as db:
+            with self.connect(self.data_file, mode='a') as db:
 
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database " +
@@ -884,9 +879,7 @@ class DataReader():
             # Add atom systems to database
             all_atoms_properties = self.data_file
             atoms_properties = {}
-            with data.connect(
-                self.data_file, self.data_file_format, mode='a'
-            ) as db:
+            with self.connect(self.data_file, mode='a') as db:
 
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database "
@@ -901,7 +894,7 @@ class DataReader():
                         atomic_numbers[idx][:atoms_number[idx]])
                     atoms_properties['positions'] = (
                         unit_conversion['positions']
-                        *positions[idx][:atoms_number[idx]])
+                        * positions[idx][:atoms_number[idx]])
                     atoms_properties['cell'] = (
                         unit_conversion['positions']*cell[idx])
                     atoms_properties['pbc'] = pbc[idx]
@@ -958,7 +951,7 @@ class DataReader():
             Dictionary of alternative property labeling to replace
             non-valid property labels with the valid one if possible.
         """
-        
+
         # Open data source
         db_source = ase.io.Trajectory(data_source)
 
@@ -971,13 +964,13 @@ class DataReader():
 
         # Get data sample to compare property labels
         data_sample = db_source[0]
-        
+
         # Check if data source has properties
         if data_sample.calc is None:
             logger.warning(
                 f"WARNING:\nData source '{data_source:s}' has no properties!")
             return
-        
+
         # Check alternative property labels
         if alt_property_labels is None:
             alt_property_labels = self.alt_property_labels
@@ -987,7 +980,7 @@ class DataReader():
         data_sample_properties = ['positions', 'charge']
         data_sample_properties += list(data_sample.calc.results)
         for custom_label in data_sample_properties:
-            
+
             # Skip default system properties
             if custom_label in self.default_property_labels:
                 continue
@@ -1081,7 +1074,7 @@ class DataReader():
 
         # Print Source information
         logger.info(message)
-        
+
         # If not dataset file is given, load source data to memory
         if self.data_file is None:
 
@@ -1089,7 +1082,7 @@ class DataReader():
             all_atoms_properties = []
             logger.info(
                 f"INFO:\nLoad {Ndata} data point from '{data_source}'!\n")
-            
+
             # Iterate over source data
             for idx in range(Ndata):
 
@@ -1098,7 +1091,7 @@ class DataReader():
 
                 # Get atoms object and property data
                 atoms = db_source[idx]
-                
+
                 # Collect system data
                 atoms_properties = self.collect_from_atoms(
                     atoms,
@@ -1114,15 +1107,13 @@ class DataReader():
 
             # Add atom systems to database
             all_atoms_properties = self.data_file
-            with data.connect(
-                self.data_file, self.data_file_format, mode='a'
-            ) as db:
-                
+            with self.connect(self.data_file, mode='a') as db:
+
                 logger.info(
                     f"INFO:\nWriting '{data_source}' to database " +
                     f"'{self.data_file}'!\n" +
                     f"{Ndata} data point will be added.\n")
-                
+
                 # Iterate over source data
                 for idx in range(Ndata):
 
@@ -1134,7 +1125,7 @@ class DataReader():
 
                     # Collect system data
                     atoms_properties = self.collect_from_atoms(
-                        atoms, 
+                        atoms,
                         unit_conversion,
                         data_load_properties,
                         assigned_properties)
@@ -1205,7 +1196,7 @@ class DataReader():
                 unit_conversion[prop] = 1.0
 
         else:
-            
+
             # Check if all property units in 'data_unit_properties' are found
             found_unit_properties = [
                 prop in data_unit_properties
@@ -1264,9 +1255,7 @@ class DataReader():
             # Atoms system data
             atoms_properties = {}
 
-            with data.connect(
-                self.data_file, self.data_file_format, mode='a'
-            ) as db:
+            with self.connect(self.data_file, mode='a') as db:
 
                 # Fundamental properties
                 atoms_properties['atoms_number'] = (
@@ -1304,7 +1293,7 @@ class DataReader():
         """
         Collect properties from database entry to property dictionary and
         apply unit conversion.
-        
+
         Parameters
         ----------
         source: dict
@@ -1323,10 +1312,10 @@ class DataReader():
             System property dictionary
 
         """
-        
+
         # Atoms system data
         atoms_properties = {}
-        
+
         # Fundamental properties
         atoms_properties['atoms_number'] = source['atoms_number']
         atoms_properties['atomic_numbers'] = (
@@ -1360,7 +1349,7 @@ class DataReader():
         """
         Collect properties from database entry to property dictionary and
         apply unit conversion.
-        
+
         Parameters
         ----------
         source: ase.Atoms
@@ -1381,10 +1370,10 @@ class DataReader():
             System property dictionary
 
         """
-        
+
         # Atoms system data
         atoms_properties = {}
-        
+
         # Fundamental properties
         atoms_properties['atoms_number'] = (
             atoms.get_global_number_of_atoms())
@@ -1410,7 +1399,7 @@ class DataReader():
             if prop in load_properties:
                 atoms_properties[prop] = (
                     conversion[prop]*source[item])
-        
+
         return atoms_properties
 
     def collect_from_atoms(
@@ -1423,7 +1412,7 @@ class DataReader():
         """
         Collect properties from database entry to property dictionary and
         apply unit conversion.
-        
+
         Parameters
         ----------
         atoms: ase.Atoms
@@ -1442,13 +1431,13 @@ class DataReader():
             System property dictionary
 
         """
-        
+
         # Atoms system data
         atoms_properties = {}
-        
+
         # Get atoms property data
         properties = atoms.calc
-        
+
         # Fundamental properties
         atoms_properties['atoms_number'] = (
             atoms.get_global_number_of_atoms())
@@ -1473,5 +1462,5 @@ class DataReader():
             if prop in properties.results:
                 atoms_properties[prop] = (
                     conversion[prop]*properties.results[prop])
-        
+
         return atoms_properties

@@ -23,7 +23,7 @@ _valid_properties = [
     'polarizability',
 ]
 
-# Alternative property label dictionary 
+# Alternative property label dictionary
 # (keys:    internally used property labels
 #  items:   possible externally used property labels)
 # Comparison always between lowercase form

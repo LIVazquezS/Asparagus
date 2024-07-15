@@ -13,10 +13,13 @@ from .datareader import (
     DataReader
 )
 from .database import (
-    DataBase, connect, get_metadata
+    DataBase, connect, get_connect, get_metadata
 )
 from .database_sqlite3 import (
     DataBase_SQLite3, lock, object_to_bytes, bytes_to_object
+)
+from .database_npz import (
+    DataBase_npz
 )
 from .database_hdf5 import (
     DataBase_hdf5

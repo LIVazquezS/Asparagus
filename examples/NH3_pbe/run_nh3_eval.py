@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredOffsetbox, TextArea
 
 import sys
-sys.path.insert(0, '/home/toepfer/Documents/Project_PhysNet3/Asparagus')
+sys.path.insert(0, '/home/tkai/Documents/Asparagus')
 
 from asparagus import Asparagus
 from asparagus.interface.orca_ase import ORCA
@@ -84,13 +84,13 @@ if False:
     # Iterate over models
     for imodel, (config, mdir, db, label) in enumerate(
         zip(configs, model_dir, ref_db, labels)):
-        
+
         print(f"Test model {mdir:s} trained by NH3 data from {label:s}.")
-        
+
         # Read system
         system_model = io.read('../../data/nh3_c3v.xyz')
         system_ref = io.read('../../data/nh3_c3v.xyz')
-        
+
         # Get calculators
         model = Asparagus(
             config=config,
@@ -229,13 +229,13 @@ if False:
     # Iterate over models
     for imodel, (config, mdir, db, label) in enumerate(
         zip(configs, model_dir, ref_db, labels)):
-        
+
         print(f"Test model {mdir:s} trained by NH3 data from {label:s}.")
-        
+
         # Read system
         system_model = io.read('../../data/nh3_c3v.xyz')
         system_ref = io.read('../../data/nh3_c3v.xyz')
-        
+
         # Get calculators
         model = Asparagus(
             config=config,
@@ -259,7 +259,7 @@ if False:
         system_ref.set_positions(system_model.get_positions())
         dyn = BFGS(system_ref)
         dyn.run(fmax=0.0001)
-        
+
         # Vibration
         vibrations_model = vibrations.Vibrations(
             system_model,
@@ -275,7 +275,8 @@ if False:
         vibrations_ref.run()
         vibrations_ref.summary()
         frequencies_ref = vibrations_ref.get_frequencies()
-        
+
+        errors = []
         msg += label + "\n"
         msg += (
             f" {'Model Freq.':<15s} {'Ref Freq.':<15s} {'Difference':<15s}\n")
@@ -285,8 +286,11 @@ if False:
             error = freq_model - freq_ref
             msg += (
                 f" {np.abs(freq_model):>15.2f}"
-                + f" {np.abs(freq_ref):>15.2f}" 
+                + f" {np.abs(freq_ref):>15.2f}"
                 + f" {np.abs(error):>15.2f}\n")
+            errors.append(error)
+        rmse = np.sqrt(np.sum(np.array(errors[6:])**2)/len(errors[6:]))
+        msg += " RMSE: " + " "*30 + f"{rmse:.3f}\n"
 
     # Save result
     with open("eval_nh3_frequencies.txt", 'w') as f:
@@ -329,6 +333,9 @@ if True:
     # Model style
     linestyle = ['--', 'dashdot', 'dotted']
     makerstyle = ['o', 's', '^']
+
+    # Letter labels
+    letters = ['(A) ', '(B) ', '(C) ']
 
     # Initialize plot figure
     fig = plt.figure(figsize=figsize)
@@ -384,48 +391,52 @@ if True:
         potential[iangle] = system_work.get_potential_energy()
 
     axs.plot(
-        angles, potential - energy_min_ref, 
+        angles, potential - energy_min_ref,
         color='black', ls='-',
         label='PBE')
 
-    refmin = np.min(potential - energy_min_ref)
-    refmax = np.max(potential - energy_min_ref)
+    ref_potential = potential - energy_min_ref
+
+    refmin = np.min(ref_potential)
+    refmax = np.max(ref_potential)
+    diff_potential = []
 
     # Iterate over models
     for imodel, (config, mdir, db, label) in enumerate(
-        zip(configs, model_dir, ref_db, labels)):
-        
+        zip(configs, model_dir, ref_db, labels)
+    ):
+
         print(f"Test model {mdir:s} trained by NH3 data from {label:s}.")
-        
+
         # Read system
         system_model = system_ref.copy()
-        
+
         # Get calculators
         model = Asparagus(
             config=config,
             config_file='config_eval.json',
             model_directory=mdir)
         calc_model = model.get_ase_calculator()
-        
+
         # Assign calculators
         system_model.calc = calc_model
 
         # Optimize systems
-        #dyn = BFGS(system_model)
-        #dyn.run(fmax=0.0001)
+        dyn = BFGS(system_model)
+        dyn.run(fmax=0.0001)
         energy_min_model = system_model.get_potential_energy()
-        
+
         # Get Bisector vector
         vector = np.zeros(3, dtype=float)
         for ibond in range(1, 4):
             vector += system_model.positions[0] - system_model.positions[ibond]
         vector /= np.linalg.norm(vector)
-        
+
         # Add dummy atom to scan atoms
         system_scan = system_model.copy()
         system_scan.append(
             ase.Atom('X', position=(system_scan.positions[0] + vector)))
-        
+
         # Scan over umbrella angle
         potential = np.zeros_like(angles)
         for iangle, angle in enumerate(angles):
@@ -434,12 +445,25 @@ if True:
             system_model.set_positions(system_scan.positions[:4])
             potential[iangle] = system_model.get_potential_energy()
 
+        model_potential = potential - energy_min_model
+        diff_potential.append(model_potential - ref_potential)
+
         axs.plot(
-            angles, potential - energy_min_model, 
-            color=colors[imodel], 
-            #marker=makerstyle[imodel], markerfacecolor='None',
-            ls=linestyle[imodel], #ls='None', 
-            label=label)
+            angles, model_potential,
+            color=colors[imodel],
+            marker=make rstyle[imodel], markerfacecolor='None',
+            ls='None', #ls=linestyle[imodel],
+            label=letters[imodel] + label)
+
+    out = ' Angle '
+    for imodel, label in enumerate(labels):
+        out += f" {label:s} "
+    for ia, angle in enumerate(angles):
+        out += f"\n {angle:.1f} "
+        for imodel, label in enumerate(labels):
+            out += f" {1000.*diff_potential[imodel][ia]:.2f} "
+        out += ' meV'
+    print(out)
 
     # Plot options
     axs.set_xlim(angles[0], angles[-1])
