@@ -206,21 +206,26 @@ class DataBase_npz(data.DataBase):
     def _init_systems(self):
         return
 
-    def _init_data(self, data):
+    def _init_data(self):
 
-        # Initialize current datatime and User name
+        # Initialize data dictionary
+        data = {}
+
+        # Initialize lists for current data time and User name
         data['mtime'] = []
         data['username'] = []
 
-        # Initialize structural properties
+        # Initialize lists for structural properties
         for prop_i in structure_properties_dtype:
             data[prop_i] = []
 
-        # Initialize reference properties
+        # Initialize lists for reference properties
         for prop_i in self.metadata.get('load_properties'):
             if prop_i not in structure_properties_dtype:
                 data[prop_i] = []
 
+        # Auxiliary  
+        
         return data
 
     def _reset(self):
@@ -234,7 +239,7 @@ class DataBase_npz(data.DataBase):
 
         # Initialize new data dictionary
         if not self.data_new:
-            self.data_new = self.init_data(self.data_new)
+            self.data_new = self._init_data()
 
         # Current datatime and User name
         self.data_new['mtime'].append(time.ctime())
@@ -264,7 +269,7 @@ class DataBase_npz(data.DataBase):
 
         return row_id
 
-    def _update(self, row_id, properties=None):
+    def _update(self, row_id, properties=None, data_new=None):
 
         # Initialize new data dictionary
         if not self.data_new:

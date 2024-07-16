@@ -10,8 +10,8 @@ import numpy as np
 
 
 flag_dictionary_initialization = True
-flag_database_sql = False
-flag_database_npz = True
+flag_database_sql = True
+flag_database_npz = False
 flag_database_hdf5 = False
 flag_sampler_all = False
 flag_sampler_shell = False

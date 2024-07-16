@@ -9,7 +9,7 @@ setup(
     name='Asparagus',
     version='0.2.2',
     description='Function Bundle from Sampling, Training to Application of NN Potentials',
-    author='L.I.Vazquez-Salazar and Kai Toepfer',
+    author='L.I.Vazquez-Salazar, Silvan Kaeser and Kai Toepfer',
     long_description=long_description,
     author_email='luisitza.vazquezsalazar@unibas.ch',
     packages=find_packages(include=['asparagus']),
