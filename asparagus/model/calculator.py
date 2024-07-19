@@ -66,7 +66,7 @@ def get_model_calculator(
     config: object,
     model_calculator: Optional[torch.nn.Module] = None,
     model_type: Optional[str] = None,
-    model_checkpoint: Optional[Union[int, str]] = 'best',
+    model_checkpoint: Optional[Union[int, str]] = None,
     **kwargs,
 ) -> (torch.nn.Module, bool):
     """
@@ -81,9 +81,9 @@ def get_model_calculator(
     model_type: str, optional, default None
         Model calculator type to initialize, e.g. 'PhysNet'. The default
         model is defined in settings.default._default_calculator_model.
-    model_checkpoint: (str, int), optional, default 'best'
-        If None, load checkpoint file with best loss function value.
-        If string 'best' or 'last', load respectively the best checkpoint file
+    model_checkpoint: (str, int), optional, default None
+        If None or 'best', load checkpoint file with best loss function value.
+        If string is 'last', load respectively the best checkpoint file
         (as with None) or the with the highest epoch number.
         If integer, load the checkpoint file of the respective epoch number.
     
@@ -95,7 +95,7 @@ def get_model_calculator(
         Torch module checkpoint file
 
     """
-    
+
     # Initialize model calculator if not given
     if model_calculator is None:
     
@@ -123,6 +123,10 @@ def get_model_calculator(
     filemanager = model.FileManager(config, **kwargs)
     
     # Get checkpoint file
+    if model_checkpoint is None and config.get('model_checkpoint') is None:
+        model_checkpoint = 'best'
+    elif model_checkpoint is None:
+        model_checkpoint = config.get('model_checkpoint')
     checkpoint = filemanager.load_checkpoint(model_checkpoint)
 
     return model_calculator, checkpoint

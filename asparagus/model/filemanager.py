@@ -288,6 +288,15 @@ class FileManager():
                     f"Checkpoint file '{ckpt_name}' of index "
                     + f"{checkpoint_label:d} does not exist!")
         
+        elif utils.is_string(checkpoint_label):
+
+            ckpt_name = checkpoint_label
+
+            # Check existence
+            if not os.path.exists(ckpt_name):
+                raise FileNotFoundError(
+                    f"Checkpoint file '{ckpt_name}' does not exist!")
+
         else:
             
             raise SyntaxError(

@@ -13,7 +13,7 @@ import numpy as np
 flag_dictionary_initialization = True
 flag_database_sql = True
 flag_database_npz = True
-flag_database_hdf5 = False
+flag_database_hdf5 = True
 flag_sampler_all = True
 flag_sampler_shell = True
 flag_sampler_slurm = False
@@ -25,6 +25,8 @@ flag_ase_physnet = True
 
 flag_model_painn = True
 flag_train_painn = True
+
+flag_transfer_learning = True
 
 flag_train_cuda = False
 
@@ -973,6 +975,38 @@ if flag_train_painn:
     trainer = model.get_trainer()
     model.train()
     model.test(test_directory='test/painn')
+
+#==============================================================================
+# Test Transfer Learning
+#==============================================================================
+
+# Initialize PhysNet model, start training once, start training again but from
+# best checkpoint file of first training.
+if flag_transfer_learning:
+    
+    # Base Model
+    config_file1 = 'test/trans_learn1.json'
+    model = asparagus.Asparagus(
+        config=config_file1,
+        data_file='data/nms_nh3.db',
+        model_directory='test/trans_learn/model_base',
+        trainer_max_epochs=10,
+        )
+    model.train()
+    model.test(test_directory='test/trans_learn/model_base')
+    
+    config_file2 = 'test/trans_learn2.json'
+    model = asparagus.Asparagus(
+        config=config_file1,
+        config_file=config_file2,
+        data_file='data/nms_nh3.db',
+        model_directory='test/trans_learn/model_trans_learn',
+        #model_checkpoint='test/trans_learn/model_base/best/best_model.pt',
+        trainer_max_epochs=10,
+        )
+    model.train(
+        model_checkpoint='test/trans_learn/model_base/best/best_model.pt')
+    model.test(test_directory='test/trans_learn/model_trans_learn')
 
 #==============================================================================
 # Test Asparagus Model Calculator - PhysNet in Cuda

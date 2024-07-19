@@ -441,7 +441,7 @@ class Asparagus():
         config_file: Optional[str] = None,
         model_calculator: Optional[torch.nn.Module] = None,
         model_type: Optional[str] = None,
-        model_checkpoint: Optional[Union[int, str]] = 'best',
+        model_checkpoint: Optional[Union[int, str]] = None,
         **kwargs,
     ) -> torch.nn.Module:
         """
@@ -459,7 +459,7 @@ class Asparagus():
         model_type: str, optional, default None
             Model calculator type to initialize, e.g. 'PhysNet'. The default
             model is defined in settings.default._default_calculator_model.
-        model_checkpoint: (int, str), optional, default 'best'
+        model_checkpoint: (int, str), optional, default None
             If None or 'best', load best model checkpoint. 
             Otherwise load latest checkpoint file with 'last' or define a
             checkpoint index number of the respective checkpoint file.
@@ -658,7 +658,7 @@ class Asparagus():
         ###################################
         # # # Assign Model Calculator # # #
         ###################################
-        
+
         if self.model_calculator is None:
             model_calculator = self.get_model_calculator(
                 config=config,
