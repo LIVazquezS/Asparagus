@@ -81,7 +81,10 @@ def connect(
         HDF5 database interface object
 
     """
-    return DataBase_hdf5(data_file, mode)
+    if os.path.exists(data_file) or mode != 'r':
+        return DataBase_hdf5(data_file, mode)
+    else:
+        return DataBase_hdf5(data_file, 'w')
 
 
 class DataBase_hdf5(data.DataBase):
@@ -341,6 +344,14 @@ class DataBase_hdf5(data.DataBase):
 
     def _delete(self, row_ids):
         raise NotImplementedError()
+
+    def _delete_file(self):
+        """
+        Delete database file
+        """
+        if os.path.exists(self.data_file):
+            os.remove(self.data_file)
+        return
 
     @property
     def metadata(self):

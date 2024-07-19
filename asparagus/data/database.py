@@ -67,17 +67,21 @@ def get_connect(
         Database connection function
 
     """
-    # Check data format - if None or 'db', switch to default 'sql'
+    # Check data format - if None or 'db', switch to default 'db.sql'
     if data_file_format is None or data_file_format == 'db':
-        data_file_format = 'sql'
+        data_file_format = 'db.sql'
 
-    if data_file_format in ['sql', 'sqlite', 'sqlite3']:
+    if data_file_format.lower() == 'db.sql':
         return data.database_sqlite3.connect
-    elif data_file_format in ['hdf5', 'h5py']:
+    elif data_file_format.lower() == 'db.h5':
         return data.database_hdf5.connect
-    elif data_file_format in ['npz', 'numpy']:
+    elif data_file_format.lower() == 'db.npz':
         return data.database_npz.connect
 
+    raise SyntaxError(
+        f"Database file format '{data_file_format:s}' not available!")
+
+    return
 
 def get_metadata(
     data_file: str,
@@ -288,6 +292,8 @@ class DataBase:
         if utils.is_integer(row_ids):
             row_ids = [row_ids]
         self._delete(row_ids)
+        
+        return
 
     def _delete(self, row_ids):
         raise NotImplementedError
@@ -304,4 +310,13 @@ class DataBase:
         return row_id
 
     def _get_metadata(self):
+        raise NotImplementedError
+
+    def delete_file(self):
+        """
+        Delete DataBase and related files
+        """
+        return self._delete_file()
+
+    def _delete_file(self):
         raise NotImplementedError

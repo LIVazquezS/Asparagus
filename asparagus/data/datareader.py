@@ -14,7 +14,101 @@ from .. import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ['DataReader']
+__all__ = ['DataReader', 'check_data_format']
+
+# Possible data format labels (keys) to valid data format label (item)
+# Asparagus database format labels
+_data_file_formats = {
+    'db':       'db.sql',
+    'sql':      'db.sql',
+    'sqlite':   'db.sql',
+    'sqlite3':  'db.sql',
+    'db.sql':   'db.sql',
+    'sql.db':   'db.sql',
+    'npz':      'db.npz',   # Would be updated by _data_source_format
+    'db.npz':   'db.npz',
+    'npz.db':   'db.npz',
+    'h5':       'db.h5',
+    'hdf5':     'db.h5',
+    'h5py':     'db.h5',
+    'db.h5':    'db.h5',
+    'h5.db':    'db.h5',
+    'db.hdf5':  'db.h5',
+    'hdf5.db':  'db.h5',
+    'db.h5py':  'db.h5',
+    'h5py.db':  'db.h5',
+    }
+# External data format labels
+_data_source_formats = {
+    'npz':      'npz',
+    'npy':      'npz',
+    'ase':      'ase.db',
+    'ase.db':   'ase.db',
+    'db.ase':   'ase.db',
+    'traj':     'ase.traj',
+    'ase.traj': 'ase.traj',
+    'traj.ase': 'ase.traj',
+    }
+
+
+def check_data_format(
+    data_format: str,
+    is_source_format: Optional[bool] = False
+):
+    """
+    Check input for compatible data format labels
+    
+    Parameters
+    ----------
+    data_format: str
+        Input string to check for compatible data format labels
+    is_source_format: bool, optional, default False
+        If False, 'data_format' input is only compared with Asparagus 
+        database labels. Else, update format library with source format labels.
+
+    Returns
+    -------
+    str
+        Valid data format label
+    """
+
+    # Assign data format dictionary
+    file_formats = _data_file_formats.copy()
+    if is_source_format:
+        file_formats.update(_data_source_formats)
+
+    # Split path and file
+    data_path, data_file = os.path.split(data_format)
+
+    # Check data file suffix
+    if data_file.lower() in file_formats:
+        return file_formats[data_file.lower()]
+    
+    if '.' in data_file and data_file.count('.') >= 2:
+
+        idcs = [
+            idx for idx, char in enumerate(data_file)
+            if char.lower() == '.']
+        data_format_label = data_file[idcs[-2] + 1:]
+
+        if data_format_label.lower() in file_formats:
+            return file_formats[data_format_label.lower()]
+
+    if '.' in data_file:
+
+        idcs = [
+            idx for idx, char in enumerate(data_file)
+            if char.lower() == '.']
+        data_format_label = data_file[idcs[-1] + 1:]
+
+        if data_format_label.lower() in file_formats:
+            return file_formats[data_format_label.lower()]
+
+    raise SyntaxError(
+        f"Data file format for '{data_format:s}' could not identified!")
+
+    return
+
 
 class DataReader():
     """
@@ -63,16 +157,12 @@ class DataReader():
 
         # Assign dataset format with respective load function
         self.data_file_format_load = {
-            'db':       self.load_db,
-            'sql':      self.load_db,
-            'sqlite':   self.load_db,
-            'sqlite3':  self.load_db,
-            'hdf5':     self.load_db,
-            'h5py':     self.load_db,
-            'numpy':    self.load_db,
-            'asedb':    self.load_ase,
+            'db.sql':   self.load_db,
+            'db.npz':   self.load_db,
+            'db.h5':    self.load_db,
             'npz':      self.load_npz,
-            'traj':     self.load_traj,
+            'ase.db':   self.load_ase,
+            'ase.traj': self.load_traj,
             }
 
         return
@@ -266,17 +356,18 @@ class DataReader():
         else:
 
             # Check units of positions and properties
+            unit_properties = data_unit_properties.copy()
             unit_conversion = {}
             unit_mismatch = {}
-
+            
             for prop in assigned_properties.keys():
                 if source_metadata['unit_properties'].get(prop) is None:
                     source_metadata['unit_properties'][prop] = 'None'
-                if data_unit_properties.get(prop) is None:
-                    data_unit_properties[prop] = 'None'
+                if unit_properties.get(prop) is None:
+                    unit_properties[prop] = 'None'
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
-                        data_unit_properties[prop],
+                        unit_properties[prop],
                         source_metadata['unit_properties'][prop])
                     )
 
@@ -298,7 +389,7 @@ class DataReader():
                     load_str = " "*7
                 message += (
                     f"{load_str:7s} "
-                    + f"{prop:<16s} {data_unit_properties[prop]:<16s} "
+                    + f"{prop:<16s} {unit_properties[prop]:<16s} "
                     + f"{item:<16s} "
                     + f"{source_metadata['unit_properties'][prop]:<16s} "
                     + f"{unit_conversion[prop]:11.9e}\n")
@@ -483,15 +574,16 @@ class DataReader():
         else:
 
             # Check units of positions and properties
+            unit_properties = data_unit_properties.copy()
             unit_conversion = {}
             unit_mismatch = {}
 
             for prop in assigned_properties.keys():
-                if data_unit_properties.get(prop) is None:
-                    data_unit_properties[prop] = 'None'
+                if unit_properties.get(prop) is None:
+                    unit_properties[prop] = 'None'
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
-                        data_unit_properties[prop],
+                        unit_properties[prop],
                         None)
                     )
 
@@ -504,7 +596,7 @@ class DataReader():
                 + "\n")
             for prop, item in assigned_properties.items():
                 message += (
-                    f" {prop:<16s} {data_unit_properties[prop]:<16s} "
+                    f" {prop:<16s} {unit_properties[prop]:<16s} "
                     + f"{item:<16s} "
                     + f"{'ASE unit':<16s} "
                     + f"{unit_conversion[prop]:11.9e}\n")
@@ -764,6 +856,7 @@ class DataReader():
         elif source_unit_properties is None:
 
             # Set default conversion factor dictionary
+            unit_properties = data_unit_properties.copy()
             unit_conversion = {}
             for prop in assigned_properties.keys():
                 unit_conversion[prop] = 1.0
@@ -775,27 +868,28 @@ class DataReader():
                 + "-"*17*3
                 + "\n")
             for prop, item in assigned_properties.items():
-                if data_unit_properties.get(prop) is None:
-                    data_unit_properties[prop] = 'None'
+                if unit_properties.get(prop) is None:
+                    unit_properties[prop] = 'None'
                 message += (
                     f" {prop:<15s} "
-                    + f" {data_unit_properties[prop]:<15s} "
+                    + f" {unit_properties[prop]:<15s} "
                     + f" {item:<15s}\n")
 
         else:
 
             # Check units of positions and properties
+            unit_properties = data_unit_properties.copy()
             unit_conversion = {}
             unit_mismatch = {}
 
             for prop in assigned_properties.keys():
                 if source_unit_properties.get(prop) is None:
                     source_unit_properties[prop] = 'None'
-                if data_unit_properties.get(prop) is None:
-                    data_unit_properties[prop] = 'None'
+                if unit_properties.get(prop) is None:
+                    unit_properties[prop] = 'None'
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
-                        data_unit_properties[prop],
+                        unit_properties[prop],
                         source_unit_properties[prop])
                     )
 
@@ -807,10 +901,8 @@ class DataReader():
                 + "-"*17*5
                 + "\n")
             for prop, item in assigned_properties.items():
-                if data_unit_properties.get(prop) is None:
-                    data_unit_properties[prop] = 'None'
                 message += (
-                    f" {prop:<16s} {data_unit_properties[prop]:<16s} "
+                    f" {prop:<16s} {unit_properties[prop]:<16s} "
                     + f"{item:<16s} "
                     + f"{source_unit_properties[prop]:<16s} "
                     + f"{unit_conversion[prop]:11.9e}\n")
@@ -1039,22 +1131,24 @@ class DataReader():
         else:
 
             # Check units of positions and properties
+            unit_properties = data_unit_properties.copy()
             unit_conversion = {}
             unit_mismatch = {}
+
             for prop in assigned_properties:
                 if (
-                    data_unit_properties.get(prop) is None
+                    unit_properties.get(prop) is None
                     and settings._default_units.get(prop) is None
                 ):
                     raise SyntaxError(
                         f"Unit for property label '{prop:s}' is not known! "
                         + "Define property unit in '{data_source:s}' "
                         + "within 'data_unit_properties' input!")
-                elif data_unit_properties.get(prop) is None:
-                    data_unit_properties[prop] = settings._default_units[prop]
+                elif unit_properties.get(prop) is None:
+                    unit_properties[prop] = settings._default_units[prop]
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
-                        data_unit_properties[prop],
+                        unit_properties[prop],
                         None)
                     )
 
@@ -1067,7 +1161,7 @@ class DataReader():
                 + "\n")
             for prop, item in assigned_properties.items():
                 message += (
-                    f" {prop:<16s} {data_unit_properties[prop]:<16s} "
+                    f" {prop:<16s} {unit_properties[prop]:<16s} "
                     + f"{item:<16s} "
                     + f"{'ASE unit':<16s} "
                     + f"{unit_conversion[prop]:11.9e}\n")
@@ -1213,13 +1307,16 @@ class DataReader():
                     + "found in 'data_unit_properties'!\n")
 
             # Check units of positions and properties
+            unit_properties = data_unit_properties.copy()
             unit_conversion = {}
             unit_mismatch = {}
 
             for prop in data_unit_properties.keys():
+                if unit_properties.get(prop) is None:
+                    unit_properties[prop] = 'None'
                 unit_conversion[prop], unit_mismatch[prop] = (
                     utils.check_units(
-                        data_unit_properties[prop],
+                        unit_properties[prop],
                         None)
                     )
 

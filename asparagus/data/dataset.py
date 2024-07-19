@@ -70,7 +70,8 @@ class DataSet():
 
         # If overwrite, remove old DataSet file
         if os.path.exists(data_file) and data_overwrite:
-            os.remove(data_file)
+            with self.connect(self.data_file, 'w') as f:
+                f.delete_file()
 
         # Copy current metadata
         metadata = self.get_metadata()
@@ -94,7 +95,7 @@ class DataSet():
     ) -> int:
 
         if os.path.isfile(self.data_file):
-            with self.connect(self.data_file, self.data_file_format) as db:
+            with self.connect(self.data_file, mode='r') as db:
                 return db.count()
         else:
             return 0
@@ -227,9 +228,7 @@ class DataSet():
         """
 
         # Read metadata from database file
-        with self.connect(
-            self.data_file, self.data_file_format, mode='r'
-        ) as db:
+        with self.connect(self.data_file, mode='r') as db:
             return db.get_metadata()
 
     def set_metadata(
@@ -245,18 +244,14 @@ class DataSet():
             metadata = self.metadata
 
         # Set metadata
-        with self.connect(
-            self.data_file, self.data_file_format, mode='a'
-        ) as db:
+        with self.connect(self.data_file, mode='a') as db:
             db.set_metadata(metadata)
             db.init_systems()
 
     def reset_database(
         self,
     ):
-        with self.connect(
-            self.data_file, self.data_file_format, mode='a'
-        ) as db:
+        with self.connect(self.data_file, mode='a') as db:
             db.reset()
 
     def load_data(
@@ -313,6 +308,8 @@ class DataSet():
 
         # Set updated metadata
         self.set_metadata(metadata)
+
+        return
 
     def add_atoms(
         self,

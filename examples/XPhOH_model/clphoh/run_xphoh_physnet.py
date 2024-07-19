@@ -15,7 +15,7 @@ model = Asparagus(
     model_directory='model_clphoh',
     model_properties=['energy', 'forces', 'dipole'],
     trainer_max_epochs=1_000,
-    trainer_guess_shifts=False,
+    trainer_guess_shifts=True,
     )
 model.train()
 model.test(

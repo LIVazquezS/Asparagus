@@ -1,6 +1,7 @@
 
 import asparagus
 
+import os
 import torch
 import numpy as np
 
@@ -11,21 +12,21 @@ import numpy as np
 
 flag_dictionary_initialization = True
 flag_database_sql = True
-flag_database_npz = False
+flag_database_npz = True
 flag_database_hdf5 = False
-flag_sampler_all = False
-flag_sampler_shell = False
+flag_sampler_all = True
+flag_sampler_shell = True
 flag_sampler_slurm = False
 
-flag_model_physnet = False
-flag_train_physnet = False
-flag_ase_physnet = False
+flag_model_physnet = True
+flag_train_physnet_sql = True
+flag_train_physnet_npz = True
+flag_ase_physnet = True
 
-flag_model_painn = False
-flag_train_painn = False
+flag_model_painn = True
+flag_train_painn = True
 
 flag_train_cuda = False
-
 
 #==============================================================================
 # Test Asparagus Main Class Initialization
@@ -152,7 +153,6 @@ if flag_database_sql:
         data_overwrite=True,
     )
 
-    # TODO Check automatic unit conversion
     # Load ASE trajectory file with different property units
     model.set_data_container(
         config=config_file,
@@ -166,8 +166,42 @@ if flag_database_sql:
         data_overwrite=True,
     )
 
+    # Test training initialization
+    model.train(
+        trainer_max_epochs=0,
+        model_directory='test/test_model')
+
+    # Check automatic model property assignment from data properties
+    if os.path.exists(config_file):
+        os.remove(config_file)
+    model = asparagus.Asparagus(
+        config=config_file,
+        data_file='test/meta_nh3_test_unit.db',
+        data_source='data/meta_nh3.traj',
+        data_load_properties=['energy', 'forces'],
+        data_unit_properties={
+            'positions': 'Bohr',
+            'energy': 'kcal/mol',
+            'forces': 'kcal/mol/Bohr'},
+        data_overwrite=True,
+    )
+
+    # Test training initialization
+    model.train(
+        trainer_max_epochs=0,
+        model_directory='test/test_model')
+
 # Numpy npz
 if flag_database_npz:
+
+    model = asparagus.Asparagus(
+        config=config_file,
+        data_file='test/nms_nh3_test.db.npz',
+        data_file_format='npz',
+        data_source='data/nms_nh3.db',
+        data_source_format='db',
+        data_overwrite=True,
+        )
 
     # Create new DataBase file
     data = model.get_data_container(
@@ -176,22 +210,39 @@ if flag_database_npz:
         data_file_format='npz',
         data_source='data/nms_nh3.db',
         data_source_format='db',
-        data_overwrite=True,
+        data_overwrite=False,
     )
+    print("\nDatabase path: ", data, "\n")
+    print("\nDatabase entry '0': ", data[0]['energy'])
+    print("\nDatabase Train entry '1': ", data.get_train(1)['atoms_number'])
+    print("\nDatabase Valid entry '2': ", data.get_valid(2)['cell'])
+    print("\nDatabase Valid entry '2': ", data.get_valid(2)['pbc'])
+    print("\nDatabase Test entry  '3': ", data.get_test(3)['positions'])
+    print("\nDatabase Test entry  '3': ", data.get_test(4)['forces'])
+    
+    # Test training initialization
+    model.train(
+        trainer_max_epochs=0,
+        model_directory='test/test_model')
 
 # HDF5
 if flag_database_hdf5:
 
     # Create new DataBase file
-    model.set_data_container(
+    model = asparagus.Asparagus(
         config=config_file,
-        data_file='test/nms_nh3_test.db',
+        data_file='test/nms_nh3_test.db.h5',
         data_file_format='hdf5',
         data_source='data/nms_nh3.db',
         data_source_format='sql',
         data_overwrite=True,
     )
     data = model.get_data_container()
+    
+    # Test training initialization
+    model.train(
+        trainer_max_epochs=0,
+        model_directory='test/test_model')
 
 #==============================================================================
 # Test Asparagus Sampler Methods
@@ -788,9 +839,9 @@ if flag_sampler_slurm:
 #==============================================================================
 
 # Initialize PhysNet model calculator
+config_file1 = 'test/model_physnet.json'
 if flag_model_physnet:
     
-    config_file1 = 'test/model_physnet.json'
     model = asparagus.Asparagus(
         config_file=config_file1,
         model_type='physnet')
@@ -802,25 +853,43 @@ if flag_model_physnet:
         model_calculator=mcalc)
     
 # Initialize PhysNet model training
-if flag_train_physnet:
+if flag_train_physnet_sql:
     
     config_file2 = 'test/train_physnet.json'
     model = asparagus.Asparagus(
         config=config_file1,
         config_file=config_file2,
         data_file='data/nms_nh3.db',
-        model_directory='test/physnet',
+        model_directory='test/physnet_sql',
         model_num_threads=2,
         trainer_max_epochs=10,
         trainer_debug_mode=False,
         )
     trainer = model.get_trainer()
     model.train()
-    model.test(test_directory='test/physnet')
+    model.test(test_directory='test/physnet_sql')
+
+if flag_train_physnet_npz:
+    
+    config_file2 = 'test/train_physnet_npz.json'
+    model = asparagus.Asparagus(
+        config=config_file1,
+        config_file=config_file2,
+        data_file='test/nms_nh3.db.npz',
+        data_source='data/nms_nh3.db',
+        data_source_format='db',
+        model_directory='test/physnet_npz',
+        model_num_threads=2,
+        trainer_max_epochs=10,
+        trainer_debug_mode=False,
+        )
+    trainer = model.get_trainer()
+    model.train()
+    model.test(test_directory='test/physnet_npz')
 
 # Test ASE calculator
 if flag_ase_physnet:
-    
+
     from ase import Atoms
     
     # Get ASE model calculator
@@ -876,9 +945,9 @@ if flag_ase_physnet:
     print(f"RMSE(energy) = {rmse_energy:.4f} eV")
 
 # Initialize PaiNN model calculator
+config_file1 = 'test/model_painn.json'
 if flag_model_painn:
 
-    config_file1 = 'test/model_painn.json'
     model = asparagus.Asparagus(
         config_file=config_file1,
         model_type='painn')

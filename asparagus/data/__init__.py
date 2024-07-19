@@ -10,7 +10,7 @@ from .dataset import (
     DataSet, DataSubSet
 )
 from .datareader import (
-    DataReader
+    DataReader, check_data_format
 )
 from .database import (
     DataBase, connect, get_connect, get_metadata

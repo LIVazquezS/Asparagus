@@ -269,7 +269,8 @@ class DataBase_SQLite3(data.DataBase):
         super().__init__(data_file)
 
         # Prepare data locker
-        if lock_file and utils.is_string(data_file):
+        self.lock_file = self.data_file + '.lock'
+        if lock_file and utils.is_string(self.data_file):
             self.lock = Lock(self.data_file + '.lock', world=DummyMPI())
         else:
             self.lock = None
@@ -922,6 +923,16 @@ class DataBase_SQLite3(data.DataBase):
             con.commit()
             con.cursor().execute("VACUUM")
 
+        return
+
+    def _delete_file(self):
+        """
+        Delete database file
+        """
+        if os.path.exists(self.data_file):
+            os.remove(self.data_file)
+        if os.path.exists(self.lock_file):
+            os.remove(self.lock_file)
         return
 
     @property

@@ -427,8 +427,8 @@ class Trainer:
         
         # Check matching data and model properties 
         matching_properties = []
-        for prop in data_properties:
-            if prop in model_properties:
+        for prop in model_properties:
+            if prop in data_properties:
                 matching_properties.append(prop)
 
         # Check training properties are empty, use all matching properties
@@ -535,15 +535,15 @@ class Trainer:
         Returns
         -------
         dict(str, str)
-            Dictionary of adopted model property units
+            Dictionary of model property units
         dict(str, str)
-            Dictionary of adopted data property units
+            Dictionary of data property units
         dict(str, float)
             Dictionary of model to data property unit conversion factors
 
         """
 
-        # Initialize mode to data unit conversion dictionary
+        # Initialize model to data unit conversion dictionary
         model_conversion = {}
         
         # Check basic properties - positions, charge
@@ -1188,7 +1188,7 @@ class Trainer:
         energy = energy.cpu().detach().numpy()
         sys_i = sys_i.cpu().detach().numpy()
         sys_number = atoms_number.shape[0]
-        
+
         # Check if only one system composition is available
         multiple_systems = False
         # Check for different system sizes

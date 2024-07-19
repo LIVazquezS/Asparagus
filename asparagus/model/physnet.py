@@ -64,10 +64,8 @@ class Model_PhysNet(torch.nn.Module):
     
     # Default arguments for graph module
     _default_args = {
-        'model_properties':             ['energy', 'forces', 'dipole'],
-        'model_unit_properties':        {'energy': 'eV',
-                                         'forces': 'eV/Ang',
-                                         'dipole': 'eAng'},
+        'model_properties':             None,
+        'model_unit_properties':        None,
         'model_cutoff':                 12.0,
         'model_cuton':                  None,
         'model_switch_range':           2.0,
@@ -81,8 +79,8 @@ class Model_PhysNet(torch.nn.Module):
 
     # Expected data types of input variables
     _dtypes_args = {
-        'model_properties':             [utils.is_string_array],
-        'model_unit_properties':        [utils.is_dictionary],
+        'model_properties':             [utils.is_string_array, utils.is_None],
+        'model_unit_properties':        [utils.is_dictionary, utils.is_None],
         'model_cutoff':                 [utils.is_numeric],
         'model_cuton':                  [utils.is_numeric, utils.is_None],
         'model_switch_range':           [utils.is_numeric],
@@ -100,6 +98,15 @@ class Model_PhysNet(torch.nn.Module):
         'graph_type':                   'PhysNet',
         'output_type':                  'PhysNet',
         }
+
+    _default_model_properties = ['energy', 'forces', 'dipole']
+
+    _supported_model_properties = [
+        'energy',
+        'atomic_energies',
+        'forces',
+        'atomic_charges',
+        'dipole']
 
     def __init__(
         self,
@@ -158,6 +165,19 @@ class Model_PhysNet(torch.nn.Module):
         #####################################
         # # # Check PhysNet Model Input # # #
         #####################################
+
+        # Check model properties - Selection
+        if self.model_properties is None:
+            # If no model properties are defined but data properties are,
+            # adopt all supported data properties as model properties,
+            # else adopt default model properties
+            if config.get('data_load_properties') is None:
+                self.model_properties = self._default_model_properties
+            else:
+                self.model_properties = []
+                for prop in config.get('data_load_properties'):
+                    if prop in self._supported_model_properties:
+                        self.model_properties.append(prop)
 
         # Check model properties - Labels
         for prop in self.model_properties:
@@ -454,8 +474,8 @@ class Model_PhysNet(torch.nn.Module):
 
     def check_model_properties(
         self,
-        properties, 
-        unit_properties,
+        properties: List[str],
+        unit_properties: Dict[str, str],
     ) -> Dict[str, str]:
         """
         Check model property units input.
@@ -473,6 +493,10 @@ class Model_PhysNet(torch.nn.Module):
             Checked unit labels of the predicted model properties.
 
         """
+
+        # Check property units input
+        if unit_properties is None:
+            unit_properties = {}
 
         # Initialize checked property units dictionary
         checked_unit_properties = {}
