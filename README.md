@@ -2,7 +2,7 @@
 
 **Authors**: K. Toepfer, L.I. Vazquez-Salazar
 
-<img src="[https://github.com/favicon.ico](https://github.com/LIVazquezS/Asparagus/blob/main/data/logo.png)" width="100">
+<img src="https://github.com/LIVazquezS/Asparagus/blob/main/data/logo.png" width="100">
 
 ## What is this?
  - A refined implementation of PhysNet NN (and other atomistic NN to come) in PyTorch. 
