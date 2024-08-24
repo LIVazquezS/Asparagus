@@ -15,11 +15,8 @@ import numpy as np
 
 import torch
 
-from .. import data
-from .. import utils
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from asparagus import data
+from asparagus import utils
 
 __all__ = ['connect', 'DataBase_SQLite3']
 

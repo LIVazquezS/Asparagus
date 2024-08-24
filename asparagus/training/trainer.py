@@ -6,11 +6,11 @@ import torch
 
 import numpy as np
 
-from .. import settings
-from .. import utils
-from .. import data
-from .. import model
-from .. import training
+from asparagus import settings
+from asparagus import utils
+from asparagus import data
+from asparagus import model
+from asparagus import training
 
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler

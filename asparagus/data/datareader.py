@@ -7,9 +7,9 @@ import ase.db as ase_db
 
 import numpy as np
 
-from .. import data
-from .. import utils
-from .. import settings
+from asparagus import data
+from asparagus import utils
+from asparagus import settings
 
 __all__ = ['DataReader', 'check_data_format']
 

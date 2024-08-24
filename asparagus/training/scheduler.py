@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
 
-from .. import utils
+from asparagus import utils
 
 # Initialize logger
 name = f"{__name__:s}"

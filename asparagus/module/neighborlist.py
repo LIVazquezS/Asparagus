@@ -2,10 +2,9 @@ from typing import Optional, List, Dict, Tuple, Union, Any
 
 import torch
 
-from .. import utils
+from asparagus import utils
 
 __all__ = ["TorchNeighborListRangeSeparated"]
-
 
 class TorchNeighborListRangeSeparated(torch.nn.Module):
     """

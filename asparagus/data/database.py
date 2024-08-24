@@ -1,13 +1,13 @@
 import os
 import logging
-from typing import Optional, Union, List, Dict, Callable, Any
+from typing import Optional, Union, List, Tuple, Dict, Callable, Any
 
 from ase.parallel import parallel_function
 
 import torch
 
-from .. import data
-from .. import utils
+from asparagus import data
+from asparagus import utils
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ def get_connect(
 
 
 def get_metadata(
-    data_file: tuple[str, str],
+    data_file: Tuple[str, str],
 ) -> Dict[str, Any]:
     """
     Read metadata from a database file.

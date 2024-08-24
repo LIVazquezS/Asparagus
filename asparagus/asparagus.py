@@ -6,12 +6,12 @@ import ase
 
 import torch
 
-from . import settings
-from . import utils
-from . import data
-from . import model
-from . import training
-from . import interface
+from asparagus import settings
+from asparagus import utils
+from asparagus import data
+from asparagus import model
+from asparagus import training
+from asparagus import interface
 
 __all__ = ['Asparagus']
 

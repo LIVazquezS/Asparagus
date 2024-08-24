@@ -8,10 +8,10 @@ import numpy as np
 
 import torch
 
-from .. import data
-from .. import settings
-from .. import utils
-from .. import training
+from asparagus import data
+from asparagus import settings
+from asparagus import utils
+from asparagus import training
 
 # These packages are required for all functions of plotting and analysing
 # the model.

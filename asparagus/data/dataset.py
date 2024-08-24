@@ -4,9 +4,9 @@ from typing import Optional, List, Dict, Tuple, Union, Any, Callable
 
 import torch
 
-from .. import data
-from .. import utils
-from .. import settings
+from asparagus import data
+from asparagus import utils
+from asparagus import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class DataSet():
 
     def __init__(
         self,
-        data_file: Union[str, tuple[str, str]],
+        data_file: Union[str, Tuple[str, str]],
         data_properties: Optional[List[str]] = None,
         data_unit_properties: Optional[Dict[str, str]] = None,
         data_alt_property_labels: Optional[Dict[str, List[str]]] = None,
@@ -513,7 +513,7 @@ class DataSubSet(DataSet):
 
     def __init__(
         self,
-        data_file: Union[str, tuple[str, str]],
+        data_file: Union[str, Tuple[str, str]],
         subset_idx: List[int],
     ):
         """
