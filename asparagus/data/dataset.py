@@ -310,7 +310,10 @@ class DataSet():
         # Check if data source already loaded
         if metadata.get('data_source') is None:
             metadata['data_source'] = []
-        elif data_source in metadata['data_source']:
+        elif (
+            data_source
+            in [tuple(source_i) for source_i in metadata['data_source']]
+        ):
             logger.warning(
                 f"WARNING:\nData source '{data_source[0]:s}' already "
                 + f"written to dataset '{self.data_file[0]:s}'! "

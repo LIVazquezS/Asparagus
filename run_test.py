@@ -84,7 +84,7 @@ if flag_database_sql:
             ],
         )
     model.set_data_container()
-    exit()
+
     # Create new DataBase file
     model.set_data_container(
         config=config_file,

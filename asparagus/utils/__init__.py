@@ -31,6 +31,10 @@ from .check_units import(
     check_units
 )
 
+from .neighborlist import(
+    TorchNeighborListRangeSeparated
+)
+
 from .output import(
     set_logger, get_header, print_ProgressBar
 )

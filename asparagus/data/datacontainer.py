@@ -604,7 +604,7 @@ class DataContainer():
 
         # Stop further setup if no data are available
         if not Ndata:
-            msg = f"No data are available in '{self.data_file:s}!"
+            msg = f"No data are available in '{self.data_file[0]:s}!"
             self.logger.error(msg)
             raise SyntaxError(msg)
 
