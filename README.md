@@ -43,9 +43,9 @@ working will be added to the *PYTHONPATH*, so you can import the modules from an
 
 Install via pip:
 ``` 
-pip install -e .
+python -m pip install .
 ```
-Alternatively, install via setup.py:
+Alternatively, but deprecated, install via setup.py:
 ``` 
 python setup.py install
 ```
