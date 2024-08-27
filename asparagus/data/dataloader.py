@@ -5,9 +5,8 @@ from typing import Optional, List, Dict, Tuple, Union
 
 import torch
 
-from asparagus import data
-from asparagus import utils
-from asparagus import module
+from .. import data
+from .. import utils
 
 __all__ = ['DataLoader']
 
@@ -116,7 +115,7 @@ class DataLoader(torch.utils.data.DataLoader):
             dtype = self.dtype
 
         # Initialize neighbor list creator
-        self.neighbor_list = module.TorchNeighborListRangeSeparated(
+        self.neighbor_list = utils.TorchNeighborListRangeSeparated(
             cutoff, device, dtype)
 
         return

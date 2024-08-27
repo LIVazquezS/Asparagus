@@ -5,7 +5,7 @@ from typing import Optional, Callable, Any
 import torch
 import ase
 
-from asparagus import utils
+from .. import utils
 
 # --------------- ** Checking data types ** ---------------
 

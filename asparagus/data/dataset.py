@@ -4,9 +4,9 @@ from typing import Optional, List, Dict, Tuple, Union, Any, Callable
 
 import torch
 
-from asparagus import data
-from asparagus import utils
-from asparagus import settings
+from .. import data
+from .. import utils
+from .. import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class DataSet():
 
     def __init__(
         self,
-        data_file: Union[str, Tuple[str, str]],
+        data_file: Union[str, tuple[str, str]],
         data_properties: Optional[List[str]] = None,
         data_unit_properties: Optional[Dict[str, str]] = None,
         data_alt_property_labels: Optional[Dict[str, List[str]]] = None,
@@ -310,10 +310,7 @@ class DataSet():
         # Check if data source already loaded
         if metadata.get('data_source') is None:
             metadata['data_source'] = []
-        elif (
-            data_source
-            in [tuple(source_i) for source_i in metadata['data_source']]
-        ):
+        elif data_source in metadata['data_source']:
             logger.warning(
                 f"WARNING:\nData source '{data_source[0]:s}' already "
                 + f"written to dataset '{self.data_file[0]:s}'! "
@@ -513,7 +510,7 @@ class DataSubSet(DataSet):
 
     def __init__(
         self,
-        data_file: Union[str, Tuple[str, str]],
+        data_file: Union[str, tuple[str, str]],
         subset_idx: List[int],
     ):
         """

@@ -10,8 +10,11 @@ import torch
 
 import h5py
 
-from asparagus import data
-from asparagus import utils
+from .. import data
+from .. import utils
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 __all__ = ['DataBase_hdf5']
 

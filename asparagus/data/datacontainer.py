@@ -1,12 +1,12 @@
 import os
 import logging
-from typing import Optional, List, Tuple, Dict, Union, Any, Callable
+from typing import Optional, List, Dict, Union, Any, Callable
 
 import numpy as np
 
-from asparagus import data
-from asparagus import utils
-from asparagus import settings
+from .. import data
+from .. import utils
+from .. import settings
 
 __all__ = ['DataContainer']
 
@@ -73,54 +73,14 @@ class DataContainer():
     name = f"{__name__:s} - {__qualname__:s}"
     logger = utils.set_logger(logging.getLogger(name))
 
-    # Default arguments for data modules
-    _default_args = {
-        'data_file':                    ('data.db', 'sql.db'),
-        'data_source':                  [],
-        'data_properties':              ['energy', 'forces', 'dipole'],
-        'data_unit_properties':         {'energy': 'eV',
-                                        'forces': 'eV/Ang',
-                                        'dipole': 'e*Ang'},
-        'data_alt_property_labels':     {},
-        'data_num_train':               0.8,
-        'data_num_valid':               0.1,
-        'data_num_test':                None,
-        'data_train_batch_size':        32,
-        'data_valid_batch_size':        32,
-        'data_test_batch_size':         32,
-        'data_num_workers':             1,
-        'data_overwrite':               False,
-        'data_seed':                    np.random.randint(1E6),
-        }
-
-    # Expected data types of input variables
-    _dtypes_args = {
-        'data_file':                    [
-            utils.is_string, utils.is_string_array_inhomogeneous],
-        'data_source':                  [
-            utils.is_string, utils.is_string_array_inhomogeneous],
-        'data_properties':              [utils.is_array_like],
-        'data_unit_properties':         [utils.is_dictionary],
-        'data_alt_property_labels':     [utils.is_dictionary],
-        'data_num_train':               [utils.is_numeric],
-        'data_num_valid':               [utils.is_numeric],
-        'data_num_test':                [utils.is_numeric, utils.is_None],
-        'data_train_batch_size':        [utils.is_integer],
-        'data_val_batch_size':          [utils.is_integer],
-        'data_test_batch_size':         [utils.is_integer],
-        'data_num_workers':             [utils.is_integer],
-        'data_overwrite':               [utils.is_bool],
-        'data_seed':                    [utils.is_numeric],
-        }
-
     def __init__(
         self,
         config: Optional[Union[str, dict, settings.Configuration]] = None,
         config_file: Optional[str] = None,
-        data_file: Optional[Union[str, Tuple[str, str]]] = None,
+        data_file: Optional[Union[str, tuple[str, str]]] = None,
         data_source: Optional[
             Union[
-                str, Tuple[str, str], List[str], List[Tuple[str, str]]]
+                str, tuple[str, str], List[str], List[tuple[str, str]]]
             ] = None,
         data_alt_property_labels: Optional[Dict[str, List[str]]] = None,
         data_properties: Optional[List[str]] = None,
@@ -305,7 +265,7 @@ class DataContainer():
 
     def check_data_files(
         self,
-        files: Union[str, Tuple[str, str], List[str], List[Tuple[str, str]]],
+        files: Union[str, tuple[str, str], List[str], List[tuple[str, str]]],
         is_source: Optional[bool] = False,
     ):
         """
@@ -644,7 +604,7 @@ class DataContainer():
 
         # Stop further setup if no data are available
         if not Ndata:
-            msg = f"No data are available in '{self.data_file[0]:s}!"
+            msg = f"No data are available in '{self.data_file:s}!"
             self.logger.error(msg)
             raise SyntaxError(msg)
 

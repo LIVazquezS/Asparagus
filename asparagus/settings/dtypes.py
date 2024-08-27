@@ -2,7 +2,7 @@ import numpy as np
 
 import torch
 
-from asparagus import utils
+from .. import utils
 
 # ======================================
 #  Input data types

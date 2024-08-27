@@ -4,7 +4,7 @@ import numpy as np
 
 import torch
 
-from asparagus import utils
+from .. import utils
 
 
 def detach_tensor(
@@ -166,7 +166,7 @@ def unsorted_segment_sum(
 
 
 def softplus_inverse(x: torch.Tensor) -> torch.Tensor:
-    r"""
+    """
     Numerically stable inverse of softplus transform
     .. math:: f(x) = x + \log(1 - \exp(x))
 
