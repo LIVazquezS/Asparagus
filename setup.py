@@ -15,13 +15,19 @@ setup(
     packages=find_packages(include=['asparagus']),
     include_package_data=True,
     install_requires=[
-        'ase', 
-        'numpy', 
+        'ase==3.22.1', 
+        'numpy<2.0', 
         'tensorboard', 
-        'torch', 
-        'torch-ema',
+        'torch==1.12.0', 
+        'torch-ema>=0.3',
         'tabulate',
         'h5py',
-        'xtb']
+        'xtb',
+        'pandas',
+        'matplotlib',
+        'seaborn',
+        'scipy',
+        'pytest',
+    ]
     #TODO: Add more dependencies and option to be read from a file
 )
