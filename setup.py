@@ -18,7 +18,7 @@ setup(
         'ase==3.22.1', 
         'numpy<2.0', 
         'tensorboard', 
-        'torch==1.12.0', 
+        'torch==2.2.0', 
         'torch-ema>=0.3',
         'tabulate',
         'h5py',
