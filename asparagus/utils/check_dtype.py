@@ -5,7 +5,7 @@ from typing import Optional, Callable, Any
 import torch
 import ase
 
-from .. import utils
+from asparagus import utils
 
 # --------------- ** Checking data types ** ---------------
 
@@ -20,9 +20,12 @@ dnum_all = dint_all + dflt_all
 
 # Array data types
 darr_all = (tuple, list, np.ndarray, torch.Tensor)
+darr_all_len = (tuple, list)
+darr_all_shape = (np.ndarray, torch.Tensor)
 
 # Bool data types
 dbool_all = (bool, np.bool_)
+dbool_all_shape = (bool, np.bool_, torch.bool)
 
 
 def is_None(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -43,10 +46,17 @@ def is_None(x: Any, verbose: Optional[bool] = False) -> bool:
 
     """
 
-    if verbose:
-        return (x is None), type(x), "NoneType"
+    if isinstance(x, np.ndarray) and not x.shape:
+        result = x == None
+        xtype = x.dtype
     else:
-        return (x is None)
+        result = x is None
+        xtype = type(x)
+        
+    if verbose:
+        return result, xtype, "NoneType"
+    else:
+        return result
 
 
 def is_none(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -70,10 +80,18 @@ def is_string(x: Any, verbose: Optional[bool] = False) -> bool:
         True, if input variable match dtype, else False.
 
     """
-    if verbose:
-        return isinstance(x, str), type(x), "str"
+    
+    if isinstance(x, np.ndarray) and not x.shape:
+        result = x.dtype.char == 'U'
+        xtype = x.dtype
     else:
-        return isinstance(x, str)
+        result = isinstance(x, str)
+        xtype = type(x)
+
+    if verbose:
+        return result, xtype, "str"
+    else:
+        return result
 
 
 def is_bool(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -93,10 +111,22 @@ def is_bool(x: Any, verbose: Optional[bool] = False) -> bool:
         True, if input variable match dtype, else False.
 
     """
-    if verbose:
-        return isinstance(x, dbool_all), type(x), "bool"
+    
+    if isinstance(x, (torch.Tensor, np.ndarray)) and not x.shape:
+        result = (x.dtype in dbool_all_shape)
+        xtype = x.dtype
     else:
-        return isinstance(x, dbool_all)
+        result = isinstance(x, dbool_all)
+        xtype = type(x)
+
+    if verbose:
+        return result, xtype, "bool"
+    else:
+        return result
+
+
+def is_boolean(x: Any, verbose: Optional[bool] = False) -> bool:
+    return is_bool(x, verbose=verbose)
 
 
 def is_numeric(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -116,19 +146,18 @@ def is_numeric(x: Any, verbose: Optional[bool] = False) -> bool:
         True, if input variable match dtype, else False.
 
     """
-    if isinstance(x, (torch.Tensor, np.ndarray)):
-        if len(x.shape) == 0:
-            result = ((x.dtype in dnum_all), type(x), str(dnum_all))
-        else:
-            result = (False, type(x), str(dnum_all))
+
+    if isinstance(x, (torch.Tensor, np.ndarray)) and not x.shape:
+        result = (x.dtype in dnum_all)
+        xtype = x.dtype
     else:
-        result = (
-            (type(x) in dnum_all and not is_bool(x)), type(x), str(dnum_all))
+        result = type(x) in dnum_all and not is_bool(x)
+        xtype = type(x)
 
     if verbose:
-        return result
+        return (result, xtype, str(dnum_all))
     else:
-        return result[0]
+        return result
 
 
 def is_integer(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -148,19 +177,18 @@ def is_integer(x: Any, verbose: Optional[bool] = False) -> bool:
         True, if input variable match dtype, else False.
 
     """
-    if isinstance(x, (torch.Tensor, np.ndarray)):
-        if len(x.shape) == 0:
-            result = ((x.dtype in dint_all), type(x), str(dint_all))
-        else:
-            result = (False, type(x), str(dint_all))
+
+    if isinstance(x, (torch.Tensor, np.ndarray)) and not x.shape:
+        result = (x.dtype in dint_all)
+        xtype = x.dtype
     else:
-        result = (
-            (type(x) in dint_all and not is_bool(x)), type(x), str(dint_all))
+        result = type(x) in dint_all and not is_bool(x)
+        xtype = type(x)
 
     if verbose:
-        return result
+        return (result, xtype, str(dint_all))
     else:
-        return result[0]
+        return result
 
 
 def is_callable(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -238,7 +266,6 @@ def is_array_like(
 ) -> bool:
     """
     Check if the input is an array-like object.
-    If requested, positive check allows inhomogeneity of the array object.
 
     Parameters
     ----------
@@ -255,24 +282,19 @@ def is_array_like(
         True, if input variable match dtype, else False.
 
     """
-    # Test for inhomogeneity of the array object
-    if verbose:
-        if isinstance(x, darr_all) and inhomogeneity:
-            x = [xi for xi in utils.flatten_array_like(x)]
-        try:
-            _ = np.asarray(x)
-            result = (
-                isinstance(x, darr_all),
-                type(x),
-                str(darr_all))
-        except ValueError:
-            result = (
-                False,
-                f"{type(x)}",
-                f"{darr_all}")
-        return result
+    
+    if isinstance(x, darr_all_shape) and x.shape:
+        result = True
+    elif isinstance(x, darr_all_len) and len(x):
+        result = True
     else:
-        return isinstance(x, darr_all)
+        result = False
+    xtype = type(x)
+    
+    if verbose:
+        return (result, xtype, str(darr_all))
+    else:
+        return result
 
 
 def is_numeric_array(
@@ -298,34 +320,30 @@ def is_numeric_array(
         True, if input variable match dtype, else False.
 
     """
-    if is_array_like(x, inhomogeneity=inhomogeneity) and len(x):
+
+    if is_array_like(x):
+        if inhomogeneity:
+            x = [xi for xi in utils.flatten_array_like(x)]
         try:
-            if inhomogeneity:
-                x = [xi for xi in utils.flatten_array_like(x)]
-            result = (
-                True,
-                f"({type(x)})[{np.asarray(x).dtype}]",
-                f"({darr_all})[{dnum_all}]")
+            x_arr = np.asarray(x)
+            if (x_arr.dtype in dnum_all):
+                result = True
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+            else:
+                result = False
+                xtype = f"({type(x)})[{x_arr.dtype}]"
         except (ValueError, TypeError):
-            result = (
-                False,
-                f"({type(x)})[{type(x[0])}]",
-                f"({darr_all})[{dnum_all}]")
-    elif is_array_like(x):
-        result = (
-            True,
-            f"({type(x)})[empty]",
-            f"({darr_all})[{dnum_all}]")
+            result = False
+            xtype = f"({type(x)})[{type(x[0])}]"
+        pass
     else:
-        result = (
-            False,
-            f"{type(x)}",
-            f"({darr_all})[{dnum_all}]")
+        result = False
+        xtype = f"{type(x)}"
 
     if verbose:
-        return result
+        return (result, xtype, f"({darr_all})[{dnum_all}]")
     else:
-        return result[0]
+        return result
 
 
 def is_integer_array(
@@ -351,34 +369,30 @@ def is_integer_array(
         True, if input variable match dtype, else False.
 
     """
-    if is_numeric_array(x, inhomogeneity=inhomogeneity):
+
+    if is_array_like(x):
         if inhomogeneity:
             x = [xi for xi in utils.flatten_array_like(x)]
-        if (np.asarray(x).dtype in dint_all):
-            result = (
-                True,
-                f"{type(x)}[{np.asarray(x).dtype}]",
-                f"({darr_all})[{dint_all}]")
-        else:
-            result = (
-                False,
-                f"{type(x)}[{type(x[0])}]",
-                f"({darr_all})[{dint_all}]")
-    elif is_array_like(x):
-        result = (
-            True,
-            f"({type(x)})[empty]",
-            f"({darr_all})[{dint_all}]")
+        try:
+            x_arr = np.asarray(x)
+            if (x_arr.dtype in dint_all):
+                result = True
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+            else:
+                result = False
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+        except (ValueError, TypeError):
+            result = False
+            xtype = f"({type(x)})[{type(x[0])}]"
+        pass
     else:
-        result = (
-            False,
-            f"({type(x)})",
-            f"({darr_all})[{dint_all}]")
+        result = False
+        xtype = f"{type(x)}"
 
     if verbose:
-        return result
+        return (result, xtype, f"({darr_all})[{dint_all}]")
     else:
-        return result[0]
+        return result
 
 
 def is_string_array(
@@ -404,76 +418,40 @@ def is_string_array(
         True, if input variable match dtype, else False.
 
     """
-    if is_array_like(x, inhomogeneity=inhomogeneity) and len(x):
+
+    if is_array_like(x):
         if inhomogeneity:
             x = [xi for xi in utils.flatten_array_like(x)]
         try:
-            np.asarray(x, dtype=str)
-            result = (
-                True,
-                f"({type(x)})[{np.asarray(x).dtype}]",
-                f"({darr_all})[str]")
+            x_arr = np.asarray(x)
+            if x_arr.dtype.char == 'U':
+                result = True
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+            else:
+                result = False
+                xtype = f"({type(x)})[{x_arr.dtype}]"
         except (ValueError, TypeError):
-            result = (
-                False,
-                f"({type(x)})[{type(x[0])}]",
-                f"({darr_all})[str]")
-    elif is_array_like(x):
-        result = (
-            True,
-            f"({type(x)})[empty]",
-            f"({darr_all})[str]")
+            result = False
+            xtype = f"({type(x)})[{type(x[0])}]"
+        pass
     else:
-        result = (
-            False,
-            f"{type(x)}",
-            f"({darr_all})[str]")
+        result = False
+        xtype = f"{type(x)}"
 
     if verbose:
-        return result
+        return (result, xtype, f"({darr_all})[str]")
     else:
-        return result[0]
+        return result
 
 
 def is_string_array_inhomogeneous(
     x: Any,
-    inhomogeneity: Optional[bool] = True,
     verbose: Optional[bool] = False,
-):
-    """
-    Check if the input can be an inhomogeneous string array-like object.
-
-    Parameters
-    ----------
-    x: Any
-        Input variable of which to check dtype
-    inhomogeneity: bool, optional, default True
-        If True, return positive match for inhomogeneous array like variables.
-    verbose: bool, optional, default False
-        If True, return the type of the input and the expected type.
-
-    Returns
-    -------
-    bool
-        True, if input variable match dtype, else False.
-
-    """
-
-    return is_string_array(x, inhomogeneity=inhomogeneity, verbose=verbose)
+) -> bool:
+    return is_string_array(x, inhomogeneity=True, verbose=verbose)
 
 
 def is_bool_array(
-    x: Any,
-    inhomogeneity: Optional[bool] = False,
-    verbose: Optional[bool] = False,
-) -> bool:
-    """
-    Redirection to is_boolean_array
-    """
-    return is_boolean_array(x, inhomogeneity=inhomogeneity, verbose=verbose)
-
-
-def is_boolean_array(
     x: Any,
     inhomogeneity: Optional[bool] = False,
     verbose: Optional[bool] = False,
@@ -496,34 +474,38 @@ def is_boolean_array(
         True, if input variable match dtype, else False.
 
     """
-    if is_array_like(x, inhomogeneity=inhomogeneity) and len(x):
+    
+    if is_array_like(x):
         if inhomogeneity:
             x = [xi for xi in utils.flatten_array_like(x)]
-        if (np.asarray(x).dtype in dbool_all):
-            result = (
-                True,
-                f"({type(x)})[{np.asarray(x).dtype}]",
-                f"({darr_all})[bool]")
-        else:
-            result = (
-                False,
-                f"({type(x)})[{type(x[0])}]",
-                f"({darr_all})[bool]")
-    elif is_array_like(x):
-        result = (
-            True,
-            f"({type(x)})[empty]",
-            f"({darr_all})[bool]")
+        try:
+            x_arr = np.asarray(x)
+            if (x_arr.dtype in dbool_all):
+                result = True
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+            else:
+                result = False
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+        except (ValueError, TypeError):
+            result = False
+            xtype = f"({type(x)})[{type(x[0])}]"
+        pass
     else:
-        result = (
-            False,
-            f"{type(x)}",
-            f"({darr_all})[bool]")
+        result = False
+        xtype = f"{type(x)}"
 
     if verbose:
-        return result
+        return (result, xtype, f"({darr_all})[{dbool_all}]")
     else:
-        return result[0]
+        return result
+
+
+def is_boolean_array(
+    x: Any,
+    inhomogeneity: Optional[bool] = False,
+    verbose: Optional[bool] = False,
+) -> bool:
+    return is_bool_array(x, inhomogeneity=inhomogeneity, verbose=verbose)
 
 
 def is_None_array(
@@ -549,34 +531,30 @@ def is_None_array(
         True, if input variable match dtype, else False.
 
     """
-    if is_array_like(x, inhomogeneity=inhomogeneity) and len(x):
+
+    if is_array_like(x):
         if inhomogeneity:
             x = [xi for xi in utils.flatten_array_like(x)]
-        if (np.asarray(x) == None).all(): # np.asarray(x) is None does not work
-            result = (
-                True,
-                f"({type(x)})[None]",
-                f"({darr_all})[None]")
-        else:
-            result = (
-                False,
-                f"({type(x)})[{type(x[0])}]",
-                f"({darr_all})[None]")
-    elif is_array_like(x):
-        result = (
-            True,
-            f"({type(x)})[empty]",
-            f"({darr_all})[None]")
+        try:
+            x_arr = np.asarray(x)
+            if (np.asarray(x_arr) == None).all():
+                result = True
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+            else:
+                result = False
+                xtype = f"({type(x)})[{x_arr.dtype}]"
+        except (ValueError, TypeError):
+            result = False
+            xtype = f"({type(x)})[{type(x[0])}]"
+        pass
     else:
-        result = (
-            False,
-            f"{type(x)}",
-            f"({darr_all})[None]")
+        result = False
+        xtype = f"{type(x)}"
 
     if verbose:
-        return result
+        return (result, xtype, f"({darr_all})[NoneType]")
     else:
-        return result[0]
+        return result
 
 
 def is_ase_atoms(x: Any, verbose: Optional[bool] = False) -> bool:
@@ -614,6 +592,8 @@ def is_ase_atoms_array(
     ----------
     x: Any
         Input variable of which to check object type
+    inhomogeneity: bool, optional, default False
+        If True, return positive match for inhomogeneous array like variables
     verbose: bool, optional, default False
         If True, return the object type of the input and the expected type
 
@@ -623,32 +603,24 @@ def is_ase_atoms_array(
         True, if input variable match object type, else False.
 
     """
-    if is_array_like(x, inhomogeneity=inhomogeneity) and len(x):
-        if all([is_ase_atoms(xi) for xi in utils.flatten_array_like(x)]):
-            result = (
-                True,
-                f"({type(x)})[{type(x[0])}]",
-                f"({darr_all})[ase.Atoms]")
+
+    if is_array_like(x):
+        if inhomogeneity:
+            x = [xi for xi in utils.flatten_array_like(x)]
+        if all([is_ase_atoms(xi) for xi in x]):
+            result = True
+            xtype = f"({type(x)})[{type(x[0])}]"
         else:
-            result = (
-                False,
-                f"({type(x)})[{type(x[0])}]",
-                f"({darr_all})[ase.Atoms]")
-    elif is_array_like(x):
-        result = (
-            True,
-            f"({type(x)})[empty]",
-            f"({darr_all})[ase.Atoms]")
+            result = False
+            xtype = f"({type(x)})[{type(x[0])}]"
     else:
-        result = (
-            False,
-            f"{type(x)}",
-            f"({darr_all})[ase.Atoms]")
+        result = False
+        xtype = f"{type(x)}"
 
     if verbose:
-        return result
+        return (result, xtype, f"({darr_all})[ase.Atoms]")
     else:
-        return result[0]
+        return result
 
 # --------------- ** Checking torch data options ** ---------------
 

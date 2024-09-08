@@ -7,9 +7,9 @@ import ase.db as ase_db
 
 import numpy as np
 
-from .. import data
-from .. import utils
-from .. import settings
+from asparagus import data
+from asparagus import utils
+from asparagus import settings
 
 __all__ = ['DataReader', 'check_data_format']
 
@@ -186,6 +186,7 @@ class DataReader():
         data_properties: Optional[List[str]] = None,
         data_unit_properties: Optional[Dict[str, str]] = None,
         data_alt_property_labels: Optional[Dict[str, List[str]]] = None,
+        data_source_unit_properties: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
         """
@@ -206,6 +207,9 @@ class DataReader():
         data_alt_property_labels: dict, optional, default None
             Dictionary of alternative property labeling to replace
             non-valid property labels with the valid one if possible.
+        data_source_unit_properties: dictionary, optional, default None
+            Dictionary from properties (keys) to corresponding unit as a 
+            string (item) in the source data files.
 
         """
 
@@ -231,6 +235,7 @@ class DataReader():
                 data_properties=data_properties,
                 data_unit_properties=data_unit_properties,
                 data_alt_property_labels=data_alt_property_labels,
+                data_source_unit_properties=data_source_unit_properties,
                 **kwargs)
 
         return
@@ -294,6 +299,7 @@ class DataReader():
 
         # Assign data source property labels to valid property labels.
         assigned_properties = self.assign_property_labels(
+            data_source,
             source_properties,
             data_properties,
             data_alt_property_labels)
@@ -448,6 +454,7 @@ class DataReader():
 
         # Assign data source property labels to valid property labels.
         assigned_properties = self.assign_property_labels(
+            data_source,
             source_properties,
             data_properties,
             data_alt_property_labels)
@@ -494,7 +501,7 @@ class DataReader():
                         atoms,
                         source,
                         unit_conversion,
-                        data_load_properties,
+                        data_properties,
                         assigned_properties)
 
                     # Add atoms system data
@@ -529,7 +536,7 @@ class DataReader():
                             atoms,
                             source,
                             unit_conversion,
-                            data_load_properties,
+                            data_properties,
                             assigned_properties)
 
                         # Write to reference database file
@@ -546,8 +553,8 @@ class DataReader():
         data_source: List[str],
         data_properties: Optional[List[str]] = None,
         data_unit_properties: Optional[Dict[str, str]] = None,
-        source_unit_properties: Optional[Dict[str, str]] = None,
         data_alt_property_labels: Optional[Dict[str, str]] = None,
+        data_source_unit_properties: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
         """
@@ -564,11 +571,12 @@ class DataReader():
             string (item), e.g.:
                 {property: unit}: { 'energy': 'eV',
                                     'force': 'eV/Ang', ...}
-        source_unit_properties: dict, optional, default None
-            As 'unit_properties' but four source npz data.
         data_alt_property_labels: dict, optional, default None
             Dictionary of alternative property labeling to replace
             non-valid property labels with the valid one if possible.
+        data_source_unit_properties: dictionary, optional, default None
+            Dictionary from properties (keys) to corresponding unit as a 
+            string (item) in the source data files.
 
         Returns
         -------
@@ -603,14 +611,19 @@ class DataReader():
 
         # Assign data source property labels to valid property labels.
         assigned_properties = self.assign_property_labels(
+            data_source,
             source_properties,
             data_properties,
             data_alt_property_labels)
 
+        # Initialize source data dictionary and assign properties
+        source_dict = {}
+
         # Atom numbers
         if 'atoms_number' in assigned_properties:
-            atoms_number = source[assigned_properties['atoms_number']]
-            Ndata = len(atoms_number)
+            source_dict['atoms_number'] = (
+                source[assigned_properties['atoms_number']])
+            Ndata = len(source_dict['atoms_number'])
         else:
             raise ValueError(
                 "Property 'atoms_number' not found in npz dataset "
@@ -618,18 +631,16 @@ class DataReader():
 
         # Atomic number
         if 'atomic_numbers' in assigned_properties:
-            atomic_numbers = source[assigned_properties['atomic_numbers']]
+            source_dict['atomic_numbers'] = (
+                source[assigned_properties['atomic_numbers']])
         else:
             raise ValueError(
                 "Property 'atomic_numbers' not found in npz dataset "
                 + f"'{self.data_file[0]}'!\n")
 
-        # Max atom number
-        max_atoms_number = atomic_numbers.shape[1]
-
         # Atom positions
         if 'positions' in assigned_properties:
-            positions = source[assigned_properties['positions']]
+            source_dict['positions'] = source[assigned_properties['positions']]
         else:
             raise ValueError(
                 "Property 'positions' not found in npz dataset "
@@ -637,27 +648,27 @@ class DataReader():
 
         # Total atoms charge
         if 'charge' in assigned_properties:
-            charge = source[assigned_properties['charge']]
+            source_dict['charge'] = source[assigned_properties['charge']]
         else:
-            charge = np.zeros(Ndata, dtype=float)
+            source_dict['charge'] = np.zeros(Ndata, dtype=float)
             self.logger.warning(
                 "Property 'charge' not found in npz dataset "
                 + f"'{self.data_file[0]}'!\nCharges are assumed to be zero.")
 
         # Cell information
         if 'cell' in assigned_properties:
-            cell = source[assigned_properties['cell']]
+            source_dict['cell'] = source[assigned_properties['cell']]
         else:
-            cell = np.zeros((Ndata, 3), dtype=float)
+            source_dict['cell'] = np.zeros((Ndata, 3), dtype=float)
             self.logger.info(
                 "No cell information in npz dataset "
                 + f"'{self.data_file[0]}'!")
 
         # PBC information
         if 'pbc' in assigned_properties:
-            pbc = source[assigned_properties['pbc']]
+            source_dict['pbc'] = source[assigned_properties['pbc']]
         else:
-            pbc = np.zeros((Ndata, 3), dtype=bool)
+            source_dict['pbc'] = np.zeros((Ndata, 3), dtype=bool)
             self.logger.info(
                 "No pbc information in npz dataset "
                 + f"'{self.data_file[0]}'!")
@@ -681,7 +692,7 @@ class DataReader():
         unit_conversion = self.get_unit_conversion(
             assigned_properties,
             data_unit_properties,
-            source_unit_properties,
+            data_source_unit_properties,
             )
 
         # Property match summary
@@ -690,18 +701,16 @@ class DataReader():
             assigned_properties,
             unit_conversion,
             data_unit_properties,
-            source_unit_properties,
+            data_source_unit_properties,
         )
 
-        # Pre-Collect properties from source
-        source_properties = {}
+        # Collect properties from source
         for prop, item in assigned_properties.items():
             if prop in self.default_property_labels:
                 continue
             if prop in data_properties:
                 try:
-                    source_properties[prop] = (
-                        unit_conversion[prop]*source[item])
+                    source_dict[prop] = source[item]
                 except ValueError:
                     raise ValueError(
                         f"Property '{prop:s}' from the npz entry "
@@ -711,87 +720,38 @@ class DataReader():
         if self.data_file is None:
 
             # Add atoms systems to list
-            all_atoms_properties = []
             self.logger.info(
                 f"Load {Ndata:d} data point from '{data_source[0]:s}'!")
-
-            for idx in range(Ndata):
-
-                # Atoms system data
-                atoms_properties = {}
-
-                # Fundamental properties
-                atoms_properties['atoms_number'] = atoms_number[idx]
-                atoms_properties['atomic_numbers'] = (
-                    atomic_numbers[idx][:atoms_number[idx]])
-                atoms_properties['positions'] = (
-                    unit_conversion['positions']
-                    *positions[idx][:atoms_number[idx]])
-                atoms_properties['cell'] = (
-                    unit_conversion['positions']*cell[idx])
-                atoms_properties['pbc'] = pbc[idx]
-                atoms_properties['charge'] = charge[idx]
-
-                # Collect properties
-                for prop, item in source_properties.items():
-                    if (
-                        item[idx].shape
-                        and atoms_number[idx] != max_atoms_number
-                        and item[idx].shape[0] == max_atoms_number
-                        and np.all(item[idx][atoms_number[idx]:] == 0.0)
-                    ):
-                        atoms_properties[prop] = item[idx][:atoms_number[idx]]
-                    else:
-                        atoms_properties[prop] = item[idx]
-
-
-                # Add atoms system data
-                all_atoms_properties.append(atoms_properties)
+            all_atoms_properties = self.collect_from_source_list(
+                source_dict,
+                unit_conversion,
+                data_properties,
+                assigned_properties)
 
         # If dataset file is given, write to dataset
         else:
 
             # Add atom systems to database
-            all_atoms_properties = self.data_file[0]
-            atoms_properties = {}
+            self.logger.info(
+                f"Writing '{data_source[0]:s}' to database "
+                + f"'{self.data_file[0]:s}'!\n"
+                + f"{Ndata:d} data point will be added.")
+            all_atoms_properties = self.collect_from_source_list(
+                source_dict,
+                unit_conversion,
+                data_properties,
+                assigned_properties)
+
+            # Write to reference database file
             with self.connect(
                 self.data_file[0], self.data_file[1], mode='a'
             ) as db:
 
-                self.logger.info(
-                    f"Writing '{data_source[0]:s}' to database "
-                    + f"'{self.data_file[0]:s}'!\n"
-                    + f"{Ndata:d} data point will be added.")
-
                 for idx in range(Ndata):
+                    db.write(properties=all_atoms_properties[idx])
 
-                    # Fundamental properties
-                    atoms_properties['atoms_number'] = atoms_number[idx]
-                    atoms_properties['atomic_numbers'] = (
-                        atomic_numbers[idx][:atoms_number[idx]])
-                    atoms_properties['positions'] = (
-                        unit_conversion['positions']
-                        * positions[idx][:atoms_number[idx]])
-                    atoms_properties['cell'] = (
-                        unit_conversion['positions']*cell[idx])
-                    atoms_properties['pbc'] = pbc[idx]
-                    atoms_properties['charge'] = charge[idx]
-
-                    # Collect properties
-                    for prop, item in source_properties.items():
-                        if (
-                            item[idx].shape
-                            and atoms_number[idx] != max_atoms_number
-                            and item[idx].shape[0] == max_atoms_number
-                            and np.all(item[idx][atoms_number[idx]:] == 0.0)
-                        ):
-                            atoms_properties[prop] = (
-                                item[idx][:atoms_number[idx]])
-                        else:
-                            atoms_properties[prop] = item[idx]
-
-                    # Write to reference database file
-                    db.write(properties=atoms_properties)
+            # Reassign data file path as usual when written to database
+            all_atoms_properties = self.data_file[0]
 
         # Print completion message
         self.logger.info(
@@ -874,6 +834,7 @@ class DataReader():
 
         # Assign data source property labels to valid property labels.
         assigned_properties = self.assign_property_labels(
+            data_source,
             source_properties,
             data_properties,
             data_alt_property_labels)
@@ -1012,6 +973,7 @@ class DataReader():
 
         # Assign data source property labels to valid property labels.
         assigned_properties = self.assign_property_labels(
+            data_source,
             source_properties,
             data_properties,
             data_alt_property_labels)
@@ -1040,7 +1002,8 @@ class DataReader():
             load_properties['positions'] = (
                 unit_conversion['positions']*atoms.get_positions())
             load_properties['cell'] = (
-                unit_conversion['positions']*atoms.get_cell()[:])
+                unit_conversion['positions']*self.convert_cell(
+                    atoms.get_cell()[:]))
             load_properties['pbc'] = atoms.get_pbc()
             if atoms_properties.get('charge') is None:
                 load_properties['charge'] = 0.0
@@ -1069,7 +1032,8 @@ class DataReader():
                 load_properties['positions'] = (
                     unit_conversion['positions']*atoms.get_positions())
                 load_properties['cell'] = (
-                    unit_conversion['positions']*atoms.get_cell()[:])
+                    unit_conversion['positions']*self.convert_cell(
+                        atoms.get_cell()[:]))
                 load_properties['pbc'] = atoms.get_pbc()
                 if atoms_properties.get('charge') is None:
                     load_properties['charge'] = 0.0
@@ -1078,7 +1042,7 @@ class DataReader():
 
                 # Collect properties
                 for prop, item in atoms_properties.items():
-                    if prop in data_load_properties:
+                    if prop in data_properties:
                         load_properties[prop] = (
                             unit_conversion[prop]*item)
 
@@ -1089,15 +1053,18 @@ class DataReader():
 
     def assign_property_labels(
         self,
-        source_properties,
-        data_properties,
-        data_alt_property_labels,
+        data_source: List[str],
+        source_properties: List[str],
+        data_properties: List[str],
+        data_alt_property_labels: Dict[str, List[str]],
     ) -> Dict[str, str]:
         """
         Assign data source property labels to valid property labels.
 
         Parameters
         ----------
+        data_source: list(str)
+            Tuple of file path and file format label of data source to file
         source_properties: List(str)
             Properties list of source data
         data_properties: List(str)
@@ -1262,13 +1229,20 @@ class DataReader():
                 continue
 
             # Check property labels
-            if (
-                source_unit_properties is None or
-                source_unit_properties.get(source_prop) is None
+            if source_unit_properties is None:
+                source_unit_property = "None"
+            elif (
+                source_unit_properties.get(data_prop) is None
+                and source_unit_properties.get(source_prop) is None
             ):
                 source_unit_property = "None"
-            else:
+            elif source_unit_properties.get(data_prop) is not None:
+                source_unit_property = source_unit_properties.get(data_prop)
+            elif source_unit_properties.get(source_prop) is not None:
                 source_unit_property = source_unit_properties.get(source_prop)
+            else:
+                source_unit_property = "None"
+
             if (
                 data_unit_properties is None or
                 data_unit_properties.get(data_prop) is None
@@ -1340,7 +1314,7 @@ class DataReader():
         atoms_properties['positions'] = (
             conversion['positions']*source['positions'])
         atoms_properties['cell'] = (
-            conversion['positions']*source['cell'])
+            conversion['positions']*self.convert_cell(source['cell']))
         atoms_properties['pbc'] = source['pbc']
         if 'charge' not in source.keys():
             atoms_properties['charge'] = 0.0
@@ -1354,6 +1328,83 @@ class DataReader():
                     conversion[prop]*source[item])
 
         return atoms_properties
+
+    def collect_from_source_list(
+        self,
+        source: Dict[str, List[Any]],
+        conversion: Dict[str, float],
+        load_properties: List[str],
+        property_labels: Dict[str, str],
+    ) -> Dict[str, Any]:
+        """
+        Collect properties from complete data dictionary to property
+        dictionaries and apply unit conversion.
+
+        Parameters
+        ----------
+        source: dict
+            Database source dictionary
+        conversion: dict
+            Unit conversion factors dictionary.
+        load_properties: list(str)
+            Properties to load from source
+        property_labels: dict(str, str), optional, default None
+            List of additional source properties (key) to add from property
+            source label (item). If None, all properties in source are added.
+
+        Returns
+        -------
+        dict(str, any)
+            System property dictionary
+
+        """
+
+        # Initialize data list
+        all_atoms_properties = []
+
+        # Get Number of data entries and max atom number
+        Ndata = source['atoms_number'].shape[0]
+        max_atoms_number = source['atomic_numbers'].shape[1]
+
+        # Iterate over all data entries
+        for idx in range(Ndata):
+
+            # Atoms system data
+            atoms_properties = {}
+
+            # Fundamental properties
+            atoms_properties['atoms_number'] = source['atoms_number'][idx]
+            atoms_properties['atomic_numbers'] = (
+                source['atomic_numbers'][idx])
+            atoms_properties['positions'] = (
+                conversion['positions']*source['positions'][idx])
+            atoms_properties['cell'] = (
+                conversion['positions']*self.convert_cell(source['cell'][idx]))
+            atoms_properties['pbc'] = source['pbc'][idx]
+            if 'charge' not in source.keys():
+                atoms_properties['charge'] = 0.0
+            else:
+                atoms_properties['charge'] = source['charge'][idx]
+
+            # Collect properties
+            for prop, item in source.items():
+                if (
+                    prop in load_properties
+                    and item[idx].shape
+                    and source['atoms_number'][idx] != max_atoms_number
+                    and item[idx].shape[0] == max_atoms_number
+                    and np.all(item[idx][source['atoms_number'][idx]:] == 0.0)
+                ):
+                    atoms_properties[prop] = (
+                        conversion[prop]
+                        * item[idx][:source['atoms_number'][idx]])
+                elif prop in load_properties:
+                    atoms_properties[prop] = conversion[prop]*item[idx]
+
+            # Add atoms system data
+            all_atoms_properties.append(atoms_properties)
+
+        return all_atoms_properties
 
     def collect_from_atoms_source(
         self,
@@ -1399,7 +1450,7 @@ class DataReader():
         atoms_properties['positions'] = (
             conversion['positions']*atoms.get_positions())
         atoms_properties['cell'] = (
-            conversion['positions']*atoms.get_cell()[:])
+            conversion['positions']*self.convert_cell(atoms.get_cell()[:]))
         atoms_properties['pbc'] = atoms.get_pbc()
         if 'charge' in source:
             atoms_properties['charge'] = source['charge']
@@ -1463,7 +1514,7 @@ class DataReader():
         atoms_properties['positions'] = (
             conversion['positions']*atoms.get_positions())
         atoms_properties['cell'] = (
-            conversion['positions']*atoms.get_cell()[:])
+            conversion['positions']*self.convert_cell(atoms.get_cell()[:]))
         atoms_properties['pbc'] = atoms.get_pbc()
         if 'charge' in properties.parameters:
             atoms_properties['charge'] = (
@@ -1481,3 +1532,52 @@ class DataReader():
                     conversion[prop]*properties.results[prop])
 
         return atoms_properties
+
+    def convert_cell(
+        self,
+        cell,
+        shape_out: Tuple[int] = (3, 3),
+    ) -> np.ndarray:
+        """
+        Convert system cell information to 3x3 array
+
+        Parameters
+        ----------
+        cell: list(float)
+            Cell information in various shape
+        shape_out: tuple(int)
+            Returned cell shape
+
+        Returns
+        -------
+        np.ndarray
+            Cell information in requested shape
+
+        """
+
+        # Check input data type
+        if cell is None:
+            return np.zeros(shape_out, dtype=float)
+        else:
+            cell = np.array(cell, dtype=float)
+
+        # Check if requested shape is correct otherwise flatten array for
+        # further checks
+        if cell.shape == shape_out:
+            return cell
+        else:
+            cell = cell.reshape(-1)
+
+        # Check if data shape is flatten
+        shape_prod = np.prod(shape_out)
+        if cell.shape == (shape_prod,):
+            return cell.reshape(shape_out)
+
+        # Check if data is diagonalized
+        if len(shape_out) > 1 and np.diag(cell).shape == shape_out:
+            return np.diag(cell)
+
+        return SyntaxError(f"Invalid cell shape '{cell.shape:}'.")
+
+
+

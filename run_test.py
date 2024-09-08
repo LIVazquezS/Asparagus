@@ -10,9 +10,9 @@ import numpy as np
 #==============================================================================
 
 
-flag_dictionary_initialization = True
+flag_dictionary_initialization = False
 
-flag_database_sql = True
+flag_database_sql = False
 flag_database_npz = False
 flag_database_hdf5 = False
 
@@ -22,13 +22,13 @@ flag_sampler_all = False
 flag_sampler_shell = False
 flag_sampler_slurm = False
 
-flag_model_physnet = False
+flag_model_physnet = True
 flag_train_physnet_sql = False
-flag_train_physnet_npz = False
+flag_train_physnet_npz = True
 flag_ase_physnet = False
 
-flag_model_painn = False
-flag_train_painn = False
+flag_model_painn = True
+flag_train_painn = True
 
 flag_transfer_learning = False
 
@@ -71,6 +71,9 @@ config = {
 # SQL
 if flag_database_sql:
 
+    if os.path.exists(config_file):
+        os.remove(config_file)
+
     # Open DataBase file
     model = asparagus.Asparagus(
         config=config_file,
@@ -84,11 +87,11 @@ if flag_database_sql:
             ],
         )
     model.set_data_container()
-    exit()
+
     # Create new DataBase file
     model.set_data_container(
         config=config_file,
-        data_file='test/nms_nh3_test.db',
+        data_file='test/test.db',
         data_source='data/nms_nh3.db',
         data_overwrite=True,
     )
@@ -96,10 +99,46 @@ if flag_database_sql:
     # Add same source to DataBase file, should be skipped
     model.set_data_container(
         config=config_file,
-        data_file='test/nms_nh3_test.db',
+        data_file='test/test.db',
         data_source='data/nms_nh3.db',
         data_overwrite=False,
     )
+
+    # Load new DataBase with different source property units
+    model.set_data_container(
+        config=config_file,
+        data_file='test/test.db',
+        data_source='data/h2co_B3LYP_cc-pVDZ_4001.npz',
+        data_source_unit_properties={
+            'positions': 'Bohr',
+            'energy': 'kcal/mol',
+            'forces': 'kcal/mol/Bohr',
+            'dipole': 'e*Bohr',
+            },
+        data_overwrite=True,
+    )
+    os.remove(config_file)
+    
+    # Load new DataBase with different source property units
+    model.set_data_container(
+        config=config_file,
+        data_file='test/test.db',
+        data_source='data/h2co_B3LYP_cc-pVDZ_4001.npz',
+        data_unit_properties={
+            'positions': 'Ang',
+            'energy': 'kcal/mol',
+            'forces': 'kcal/mol/Ang',
+            'dipole': 'e*Ang',
+            },
+        data_source_unit_properties={
+            'positions': 'Bohr',
+            'energy': 'kcal/mol',
+            'forces': 'kcal/mol/Bohr',
+            'dipole': 'e*Bohr',
+            },
+        data_overwrite=True,
+    )
+    os.remove(config_file)
 
     # Create new DataBase file with itself as source, should return error
     try:
@@ -116,10 +155,15 @@ if flag_database_sql:
     model = asparagus.Asparagus(
         config=config_file,
         data_file='test/nms_nh3_test.db',
-        data_file_format='sql',
         data_source='data/nms_nh3.db',
         )
     data = model.get_data_container()
+    
+    # Test property scaling calculation
+    data.get_property_scaling(
+        property_atom_scaled={'energy': 'atomic_energies'})
+    data.get_property_scaling()
+
     print("\nDatabase path: ", model.get_data_container(), "\n")
     print("\nDatabase entry '0': ", data[0]['energy'])
     print("\nDatabase Train entry '1': ", data.get_train(1)['atoms_number'])
@@ -127,10 +171,7 @@ if flag_database_sql:
     print("\nDatabase Valid entry '2': ", data.get_valid(2)['pbc'])
     print("\nDatabase Test entry  '3': ", data.get_test(3)['positions'])
     print("\nDatabase Test entry  '3': ", data.get_test(4)['forces'])
-    for ib, batch in enumerate(data.train_loader):
-        print(batch)
-        break
-    exit()
+
     # Load Numpy .npz files
     model.set_data_container(
         config=config_file,
@@ -144,6 +185,11 @@ if flag_database_sql:
     print("\nDatabase Train entry '1': ", data.get_train(1)['atomic_numbers'])
     print("\nDatabase Valid entry '2': ", data.get_valid(2)['charge'])
     print("\nDatabase Test entry  '3': ", data.get_test(3)['pbc'])
+
+    # Test property scaling calculation
+    data.get_property_scaling(
+        property_atom_scaled={'energy': 'atomic_energies'})
+    data.get_property_scaling()
 
     # Load multiple source files files
     model.set_data_container(
@@ -174,7 +220,7 @@ if flag_database_sql:
         config=config_file,
         data_file='test/meta_nh3_test_unit.db',
         data_source='data/meta_nh3.traj',
-        data_load_properties=['energy', 'forces'],
+        data_properties=['energy', 'forces'],
         data_unit_properties={
             'positions': 'Bohr',
             'energy': 'kcal/mol',
@@ -194,7 +240,7 @@ if flag_database_sql:
         config=config_file,
         data_file='test/meta_nh3_test_unit.db',
         data_source='data/meta_nh3.traj',
-        data_load_properties=['energy', 'forces'],
+        data_properties=['energy', 'forces'],
         data_unit_properties={
             'positions': 'Bohr',
             'energy': 'kcal/mol',
@@ -213,9 +259,7 @@ if flag_database_npz:
     model = asparagus.Asparagus(
         config=config_file,
         data_file='test/nms_nh3_test.db.npz',
-        data_file_format='npz',
         data_source='data/nms_nh3.db',
-        data_source_format='db',
         data_overwrite=True,
         )
 
@@ -223,9 +267,7 @@ if flag_database_npz:
     data = model.get_data_container(
         config=config_file,
         data_file='test/nms_nh3_test.db.npz',
-        data_file_format='npz',
         data_source='data/nms_nh3.db',
-        data_source_format='db',
         data_overwrite=False,
     )
     print("\nDatabase path: ", data, "\n")
@@ -235,14 +277,49 @@ if flag_database_npz:
     print("\nDatabase Valid entry '2': ", data.get_valid(2)['pbc'])
     print("\nDatabase Test entry  '3': ", data.get_test(3)['positions'])
     print("\nDatabase Test entry  '3': ", data.get_test(4)['forces'])
-    for ib, batch in enumerate(data.train_loader):
-        print(batch)
-        break
-    exit()
+
     # Test training initialization
     model.train(
         trainer_max_epochs=0,
         model_directory='test/test_model')
+
+    # Open DataBase file
+    model = asparagus.Asparagus(
+        config=config_file,
+        data_file='test/test.db.npz',
+        data_source=[
+            'data/nms_nh3.db',
+            'data/h2co_B3LYP_cc-pVDZ_4001.npz',
+            ('data/h2co_B3LYP_cc-pVDZ_4001.npz', 'npz'),
+            'data/meta_nh3.traj',
+            ('data/meta_nh3.traj', 'traj'),
+            ],
+        data_overwrite=True,
+        )
+    model.set_data_container()
+    data = model.get_data_container()
+    metadata = data.get_metadata()
+
+    # Test property scaling calculation
+    data.get_property_scaling(data_label='test')
+
+    # Load with different property units
+    model.set_data_container(
+        config=config_file,
+        data_file='test/test.db.npz',
+        data_source='data/h2co_B3LYP_cc-pVDZ_4001.npz',
+        data_properties=['energy', 'forces'],
+        data_unit_properties={
+            'positions': 'Bohr',
+            'energy': 'kcal/mol',
+            'forces': 'kcal/mol/Bohr'},
+        data_source_unit_properties={
+            'positions': 'Ang',
+            'energy': 'eV',
+            'forces': 'kcal/mol/Ang'},
+        data_overwrite=True,
+    )
+    os.remove(config_file)
 
 # HDF5
 if flag_database_hdf5:
@@ -281,9 +358,6 @@ if flag_datareader:
         )
     data = model.get_data_container()
     print("\nDatabase entry '0': ", data.get(2)['cell'])
-    for ib, batch in enumerate(data.train_loader):
-        print(batch)
-        break
 
     # Read from npz data file
     model = asparagus.Asparagus(
@@ -294,9 +368,6 @@ if flag_datareader:
         )
     data = model.get_data_container()
     print("\nDatabase entry '0': ", data.get(2)['cell'])
-    for ib, batch in enumerate(data.train_loader):
-        print(batch)
-        break
 
 #==============================================================================
 # Test Asparagus Sampler Methods
@@ -913,7 +984,12 @@ if flag_train_physnet_sql:
     model = asparagus.Asparagus(
         config=config_file1,
         config_file=config_file2,
-        data_file='data/nms_nh3.db',
+        data_file='test/test.db',
+        data_source=[
+            'data/nms_nh3.db',
+            'data/h2co_B3LYP_cc-pVDZ_4001.npz'
+            ],
+        data_overwrite=True,
         model_directory='test/physnet_sql',
         model_num_threads=2,
         trainer_max_epochs=10,
@@ -929,16 +1005,24 @@ if flag_train_physnet_npz:
     model = asparagus.Asparagus(
         config=config_file1,
         config_file=config_file2,
-        data_file='test/nms_nh3.db.npz',
-        data_source='data/nms_nh3.db',
-        data_source_format='db',
+        data_file='test/test.db.npz',
+        data_source=[
+            'data/nms_nh3.db',
+            'data/h2co_B3LYP_cc-pVDZ_4001.npz'
+            ],
+        data_num_train=0.2,
+        data_num_valid=0.05,
+        data_num_test=0.05,
         model_directory='test/physnet_npz',
         model_num_threads=2,
         trainer_max_epochs=10,
         trainer_debug_mode=False,
         )
     trainer = model.get_trainer()
-    model.train()
+    trainer.run()
+    model.train(
+        trainer_max_epochs=15,
+        reset_energy_shift=True)
     model.test(test_directory='test/physnet_npz')
 
 # Test ASE calculator

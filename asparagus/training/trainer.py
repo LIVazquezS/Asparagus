@@ -6,11 +6,12 @@ import torch
 
 import numpy as np
 
-from .. import settings
-from .. import utils
-from .. import data
-from .. import model
-from .. import training
+import asparagus
+from asparagus import settings
+from asparagus import utils
+from asparagus import data
+from asparagus import model
+from asparagus import training
 
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
@@ -57,6 +58,16 @@ class Trainer:
     trainer_properties_weights: dict, optional, default {...}
         Weighting factors for the combination of single property loss
         values to total loss value.
+    trainer_batch_size: int, optional, default None
+        Default dataloader batch size
+    trainer_train_batch_size: int, optional, default None
+        Training dataloader batch size. If None, default batch size is used.
+    trainer_valid_batch_size: int, optional, default None
+        Validation dataloader batch size. If None, default batch size is used.
+    trainer_test_batch_size:  int, optional, default None
+        Test dataloader batch size. If None, default batch size is used.
+    trainer_num_batch_workers: int, optional, default 1
+        Number of data loader workers.
     trainer_optimizer: (str, object), optional, default 'AMSgrad'
         Optimizer class for the NNP model training
     trainer_optimizer_args: dict, optional, default {}
@@ -69,9 +80,12 @@ class Trainer:
         Apply exponential moving average scheme for NNP model training
     trainer_ema_decay: float, optional, default 0.999
         Exponential moving average decay rate
-    trainer_max_gradient_norm: float, optional, default 1000.0
+    trainer_max_gradient_norm: float, optional, default 1.0
         Maximum model parameter gradient norm to clip its step size.
-        If None, parameter gradient clipping is deactivated.
+        If None, parameter gradient norm clipping is deactivated.
+    trainer_max_gradient_value: float, optional, default 10.0
+        Maximum model parameter gradient value to clip its step size.
+        If None, parameter gradient value clipping is deactivated.
     trainer_save_interval: int, optional, default 5
         Interval between epoch to save current and best set of model
         parameters.
@@ -91,12 +105,6 @@ class Trainer:
     trainer_debug_mode: bool, optional, default False
         Perform model training in debug mode, which check repeatedly for
         'NaN' results.
-    trainer_guess_shifts: bool, optional, default False
-        Guess atomic energy shifts by minimizing deviation between the
-        reference energies in the training data and the sum of atomic energy
-        shifts according to the system composition. If only one system
-        composition is available in the training data, the minimizing is
-        skipped.
 
     """
 
@@ -112,13 +120,19 @@ class Trainer:
         'trainer_properties_metrics':   {'else': 'mse'},
         'trainer_properties_weights':   {
             'energy': 1., 'forces': 50., 'dipole': 25., 'else': 1.},
+        'trainer_batch_size':           128,
+        'trainer_train_batch_size':     None,
+        'trainer_valid_batch_size':     None,
+        'trainer_test_batch_size':      None,
+        'trainer_num_batch_workers':    1,
         'trainer_optimizer':            'AMSgrad',
         'trainer_optimizer_args':       {'lr': 0.001, 'weight_decay': 1.e-5},
         'trainer_scheduler':            'ExponentialLR',
         'trainer_scheduler_args':       {'gamma': 0.99},
         'trainer_ema':                  True,
         'trainer_ema_decay':            0.99,
-        'trainer_max_gradient_norm':    1000.0,
+        'trainer_max_gradient_norm':    1.0,
+        'trainer_max_gradient_value':   10.0,
         'trainer_save_interval':        5,
         'trainer_validation_interval':  5,
         'trainer_evaluate_testset':     True,
@@ -126,7 +140,6 @@ class Trainer:
         'trainer_summary_writer':       False,
         'trainer_print_progress_bar':   True,
         'trainer_debug_mode':           False,
-        'trainer_guess_shifts':         True,
         }
 
     # Expected data types of input variables
@@ -136,6 +149,11 @@ class Trainer:
         'trainer_properties':           [utils.is_string_array],
         'trainer_properties_metrics':   [utils.is_dictionary],
         'trainer_properties_weights':   [utils.is_dictionary],
+        'trainer_batch_size':           [utils.is_integer],
+        'trainer_train_batch_size':     [utils.is_integer, utils.is_None],
+        'trainer_valid_batch_size':     [utils.is_integer, utils.is_None],
+        'trainer_test_batch_size':      [utils.is_integer, utils.is_None],
+        'trainer_num_batch_workers':    [utils.is_integer],
         'trainer_optimizer':            [utils.is_string, utils.is_callable],
         'trainer_optimizer_args':       [utils.is_dictionary],
         'trainer_scheduler':            [utils.is_string, utils.is_callable],
@@ -143,6 +161,7 @@ class Trainer:
         'trainer_ema':                  [utils.is_bool],
         'trainer_ema_decay':            [utils.is_numeric],
         'trainer_max_gradient_norm':    [utils.is_numeric, utils.is_None],
+        'trainer_max_gradient_value':   [utils.is_numeric, utils.is_None],
         'trainer_save_interval':        [utils.is_integer],
         'trainer_validation_interval':  [utils.is_integer],
         'trainer_evaluate_testset':     [utils.is_bool],
@@ -150,7 +169,6 @@ class Trainer:
         'trainer_summary_writer':       [utils.is_bool],
         'trainer_print_progress_bar':   [utils.is_bool],
         'trainer_debug_mode':           [utils.is_bool],
-        'trainer_guess_shifts':         [utils.is_bool],
         }
 
     def __init__(
@@ -164,6 +182,11 @@ class Trainer:
         trainer_properties: Optional[List[str]] = None,
         trainer_properties_metrics: Optional[Dict[str, str]] = None,
         trainer_properties_weights: Optional[Dict[str, float]] = None,
+        trainer_batch_size: Optional[int] = None,
+        trainer_train_batch_size: Optional[int] = None,
+        trainer_valid_batch_size: Optional[int] = None,
+        trainer_test_batch_size: Optional[int] = None,
+        trainer_num_batch_workers: Optional[int] = None,
         trainer_optimizer: Optional[Union[str, object]] = None,
         trainer_optimizer_args: Optional[Dict[str, float]] = None,
         trainer_scheduler: Optional[Union[str, object]] = None,
@@ -171,6 +194,7 @@ class Trainer:
         trainer_ema: Optional[bool] = None,
         trainer_ema_decay: Optional[float] = None,
         trainer_max_gradient_norm: Optional[float] = None,
+        trainer_max_gradient_value: Optional[float] = None,
         trainer_save_interval: Optional[int] = None,
         trainer_validation_interval: Optional[int] = None,
         trainer_evaluate_testset: Optional[bool] = None,
@@ -178,9 +202,8 @@ class Trainer:
         trainer_summary_writer: Optional[bool] = None,
         trainer_print_progress_bar: Optional[bool] = None,
         trainer_debug_mode: Optional[bool] = None,
-        trainer_guess_shifts: Optional[bool] = None,
         device: Optional[str] = None,
-        dtype: Optional[object] = None,
+        dtype: Optional['dtype'] = None,
         **kwargs
     ):
         """
@@ -222,13 +245,33 @@ class Trainer:
                 config=config,
                 **kwargs)
 
-        # Assign training and validation data loader
-        self.data_train = self.data_container.train_loader
-        self.data_valid = self.data_container.valid_loader
+        # Check dataloader batch input
+        if self.trainer_train_batch_size is None:
+            self.trainer_train_batch_size = self.trainer_batch_size
+        if self.trainer_valid_batch_size is None:
+            self.trainer_valid_batch_size = self.trainer_batch_size
+        if self.trainer_test_batch_size is None:
+            self.trainer_test_batch_size = self.trainer_batch_size
 
-        # Get reference data properties
-        self.data_properties = self.data_container.data_load_properties
+        # Get reference data property units
         self.data_units = self.data_container.data_unit_properties
+
+        #########################################
+        # # # Prepare Reference Data Loader # # #
+        #########################################
+
+        # Initialize training, validation and test data loader
+        self.data_container.init_dataloader(
+            self.trainer_train_batch_size,
+            self.trainer_valid_batch_size,
+            self.trainer_test_batch_size,
+            num_workers=self.trainer_num_batch_workers,
+            device=self.device,
+            dtype=self.dtype)
+
+        # Get training and validation data loader
+        self.data_train = self.data_container.get_dataloader('train')
+        self.data_valid = self.data_container.get_dataloader('valid')
 
         ##################################
         # # # Check Model Calculator # # #
@@ -236,7 +279,7 @@ class Trainer:
 
         # Assign model calculator model if not done already
         if self.model_calculator is None:
-            self.model_calculator, _ = model.get_calculator(
+            self.model_calculator = asparagus.get_model_calculator(
                 config=config,
                 **kwargs)
 
@@ -251,7 +294,7 @@ class Trainer:
         # Check property definition for the loss function evaluation
         self.trainer_properties = self.check_properties(
             self.trainer_properties,
-            self.data_properties,
+            self.data_container.data_properties,
             self.model_properties)
 
         # Check property metrics and weights for the loss function
@@ -271,58 +314,44 @@ class Trainer:
             )
 
         # Show assigned property units and
-        msg = (
-            f"  {'Property ':<17s}|  {'Model Unit':<12s}|"
-            + f"  {'Data Unit':<12s}|  {'Conv. fact.':<12s}|"
-            + f"  {'Loss Metric':<12s}|  {'Loss Weight':<12s}\n")
-        msg += "-"*len(msg) + "\n"
-        for prop, unit in self.model_units.items():
-            msg += f"  {prop:<16s} |  {unit:<11s} |"
-            msg += f"  {self.data_units.get(prop):<11s} |"
-            msg += f"  {self.model_conversion.get(prop):> 8.4e} |"
-            if prop in self.trainer_properties_metrics:
-                msg += f"  {self.trainer_properties_metrics[prop]:<11s} |"
+        message = (
+            f" {'Property ':<17s} |"
+            + f" {'Model Unit':<12s} |"
+            + f" {'Data Unit':<12s} |"
+            + f" {'Conv. fact.':<12s} |"
+            + f" {'Loss Metric':<12s} |"
+            + f" {'Loss Weight':<12s}\n")
+        message += "-"*len(message) + "\n"
+        for prop, model_unit in self.model_units.items():
+            if self.data_units.get(prop) is None:
+                data_unit = "None"
             else:
-                msg += f"  {'':<11s} |"
+                data_unit = self.data_units.get(prop)
+            message += (
+                f" {prop:<17s} |"
+                + f" {model_unit:<12s} |"
+                + f" {data_unit:<12s} |")
+            if self.model_conversion.get(prop) is None:
+                message += f" {'None':<12s} |"
+            else:
+                message += f" {self.model_conversion.get(prop):>12.4e} |"
+            if prop in self.trainer_properties_metrics:
+                message += f" {self.trainer_properties_metrics[prop]:<12s} |"
+            else:
+                message += f" {'':<12s} |"
             if prop in self.trainer_properties_weights:
-                msg += f"  {self.trainer_properties_weights[prop]:> 10.4f}"
-            msg += "\n"
-        self.logger.info("Training Properties\n" + msg)
+                message += f" {self.trainer_properties_weights[prop]:> 11.4f}"
+            message += "\n"
+        self.logger.info(
+            "Model and data properties, and model to data conversion factors "
+            + "(model to data)."
+            + "\nError metric and weight are shown for the properties "
+            + "included in the training loss function.\n"
+            + message)
 
         # Assign potentially new property units to the model
         if hasattr(self.model_calculator, 'set_unit_properties'):
             self.model_calculator.set_unit_properties(self.model_units)
-
-        ######################################
-        # # # Set Model Property Scaling # # #
-        ######################################
-
-        # Initialize model property scaling dictionary
-        model_properties_scaling = {}
-
-        # Get property scaling guess from reference data and convert from data
-        # to model units.
-        for prop, item in self.data_container.get_property_scaling().items():
-            if prop in self.model_properties:
-                model_properties_scaling[prop] = (
-                    np.array(item)/self.model_conversion[prop])
-
-        # Refine atomic energies shift
-        if (
-            self.trainer_guess_shifts
-            and 'atomic_energies' in model_properties_scaling
-        ):
-            atomic_energies_shifts = self.refine_atomic_energies_shifts(
-                model_properties_scaling['atomic_energies'],
-                self.data_train,
-                config.get('input_n_maxatom'))
-        else:
-            atomic_energies_shifts = None
-
-        # Set current model property scaling
-        self.model_calculator.set_property_scaling(
-            model_properties_scaling,
-            atomic_energies_shifts=atomic_energies_shifts)
 
         #############################
         # # # Prepare Optimizer # # #
@@ -334,11 +363,15 @@ class Trainer:
             self.model_calculator.get_trainable_parameters(),
             self.trainer_optimizer_args)
 
-        # Check maximum gradient norm
+        # Check maximum gradient norm and value clipping input
         if self.trainer_max_gradient_norm is None:
-            self.gradient_clipping = False
+            self.gradient_clipping_norm = False
         else:
-            self.gradient_clipping = True
+            self.gradient_clipping_norm = True
+        if self.trainer_max_gradient_value is None:
+            self.gradient_clipping_value = False
+        else:
+            self.gradient_clipping_value = True
 
         #############################
         # # # Prepare Scheduler # # #
@@ -385,7 +418,9 @@ class Trainer:
             self.tester = Tester(
                 config=config,
                 data_container=self.data_container,
-                test_datasets='test')
+                test_datasets='test',
+                test_batch_size=self.trainer_test_batch_size,
+                test_num_batch_workers=self.trainer_num_batch_workers)
 
         #############################
         # # # Save Model Config # # #
@@ -396,266 +431,12 @@ class Trainer:
 
         return
 
-    def check_properties(
-        self,
-        trainer_properties: List[str],
-        data_properties: List[str],
-        model_properties: List[str],
-    ) -> List[str]:
-        """
-        Check properties for the contribution to the loss function between
-        predicted model properties and available properties in the reference
-        data container.
-
-        Parameter
-        ---------
-        trainer_properties: list(str)
-            Properties contributing to the loss function. If empty or None,
-            take all matching properties between model and data container.
-        data_properties: list(str)
-            Properties available in the reference data container
-        model_properties: list(str)
-            Properties predicted by the model calculator
-
-        Returns:
-        --------
-        list(str)
-            List of loss function property contributions.
-
-        """
-
-        # Check matching data and model properties
-        matching_properties = []
-        for prop in model_properties:
-            if prop in data_properties:
-                matching_properties.append(prop)
-
-        # Check training properties are empty, use all matching properties
-        if trainer_properties is None or not len(trainer_properties):
-            trainer_properties = matching_properties
-        else:
-            for prop in trainer_properties:
-                if prop not in matching_properties:
-                    if prop in data_properties:
-                        msg = "model calculator!"
-                    else:
-                        msg = "data container!"
-                    raise SyntaxError(
-                        f"Requested property '{prop:s}' as loss function "
-                        + "contribution is not available in " + msg)
-
-        return trainer_properties
-
-    def check_properties_metrics_weights(
-        self,
-        trainer_properties: List[str],
-        trainer_properties_metrics: Dict[str, float],
-        trainer_properties_weights: Dict[str, float],
-        default_property_metrics: Optional[str] = 'mse',
-        default_property_weights: Optional[float] = 1.0,
-    ) -> (Dict[str, float], Dict[str, float]):
-        """
-        Prepare property loss metrics and weighting factors for the loss
-        function contributions.
-
-        Parameter
-        ---------
-        trainer_properties: list(str)
-            Properties contributing to the loss function
-        trainer_properties_metrics: dict(str, float)
-            Metrics functions for property contribution in the loss function
-        trainer_properties_weights: dict(str, float)
-            Weighting factors for property metrics in the loss function
-        default_property_metrics: str, optional, default 'mse'
-            Default option, if the property not in metrics dictionary and no
-            other default value is defined by key 'else'.
-            Default: mean scare error (mse)
-            Alternative: mean absolute error (mae)
-        default_property_weights: str, optional, default 1.0
-            Default option, if the property not in weights dictionary and no
-            other default value is defined by key 'else'.
-
-        Returns:
-        --------
-        dict(str, float)
-            Prepared property metrics dictionary
-        dict(str, float)
-            Prepared property weighting factors dictionary
-
-        """
-
-        # Check property metrics
-        for prop in trainer_properties:
-            if (
-                trainer_properties_metrics.get(prop) is None
-                and trainer_properties_metrics.get('else') is None
-            ):
-                trainer_properties_metrics[prop] = default_property_metrics
-            elif trainer_properties_metrics.get(prop) is None:
-                trainer_properties_metrics[prop] = (
-                    trainer_properties_metrics.get('else'))
-
-        # Check property weights
-        for prop in trainer_properties:
-            if (
-                trainer_properties_weights.get(prop) is None
-                and trainer_properties_weights.get('else') is None
-            ):
-                trainer_properties_weights[prop] = default_property_weights
-            elif trainer_properties_weights.get(prop) is None:
-                trainer_properties_weights[prop] = (
-                    trainer_properties_weights.get('else'))
-
-        return trainer_properties_metrics, trainer_properties_weights
-
-    def check_model_units(
-        self,
-        trainer_properties: List[str],
-        model_units: Dict[str, str],
-        data_units: Dict[str, str],
-        related_properties: Dict[str, str] = {
-            'energy': 'atomic_energies',
-            'charge': 'atomic_charges',
-            'dipole': 'atomic_dipoles'}
-    ) -> ([Dict[str, str], Dict[str, str], Dict[str, float]]):
-        """
-        Check the definition of the model units or assign units from the
-        reference dataset
-
-        Parameter
-        ---------
-        trainer_properties: list(str)
-            Properties contributing to the loss function
-        model_units: dict(str, str)
-            Dictionary of model property units.
-        data_units: dict(str, str)
-            Dictionary of data property units.
-
-        Returns
-        -------
-        dict(str, str)
-            Dictionary of model property units
-        dict(str, str)
-            Dictionary of data property units
-        dict(str, float)
-            Dictionary of model to data property unit conversion factors
-
-        """
-
-        # Initialize model to data unit conversion dictionary
-        model_conversion = {}
-
-        # Check basic properties - positions, charge
-        for prop in ['positions', 'charge']:
-
-            # Check model property unit
-            if model_units.get(prop) is None:
-                model_units[prop] = data_units.get(prop)
-                model_conversion[prop] = 1.0
-            else:
-                model_conversion[prop], _ = utils.check_units(
-                    model_units[prop], data_units.get(prop))
-
-            # Append related property units
-            if prop in related_properties:
-                related_prop = related_properties[prop]
-                model_units, data_units, model_conversion = (
-                    self._check_model_units_related(
-                        prop,
-                        related_prop,
-                        model_units,
-                        data_units,
-                        model_conversion)
-                    )
-
-        # Iterate over training properties
-        for prop in trainer_properties:
-
-            # Check model property unit
-            if model_units.get(prop) is None:
-                model_units[prop] = data_units.get(prop)
-                model_conversion[prop] = 1.0
-            else:
-                model_conversion[prop], _ = utils.check_units(
-                    model_units[prop], data_units.get(prop))
-
-            # Append related property units
-            if prop in related_properties:
-                related_prop = related_properties[prop]
-                model_units, data_units, model_conversion = (
-                    self._check_model_units_related(
-                        prop,
-                        related_prop,
-                        model_units,
-                        data_units,
-                        model_conversion)
-                    )
-
-        return model_units, data_units, model_conversion
-
-    def _check_model_units_related(
-        self,
-        prop,
-        related_prop,
-        model_units,
-        data_units,
-        model_conversion
-    ) -> [Dict[str, str], Dict[str, str], Dict[str, float]]:
-        """
-        Check and add the related property label to the model and data units
-        dictionary and add the unit conversion.
-
-        Parameter
-        ---------
-        prop: str
-            Property label
-        related_prop: str
-            Related property label sharing same property unit
-        model_units: dict(str, str)
-            Dictionary of model property units.
-        data_units: dict(str, str)
-            Dictionary of data property units.
-        model_conversion: dict(str, float)
-            Dictionary of model to data property unit conversion factors
-
-        Returns
-        -------
-        dict(str, str)
-            Dictionary of adopted model property units
-        dict(str, str)
-            Dictionary of adopted data property units
-        dict(str, float)
-            Dictionary of model to data property unit conversion factors
-
-        """
-
-        # Add related property to lists and conversion dictionary
-        if (
-            related_prop in model_units
-            and related_prop in data_units
-        ):
-            model_conversion[related_prop], _ = utils.check_units(
-                model_units[related_prop],
-                data_units.get(related_prop))
-        elif related_prop in data_units:
-            model_units[related_prop] = model_units[prop]
-            model_conversion[related_prop], _ = utils.check_units(
-                model_units[prop], data_units[related_prop])
-        elif related_prop in model_units:
-            data_units[related_prop] = model_units[related_prop]
-            model_conversion[related_prop], _ = utils.check_units(
-                model_units[related_prop], data_units[related_prop])
-            model_conversion[related_prop] = model_conversion[prop]
-        else:
-            model_units[related_prop] = model_units[prop]
-            data_units[related_prop] = model_units[prop]
-            model_conversion[related_prop] = model_conversion[prop]
-
-        return model_units, data_units, model_conversion
-
     def run(
         self,
-        reset_best_loss=False,
+        checkpoint: Optional[Union[str, int]] = 'last',
+        restart: Optional[bool] = True,
+        reset_best_loss: Optional[bool] = False,
+        reset_energy_shift: Optional[bool] = False,
         verbose=True,
         **kwargs,
     ):
@@ -672,14 +453,14 @@ class Trainer:
 
         """
 
-        ####################################
-        # # # Prepare Model and Metric # # #
-        ####################################
+        #################################
+        # # # Load Model Checkpoint # # #
+        #################################
 
-        # Load, if exists, latest model calculator and training state
-        # checkpoint file
-        latest_checkpoint = self.filemanager.load_checkpoint(
-            checkpoint_label='last')
+        # Load checkpoint file
+        latest_checkpoint, checkpoint_file = self.filemanager.load_checkpoint(
+            checkpoint_label=checkpoint,
+            verbose=True)
 
         trainer_epoch_start = 1
         best_loss = None
@@ -688,22 +469,83 @@ class Trainer:
             # Assign model parameters
             self.model_calculator.load_state_dict(
                 latest_checkpoint['model_state_dict'])
+            self.logger.info(
+                f"Checkpoint file '{checkpoint_file:s}' loaded.")
+            self.model_calculator.checkpoint_loaded = True
 
-            # Assign optimizer, scheduler and epoch parameter if available
-            if latest_checkpoint.get('optimizer_state_dict') is not None:
-                self.trainer_optimizer.load_state_dict(
-                    latest_checkpoint['optimizer_state_dict'])
-            if latest_checkpoint.get('scheduler_state_dict') is not None:
-                self.trainer_scheduler.load_state_dict(
-                    latest_checkpoint['scheduler_state_dict'])
-            if latest_checkpoint.get('epoch') is not None:
-                trainer_epoch_start = latest_checkpoint['epoch'] + 1
+            # If restart training, assign optimizer, scheduler and epoch
+            # parameter if available
+            if restart:
+                if latest_checkpoint.get('optimizer_state_dict') is not None:
+                    self.trainer_optimizer.load_state_dict(
+                        latest_checkpoint['optimizer_state_dict'])
+                if latest_checkpoint.get('scheduler_state_dict') is not None:
+                    self.trainer_scheduler.load_state_dict(
+                        latest_checkpoint['scheduler_state_dict'])
+                if latest_checkpoint.get('epoch') is not None:
+                    trainer_epoch_start = latest_checkpoint['epoch'] + 1
 
-            # Initialize best total loss value of validation reference data
-            if reset_best_loss or latest_checkpoint.get('best_loss') is None:
-                best_loss = None
-            else:
-                best_loss = latest_checkpoint['best_loss']
+                # Initialize best total loss value of validation reference data
+                if (
+                    reset_best_loss 
+                    or latest_checkpoint.get('best_loss') is None
+                ):
+                    best_loss = None
+                else:
+                    best_loss = latest_checkpoint['best_loss']
+
+        # Set model property scaling for newly initialized model calculators
+        if self.model_calculator.checkpoint_loaded and not reset_energy_shift:
+
+            self.logger.info(
+                "Model calculator checkpoint file already loaded!\n"
+                "No model property scaling parameter are set.")
+
+        elif self.model_calculator.checkpoint_loaded and reset_energy_shift:
+
+            self.logger.info(
+                "Model calculator checkpoint file already loaded!\n"
+                "Model energy shifts will be reevaluated.")
+            
+            # Get model energy properties
+            properties_scaleable = []
+            for prop in self.model_calculator.get_scaleable_properties():
+                if prop in ['energy', 'atomic_energies']:
+                    properties_scaleable.append(prop)
+            
+            # Get model property scaling
+            model_property_scaling = self.prepare_property_scaling(
+                data_loader=self.data_train,
+                properties=properties_scaleable)
+            
+            # Set model property shift terms to the model calculator output
+            # module
+            self.model_calculator.set_property_scaling(
+                property_scaling=model_property_scaling,
+                set_shift_term=True,
+                set_scaling_factor=False)
+
+        else:
+
+            self.logger.info(
+                "No Model calculator checkpoint file loaded!\n"
+                "Model property scaling parameter will be set.")
+
+            # Get model property scaling
+            model_property_scaling = self.prepare_property_scaling(
+                data_loader=self.data_train,
+                properties=self.model_calculator.get_scaleable_properties())
+
+            # Set model property scaling parameter to the model calculator
+            # output module
+            self.model_calculator.set_property_scaling(
+                property_scaling=model_property_scaling,
+                set_shift_term=True,
+                set_scaling_factor=True)
+
+        ####################################
+        # # # Prepare Model and Metric # # #
+        ####################################
 
         # Initialize training mode for calculator
         self.model_calculator.train()
@@ -781,7 +623,12 @@ class Trainer:
 
                 # Reset optimizer gradients
                 self.trainer_optimizer.zero_grad(
-                    set_to_none=(not self.gradient_clipping))
+                    set_to_none=(
+                        not (
+                            self.gradient_clipping_norm
+                            or self.gradient_clipping_value)
+                        )
+                    )
 
                 # Predict model properties from data batch
                 prediction = self.model_calculator(batch)
@@ -809,11 +656,15 @@ class Trainer:
                 # Predict parameter gradients by backwards propagation
                 loss.backward()
 
-                # Clip parameter gradients
-                if self.gradient_clipping:
+                # Clip parameter gradients norm and values
+                if self.gradient_clipping_norm:
                     torch.nn.utils.clip_grad_norm_(
                         self.model_calculator.parameters(),
                         self.trainer_max_gradient_norm)
+                if self.gradient_clipping_value:
+                    torch.nn.utils.clip_grad_value_(
+                        self.model_calculator.parameters(),
+                        self.trainer_max_gradient_value)
 
                 # Update model parameters
                 self.trainer_optimizer.step()
@@ -849,7 +700,7 @@ class Trainer:
 
             # Eventually show final training progress
             if verbose:
-                utils.printProgressBar(
+                utils.print_ProgressBar(
                     Nbatch_train, Nbatch_train,
                     prefix=f"Epoch {epoch: 5d}",
                     suffix=(
@@ -984,6 +835,175 @@ class Trainer:
             batch['charge'],
             batch['atoms_seg'],
             batch['pbc_offset'])
+
+    def check_properties(
+        self,
+        trainer_properties: List[str],
+        data_properties: List[str],
+        model_properties: List[str],
+    ) -> List[str]:
+        """
+        Check properties for the contribution to the loss function between
+        predicted model properties and available properties in the reference
+        data container.
+
+        Parameter
+        ---------
+        trainer_properties: list(str)
+            Properties contributing to the loss function. If empty or None,
+            take all matching properties between model and data container.
+        data_properties: list(str)
+            Properties available in the reference data container
+        model_properties: list(str)
+            Properties predicted by the model calculator
+
+        Returns:
+        --------
+        list(str)
+            List of loss function property contributions.
+
+        """
+
+        # Check matching data and model properties
+        matching_properties = []
+        for prop in model_properties:
+            if prop in data_properties:
+                matching_properties.append(prop)
+
+        # Check training properties are empty, use all matching properties
+        if trainer_properties is None or not len(trainer_properties):
+            trainer_properties = matching_properties
+        else:
+            for prop in trainer_properties:
+                if prop not in matching_properties:
+                    if prop in data_properties:
+                        msg = "model calculator!"
+                    else:
+                        msg = "data container!"
+                    raise SyntaxError(
+                        f"Requested property '{prop:s}' as loss function "
+                        + "contribution is not available in " + msg)
+
+        return trainer_properties
+
+    def check_properties_metrics_weights(
+        self,
+        trainer_properties: List[str],
+        trainer_properties_metrics: Dict[str, float],
+        trainer_properties_weights: Dict[str, float],
+        default_property_metrics: Optional[str] = 'mse',
+        default_property_weights: Optional[float] = 1.0,
+    ) -> (Dict[str, float], Dict[str, float]):
+        """
+        Prepare property loss metrics and weighting factors for the loss
+        function contributions.
+
+        Parameter
+        ---------
+        trainer_properties: list(str)
+            Properties contributing to the loss function
+        trainer_properties_metrics: dict(str, float)
+            Metrics functions for property contribution in the loss function
+        trainer_properties_weights: dict(str, float)
+            Weighting factors for property metrics in the loss function
+        default_property_metrics: str, optional, default 'mse'
+            Default option, if the property not in metrics dictionary and no
+            other default value is defined by key 'else'.
+            Default: mean squared error (mse)
+            Alternative: mean absolute error (mae)
+        default_property_weights: str, optional, default 1.0
+            Default option, if the property not in weights dictionary and no
+            other default value is defined by key 'else'.
+
+        Returns:
+        --------
+        dict(str, float)
+            Prepared property metrics dictionary
+        dict(str, float)
+            Prepared property weighting factors dictionary
+
+        """
+
+        # Check property metrics
+        for prop in trainer_properties:
+            if (
+                trainer_properties_metrics.get(prop) is None
+                and trainer_properties_metrics.get('else') is None
+            ):
+                trainer_properties_metrics[prop] = default_property_metrics
+            elif trainer_properties_metrics.get(prop) is None:
+                trainer_properties_metrics[prop] = (
+                    trainer_properties_metrics.get('else'))
+
+        # Check property weights
+        for prop in trainer_properties:
+            if (
+                trainer_properties_weights.get(prop) is None
+                and trainer_properties_weights.get('else') is None
+            ):
+                trainer_properties_weights[prop] = default_property_weights
+            elif trainer_properties_weights.get(prop) is None:
+                trainer_properties_weights[prop] = (
+                    trainer_properties_weights.get('else'))
+
+        return trainer_properties_metrics, trainer_properties_weights
+
+    def check_model_units(
+        self,
+        trainer_properties: List[str],
+        model_units: Dict[str, str],
+        data_units: Dict[str, str],
+    ) -> ([Dict[str, str], Dict[str, str], Dict[str, float]]):
+        """
+        Check the definition of the model units or assign units from the
+        reference dataset
+
+        Parameter
+        ---------
+        trainer_properties: list(str)
+            Properties contributing to the loss function
+        model_units: dict(str, str)
+            Dictionary of model property units.
+        data_units: dict(str, str)
+            Dictionary of data property units.
+
+        Returns
+        -------
+        dict(str, str)
+            Dictionary of model property units
+        dict(str, str)
+            Dictionary of data property units
+        dict(str, float)
+            Dictionary of model to data property unit conversion factors
+
+        """
+
+        # Initialize model to data unit conversion dictionary
+        model_conversion = {}
+
+        # Check basic properties - positions, charge
+        for prop in ['positions', 'charge']:
+
+            # Check model property unit
+            if model_units.get(prop) is None:
+                model_units[prop] = data_units.get(prop)
+                model_conversion[prop] = 1.0
+            else:
+                model_conversion[prop], _ = utils.check_units(
+                    model_units[prop], data_units.get(prop))
+
+        # Iterate over training properties
+        for prop in trainer_properties:
+
+            # Check model property unit
+            if model_units.get(prop) is None:
+                model_units[prop] = data_units.get(prop)
+                model_conversion[prop] = 1.0
+            else:
+                model_conversion[prop], _ = utils.check_units(
+                    model_units[prop], data_units.get(prop))
+
+        return model_units, data_units, model_conversion
 
     def reset_metrics(self):
         """
@@ -1140,133 +1160,366 @@ class Trainer:
 
         return metrics
 
-    def refine_atomic_energies_shifts(
+    def prepare_property_scaling(
         self,
-        atomic_energies_scaling: torch.Tensor,
-        data_loader: Callable,
-        n_maxatom: int,
-    ) -> torch.Tensor:
+        data_loader: data.DataLoader,
+        properties: List[str],
+        use_model_prediction: Optional[bool] = True,
+        guess_atomic_energies_shift: Optional[bool] = True
+    ) -> Dict[str, Union[List[float], Dict[int, List[float]]]]:
         """
-        Refine the initial guess for atomic energy shifts according to the
-        total energy and system compilation of a dataset.
-
+        Compute model property scaling parameters and prepare respective
+        dictionaries.
+        
         Parameters
         ----------
-        atomic_energies_scaling: torch.Tensor
-            Initial atomic energy scaling factors and shifts
-        data_loader: data.DataLoader
-            Reference data loader
-        n_maxatom: int
-            Max atomic number
+        data_loader: data.Dataloader
+            Reference data loader to provide reference system data
+        properties: list(str)
+            Properties list generally predicted by the output module
+            where the property scaling is usually applied.
+        use_model_prediction: bool, optional, default True
+            Use the current prediction by the model calculator of the model
+            properties to enhance the guess of the scaling parameter.
+            If not, predictions are expected to be zero.
+        guess_atomic_energies_shift: bool, optional, default True
+            In case atomic energies are not available by the reference data
+            set, which is normally the case, predict anyways from a guess of
+            the difference between total reference energy and predicted energy.
 
         Returns
         -------
-        torch.Tensor
-            Refined atomic energy shifts
+        dict(str, (list(float), dict(int, float))
+            Model property or atomic resolved scaling parameter [shift, scale]
+        
+        """
+        
+        # Check if scaling parameter for a requested property can be estimated
+        # from the available data
+        properties_available = []
+        for prop in properties:
+            if (
+                prop in data_loader.data_properties 
+                and prop not in properties_available
+            ):
+                properties_available.append(prop)
+            elif (
+                prop == 'atomic_energies' 
+                and guess_atomic_energies_shift
+                and 'energy' in data_loader.data_properties
+                and 'energy' not in properties_available
+            ):
+                properties_available.append('energy')
+
+        # Return empty result dictionary if no property scaling parameter guess
+        # can be computed
+        if not properties_available:
+            return {}
+
+        # If requested, predict just non-derived model property predictions 
+        # from the data loader systems to support properties
+        if use_model_prediction:
+
+            self.logger.info(
+                "Reference property data and model property prediction will "
+                + "be collected.\nThis might take a moment.")
+
+            # Compute and get model prediction and reference data
+            properties_reference, properties_prediction = (
+                self.get_model_prediction_and_reference(
+                    data_loader,
+                    self.model_calculator,
+                    properties_available,
+                    self.model_conversion)
+                )
+
+            # Get current property scaling parameter
+            model_scaling = self.model_calculator.get_property_scaling()
+
+        else:
+
+            self.logger.info(
+                "Reference property data will be collected.\n"
+                + "This might take a moment.")
+
+            # Compute and get model prediction and reference data
+            properties_reference = (
+                self.get_reference(
+                    data_loader,
+                    properties_available,
+                    self.model_conversion)
+                )
+            properties_prediction = {}
+            model_scaling = {}
+        
+        # Compute model property scaling parameters
+        properties_scaling = self.compute_property_scaling(
+            properties_reference,
+            properties_prediction,
+            model_scaling,
+            guess_atomic_energies_shift=guess_atomic_energies_shift)
+
+        return properties_scaling
+
+    def compute_property_scaling(
+        self,
+        properties_reference: Dict[str, np.ndarray],
+        properties_prediction: Dict[str, np.ndarray],
+        model_scaling: Dict[str, Union[List[float], Dict[int, List[float]]]],
+        guess_atomic_energies_shift: Optional[bool] = True,
+    ) -> Dict[str, Union[List[float], Dict[int, List[float]]]]:
+        """
+        Compute guess of property scaling parameters either from the reference
+        data or even the deviation between reference and prediction.
+
+        Parameters
+        ----------
+        properties_reference: dict(str, numpy.ndarray)
+            Reference system and property data
+        properties_prediction: dict(str, numpy.ndarray)
+            Model calculator property prediction
+        model_scaling: dict(str, (list(float), dict(int, float))
+            Current Model property or atomic resolved scaling parameters
+        guess_atomic_energies_shift: bool, optional, default True
+            Predict atomic energies scaling parameter eventually from the
+            total system energy data.
+
+        Returns
+        -------
+        dict(str, (list(float), dict(int, float))
+            Model property or atomic resolved scaling parameter [shift, scale]
 
         """
 
-        # Collect reference data
-        for ib, batch in enumerate(data_loader):
-            if ib:
-                atoms_number = torch.cat(
-                    (atoms_number, batch['atoms_number']))
-                atomic_numbers = torch.cat(
-                    (atomic_numbers, batch['atomic_numbers']))
-                energy = torch.cat((energy, batch['energy']))
-                sys_i = torch.cat((sys_i, batch['sys_i'] + sys_i[-1] + 1))
+        # Initialize property scaling parameters dictionary
+        properties_scaling = {}
+
+        # Iterate over property data
+        properties_system = ['atoms_number', 'atomic_numbers', 'sys_i']
+        for prop in properties_reference:
+            
+            # Skip system properties
+            if prop in properties_system:
+                continue
+            
+            # If model prediction is available scale with respect to the
+            # difference between reference and model prediction
+            if (
+                properties_prediction is not None
+                and prop in properties_prediction
+            ):
+
+                values = (
+                    properties_reference[prop]
+                    - properties_prediction[prop])
+
+            # Else only scale to reference data
             else:
-                atoms_number = batch['atoms_number']
-                atomic_numbers = batch['atomic_numbers']
-                energy = batch['energy']
-                sys_i = batch['sys_i']
 
-        # Detach reference data
-        atoms_number = atoms_number.cpu().detach().numpy()
-        atomic_numbers = atomic_numbers.cpu().detach().numpy()
-        energy = energy.cpu().detach().numpy()
-        sys_i = sys_i.cpu().detach().numpy()
-        sys_number = atoms_number.shape[0]
+                values = properties_reference[prop]
 
-        # Check if only one system composition is available
-        multiple_systems = False
-        # Check for different system sizes
-        if len(np.unique(atoms_number)) == 1:
-            for ii in np.unique(sys_i):
-                if ii:
-                    # Get system information
-                    atom_types_i, atom_counts_i = np.unique(
-                        atomic_numbers[sys_i == ii], return_counts=True)
-                    # Check for same atom types and count
-                    if not (
-                        np.all(atom_types_ref == atom_types_i)
-                        and np.all(atom_counts_ref == atom_counts_i)
-                    ):
-                        multiple_systems = True
-                        break
+            # Compute properties average and standard deviation, eventually
+            # even atom resolved
+            if values.shape[0] == properties_reference['sys_i'].shape[0]:
+
+                # Compute atom result properties average and standard
+                # deviation
+                properties_scaling[prop] = (
+                    data.compute_atomic_property_scaling(
+                        values, properties_reference['atomic_numbers']))
+
+            else:
+
+                # Compute system result properties average and standard
+                # deviation
+                properties_scaling[prop] = (
+                    data.compute_system_property_scaling(values))
+
+                # Special case: Atomic energies scaling guess
+                if guess_atomic_energies_shift and prop == 'energy':
+
+                    properties_scaling['atomic_energies'] = (
+                        data.compute_atomic_property_sum_scaling(
+                            values,
+                            properties_reference['atoms_number'],
+                            properties_reference['atomic_numbers'],
+                            properties_reference['sys_i'])
+                        )
+
+        # Combine with model property scaling parameters
+        for prop in model_scaling:
+            if prop in properties_scaling:
+                if utils.is_dictionary(properties_scaling[prop]):
+                    for ai in properties_scaling[prop]:
+                        properties_scaling[prop][ai][0] += (
+                            model_scaling[prop][ai][0])
+                        properties_scaling[prop][ai][1] *= (
+                            model_scaling[prop][ai][1])
                 else:
-                    # Get reference system to compare
-                    atom_types_ref, atom_counts_ref = np.unique(
-                        atomic_numbers[sys_i == ii], return_counts=True)
-        else:
-            multiple_systems = True
+                    properties_scaling[prop][0] += model_scaling[prop][0]
+                    properties_scaling[prop][1] *= model_scaling[prop][1]
 
-        # Get list of available elements
-        atomic_numbers_available, atomic_numbers_indices = np.unique(
-            atomic_numbers, return_inverse=True)
+        return properties_scaling
 
-        # Initialize atomic energies shifts for available elements
-        atomic_energies_shifts = np.full(
-            atomic_numbers_available.shape,
-            atomic_energies_scaling[0],
-            dtype=float)
+    def get_model_prediction_and_reference(
+        self,
+        data_loader: data.DataLoader,
+        model_calculator: model.BaseModel,
+        properties_available: List[str],
+        model_conversion: Dict[str, float]
+    ) -> (Dict[str, np.ndarray], Dict[str, np.ndarray]):
+        """
+        Compute and provide model prediction and reference data.
+        
+        Parameters
+        ----------
+        data_loader: data.Dataloader
+            Reference data loader to provide reference system data
+        model_calculator: model.BaseModel
+            Asparagus model calculator object
+        properties_available: list(str)
+            Properties list generally predicted by the output module
+            where the property scaling is usually applied.
+        model_conversion: dict(str, float)
+            Dictionary of model to data property unit conversion factors
 
-        # Define energy function
-        def energy_func(shift):
+        Returns
+        -------
+        dict(str, numpy.ndarray)
+            Reference system and property data 
+        dict(str, numpy.ndarray)
+            Model property prediction
 
-            # Initialize predicted energies
-            prediction = np.zeros_like(energy)
+        """
+        
+        # Prepare reference dictionary
+        properties_reference = {}
+        properties_system = ['atoms_number', 'atomic_numbers', 'sys_i']
+        for prop in properties_system:
+            properties_reference[prop] = []
+        for prop in properties_available:
+            properties_reference[prop] = []
+    
+        # Prepare prediction dictionary
+        properties_prediction = {}
+        for prop in properties_available:
+            properties_prediction[prop] = []
+        
+        # Loop over training batches
+        for ib, batch in enumerate(data_loader):
+            
+            # Predict model properties from data batch
+            prediction = self.model_calculator(
+                batch, no_derivation=True)
 
-            # Collect atomic energies per atom type
-            atomic_energies = np.array(shift)[atomic_numbers_indices]
+            # Append prediction to library
+            for prop in properties_available:
+                if prop in prediction:
+                    properties_prediction[prop].append(
+                        prediction[prop].cpu().detach())
 
-            # Collect atomic energies per atom type
-            np.add.at(prediction, sys_i, atomic_energies)
+            # Append system information and reference properties
+            for prop in properties_system + properties_available:
+                properties_reference[prop].append(
+                    batch[prop].cpu().detach())
 
-            return prediction
+        # Concatenate prediction and reference results
+        for prop in properties_available:
+            if ib:
+                properties_prediction[prop] = torch.cat(
+                    properties_prediction[prop]
+                    ).numpy()
+            else:
+                properties_prediction[prop] = (
+                    properties_prediction[prop][0].numpy())
 
-        def energy_eval(shift, reference=energy, nominator=sys_number):
+        for prop in properties_system + properties_available:
+            if ib:
+                if prop == 'sys_i':
+                    sys_i = []
+                    next_sys_i = 0
+                    for batch_sys_i in properties_reference[prop]:
+                        sys_i.append(batch_sys_i + next_sys_i)
+                        next_sys_i = sys_i[-1][-1] + 1
+                    properties_reference[prop] = torch.cat(sys_i).numpy()
+                else:
+                    properties_reference[prop] = torch.cat(
+                        properties_reference[prop]
+                        ).numpy()
+            else:
+                properties_reference[prop] = (
+                    properties_reference[prop][0].numpy())
 
-            # Compute energy prediction
-            prediction = energy_func(shift)
+            # Apply reference to model property unit conversion factor
+            if prop in model_conversion:
+                properties_reference[prop] = (
+                    properties_reference[prop]/model_conversion[prop])
 
-            # Compute root mean square error between reference and prediction
-            rmse = np.sqrt(np.mean((reference - prediction)**2)/nominator)
+        return properties_reference, properties_prediction
 
-            return rmse
+    def get_reference(
+        self,
+        data_loader: data.DataLoader,
+        properties: List[str],
+        model_conversion: Dict[str, float]
+    ) -> (Dict[str, np.ndarray], Dict[str, np.ndarray]):
+        """
+        Provide reference data of properties.
+        
+        Parameters
+        ----------
+        data_loader: data.Dataloader
+            Reference data loader to provide reference system data
+        properties: list(str)
+            Properties list generally predicted by the output module
+            where the property scaling is usually applied.
+        model_conversion: dict(str, float)
+            Dictionary of model to data property unit conversion factors
 
-        # Skip optimizing atomic energies shift if only one system composition
-        # is available
-        if multiple_systems:
+        Returns
+        -------
+        dict(str, numpy.ndarray)
+            Reference system and property data 
 
-            # Start fitting procedure
-            from scipy.optimize import minimize
-            result = minimize(
-                energy_eval,
-                atomic_energies_shifts,
-                method='bfgs')
-            atomic_energies_shifts = result.x
+        """
+        
+        # Prepare reference dictionary
+        properties_reference = {}
+        properties_system = ['atoms_number', 'atomic_numbers', 'sys_i']
+        for prop in properties_system:
+            properties_reference[prop] = []
+        for prop in properties_available:
+            properties_reference[prop] = []
+        
+        # Loop over training batches
+        for ib, batch in enumerate(data_loader):
+            
+            # Append system information and reference properties
+            for prop in properties_system + properties_available:
+                properties_reference[prop].append(
+                    batch[prop].cpu().detach())
 
-            # Compute energy per atom root mean square error
-            rmse_energy = energy_eval(atomic_energies_shifts)
-            self.logger.info(
-                "Energy prediction by optimized atomic energy shifts "
-                + "result an energy RMSE of "
-                + f"{rmse_energy:.2E} {self.model_units['energy']:s}.")
-
-        # Convert to dictionary
-        atomic_energies_shifts_dict = {}
-        for ia, shift in zip(atomic_numbers_available, atomic_energies_shifts):
-            atomic_energies_shifts_dict[ia] = torch.tensor(shift)
-
-        return atomic_energies_shifts_dict
+        # Concatenate reference results
+        for prop in properties_system + properties_available:
+            if ib:
+                if prop == 'sys_i':
+                    sys_i = []
+                    next_sys_i = 0
+                    for batch_sys_i in properties_reference[prop]:
+                        sys_i.append(batch_sys_i + next_sys_i)
+                        next_sys_i = sys_i[-1][-1] + 1
+                    properties_reference[prop] = torch.cat(sys_i).numpy()
+                else:
+                    properties_reference[prop] = torch.cat(
+                        properties_reference[prop]
+                        ).numpy()/conversion
+            else:
+                properties_reference[prop] = (
+                    properties_reference[prop].numpy()/conversion)
+        
+            # Apply reference to model property unit conversion factor
+            if prop in model_conversion:
+                properties_reference[prop] = (
+                    properties_reference[prop]/model_conversion[prop])
+            
+        return properties_reference

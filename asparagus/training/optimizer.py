@@ -1,10 +1,10 @@
 
 import logging
-from typing import Optional, List, Dict, Tuple, Union, Any
+from typing import Optional, List, Dict, Tuple, Callable, Union, Any
 
 import torch
 
-from .. import utils
+from asparagus import utils
 
 # Initialize logger
 name = f"{__name__:s}"
@@ -36,7 +36,7 @@ optimizer_arguments = {
 
 
 def get_optimizer(
-    trainer_optimizer: Union[str, object],
+    trainer_optimizer: Union[str, Callable],
     model_parameter: Optional[Union[List, Dict[str, List]]] = None,
     trainer_optimizer_args: Optional[Dict[str, Any]] = {},
 ):
@@ -45,16 +45,15 @@ def get_optimizer(
 
     Parameter
     ---------
-    trainer_optimizer: (str, object)
+    trainer_optimizer: (str, callable)
         If name is a str than it checks for the corresponding optimizer
         and return the function object.
         The input will be given if it is already a callable object.
-    model_parameter: list, optional
+    model_parameter: list, optional, default None
         NNP model trainable parameter to optimize by optimizer.
         Optional if 'trainer_optimizer' is already a torch optimizer object
-    trainer_optimizer_args: dict, optional
-        Additional optimizer parameter.
-        Optional if 'trainer_optimizer' is already a torch optimizer object
+    trainer_optimizer_args: dict, optional, default {}
+        Additional optimizer parameter
 
     Returns
     -------

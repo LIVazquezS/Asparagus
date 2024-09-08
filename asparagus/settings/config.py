@@ -3,8 +3,8 @@ import json
 import logging
 from typing import Optional, Union, List, Dict, Iterator, Any
 
-from .. import utils
-from .. import settings
+from asparagus import utils
+from asparagus import settings
 
 __all__ = ['get_config', 'Configuration']
 

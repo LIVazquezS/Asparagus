@@ -3,29 +3,29 @@
 
 #"""
 
-#from .input import (
-    #get_input_module
-#)
+from .input import (
+    get_input_module
+)
 
-#from .graph import (
-    #get_graph_module
-#)
+from .graph import (
+    get_graph_module
+)
 
-#from .output import (
-    #get_output_module
-#)
+from .output import (
+    get_output_module
+)
 
-#from .repulsion import (
-    #ZBL_repulsion
-#)
+from .repulsion import (
+    ZBL_repulsion
+)
 
-#from .electrostatics import (
-    #PC_shielded_electrostatics
-#)
+from .electrostatics import (
+    PC_shielded_electrostatics
+)
 
-#from .dispersion import (
-    #D3_dispersion
-#)
+from .dispersion import (
+    D3_dispersion
+)
 
 from .neighborlist import(
     TorchNeighborListRangeSeparated

@@ -1,17 +1,16 @@
 import os
 import logging
-from typing import Optional, Union, List, Dict, Callable, Any
+from typing import Optional, Union, List, Tuple, Dict, Callable, Any
 
 from ase.parallel import parallel_function
 
 import torch
 
-from .. import data
-from .. import utils
+from asparagus import data
+from asparagus import utils
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-torch.multiprocessing.set_sharing_strategy('file_system')
+torch.multiprocessing.set_sharing_strategy('file_descriptor')
+#torch.multiprocessing.set_sharing_strategy('file_system')
 
 __all__ = ['DataBase', 'connect', 'get_metadata']
 
@@ -85,7 +84,7 @@ def get_connect(
 
 
 def get_metadata(
-    data_file: tuple[str, str],
+    data_file: Tuple[str, str],
 ) -> Dict[str, Any]:
     """
     Read metadata from a database file.
@@ -164,6 +163,20 @@ class DataBase:
         """
 
         return self._set_metadata(metadata)
+
+    def __len__(self):
+        return self.count()
+
+    def __delitem__(self, rwo_id):
+        self._delete([rwo_id])
+
+    def __getitem__(self, selection):
+        return self.get(selection)
+
+    def __exit__(self, exc_type, exc_value, tb):
+        if exc_type is not None:
+            raise exc_type
+        return
 
     def _set_metadata(self, metadata):
         raise NotImplementedError
@@ -252,12 +265,6 @@ class DataBase:
     def _update(self, row_id, properties):
         return 1
 
-    def __delitem__(self, rwo_id):
-        self._delete([rwo_id])
-
-    def __getitem__(self, selection):
-        return self.get(selection)
-
     def get(self, selection=None, **kwargs):
         """
         Select a single or multiple rows and return it as a dictionary.
@@ -272,7 +279,7 @@ class DataBase:
         dict
             Returns entry of the selection.
         """
-        
+
         if utils.is_integer(selection):
             selection = [selection]
         return self._get(selection, **kwargs)
@@ -288,9 +295,6 @@ class DataBase:
         
     def _count(self, selection, **kwargs):
         raise NotImplementedError
-
-    def __len__(self):
-        return self.count()
 
     def delete(self, row_ids):
         """

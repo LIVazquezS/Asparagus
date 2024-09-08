@@ -3,10 +3,14 @@
 
 #"""
 
-#from .calculator import (
-    #get_model_calculator
-#)
+from .calculator import (
+    get_model_calculator
+)
 
-#from .filemanager import (
-    #FileManager
-#)
+from .filemanager import (
+    FileManager
+)
+
+from .basemodel import (
+    BaseModel
+)

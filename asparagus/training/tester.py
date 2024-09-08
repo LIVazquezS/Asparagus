@@ -8,10 +8,10 @@ import numpy as np
 
 import torch
 
-from .. import data
-from .. import settings
-from .. import utils
-from .. import training
+from asparagus import data
+from asparagus import settings
+from asparagus import utils
+from asparagus import training
 
 # These packages are required for all functions of plotting and analysing
 # the model.
@@ -57,6 +57,10 @@ class Tester:
         Model properties to evaluate which must be available in the
         model prediction and the reference test data set. If None, all
         model properties will be evaluated if available in the test set.
+    test_batch_size: int, optional, default None
+        Reference dataloader batch size
+    test_num_batch_workers: int, optional, default 1
+        Number of data loader workers.
     test_directory: str, optional, default '.'
         Directory to store evaluation graphics and data.
 
@@ -70,6 +74,8 @@ class Tester:
     _default_args = {
         'test_datasets':                ['test'],
         'tester_properties':            None,
+        'test_batch_size':              128,
+        'test_num_batch_workers':       1,
         'test_directory':               '.',
         }
 
@@ -79,6 +85,8 @@ class Tester:
             utils.is_string, utils.is_string_array],
         'tester_properties':            [
             utils.is_string, utils.is_string_array, utils.is_None],
+        'test_batch_size':              [utils.is_integer],
+        'test_num_batch_workers':       [utils.is_integer],
         'test_directory':               [utils.is_string],
         }
 
@@ -89,6 +97,8 @@ class Tester:
         data_container: Optional[data.DataContainer] = None,
         test_datasets: Optional[Union[str, List[str]]] = None,
         test_properties: Optional[Union[str, List[str]]] = None,
+        test_batch_size: Optional[int] = None,
+        test_num_batch_workers: Optional[int] = None,
         test_directory: Optional[str] = None,
         device: Optional[str] = None,
         dtype: Optional[object] = None,
@@ -134,12 +144,21 @@ class Tester:
                 **kwargs)
 
         # Get reference data properties
-        self.data_properties = self.data_container.data_load_properties
+        self.data_properties = self.data_container.data_properties
         self.data_units = self.data_container.data_unit_properties
 
-        ##########################
-        # # # Prepare Tester # # #
-        ##########################
+        #########################################
+        # # # Prepare Reference Data Loader # # #
+        #########################################
+
+        # Initialize training, validation and test data loader
+        self.data_container.init_dataloader(
+            self.test_batch_size,
+            self.test_batch_size,
+            self.test_batch_size,
+            num_workers=self.test_num_batch_workers,
+            device=self.device,
+            dtype=self.dtype)
 
         # Prepare list of data set definition for evaluation
         if utils.is_string(self.test_datasets):
@@ -151,6 +170,10 @@ class Tester:
         self.test_data = {
             label: self.data_container.get_dataloader(label)
             for label in self.test_datasets}
+
+        ##########################
+        # # # Prepare Tester # # #
+        ##########################
 
         # Check test properties if defined
         self.test_properties = self.check_test_properties(
@@ -437,8 +460,7 @@ class Tester:
                         test_property_scaling[prop],
                         test_directory,
                         test_plot_format,
-                        test_plot_dpi,
-                        )
+                        test_plot_dpi)
 
             # Plot histogram of the prediction error
             if test_plot_histogram:
@@ -452,8 +474,7 @@ class Tester:
                         metrics_test[prop],
                         test_directory,
                         test_plot_format,
-                        test_plot_dpi
-                        )
+                        test_plot_dpi)
 
             # Plot histogram of the prediction error
             if test_plot_residual:
@@ -468,8 +489,7 @@ class Tester:
                         test_property_scaling[prop],
                         test_directory,
                         test_plot_format,
-                        test_plot_dpi
-                        )
+                        test_plot_dpi)
 
         # Change back to training mode for calculator
         model_calculator.train()
@@ -550,8 +570,7 @@ class Tester:
             csv_name += '.csv'
         path_to_save = os.path.join(test_directory, csv_name)
         self.logger.info(
-            "Saving results of the test set to file "
-            + f"'{path_to_save:s}'!")
+            f"Saving results of the test set to file '{path_to_save:s}'!")
 
         # Check that all the keys have the same length
 
@@ -740,7 +759,7 @@ class Tester:
             msg += f"   {prop:<16s} "
             msg += f"{metrics[prop]['mae']:3.2e},  "
             msg += f"{np.sqrt(metrics[prop]['mse']):3.2e} "
-            msg += f"{self.data_units[prop]:s}"
+            msg += f"{self.data_units[prop]:s}\n"
         self.logger.info(msg)
 
         return

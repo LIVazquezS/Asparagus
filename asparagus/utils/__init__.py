@@ -12,7 +12,8 @@ asparagus.
 """
 
 from .check_dtype import(
-    is_None, is_string, is_bool, is_numeric, is_integer, is_dictionary,
+    is_None, is_string, is_bool, is_boolean, 
+    is_numeric, is_integer, is_dictionary,
     is_array_like, is_numeric_array, is_integer_array, is_string_array,
     is_string_array_inhomogeneous, is_bool_array, is_boolean_array,
     is_None_array, is_object, is_callable, is_ase_atoms, is_ase_atoms_array,

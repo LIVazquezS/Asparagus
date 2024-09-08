@@ -1,9 +1,9 @@
 import logging
-from typing import Optional, List, Dict, Tuple, Union, Any
+from typing import Optional, List, Dict, Tuple, Callable, Union, Any
 
 import torch
 
-from .. import utils
+from asparagus import utils
 
 # Initialize logger
 name = f"{__name__:s}"
@@ -26,8 +26,8 @@ scheduler_argumens = {
 
 
 def get_scheduler(
-    trainer_scheduler: Union[str, object],
-    trainer_optimizer: Optional[object] = None,
+    trainer_scheduler: Union[str, Callable],
+    trainer_optimizer: Optional[Callable] = None,
     trainer_scheduler_args: Optional[Dict[str, Any]] = {},
 ):
     """
@@ -36,15 +36,15 @@ def get_scheduler(
     Parameters
     ----------
 
-    trainer_scheduler: (str, object)
+    trainer_scheduler: (str, Callable)
         If name is a str than it checks for the corresponding scheduler
         and return the function object.
         The input will be given if it is already a callable object.
-    trainer_optimizer: object
+    trainer_optimizer: Callable, optional, default None
         Torch optimizer class object for the NNP training.
-    trainer_scheduler_args: dict, optional
+        Optional if 'trainer_scheduler' is already a torch scheduler object.
+    trainer_scheduler_args: dict, optional, default {}
         Additional scheduler parameter
-        Optional if 'trainer_scheduler' is already a torch optimizer object
 
     Returns
     -------
@@ -68,15 +68,6 @@ def get_scheduler(
                     scheduler_argumens[trainer_scheduler.lower()])
 
             try:
-
-                #TODO Why again???
-                #trainer_scheduler_args['gamma'] = np.power(
-                    #trainer_scheduler_args['gamma'],
-                    #1./trainer_scheduler_args['decay_steps'])
-
-                ## Delete decay_steps
-                ## TODO maybe a more elegant way to do this is needed
-                #del trainer_scheduler_args['decay_steps'] 
 
                 return scheduler_avaiable[trainer_scheduler.lower()](
                     optimizer=trainer_optimizer,

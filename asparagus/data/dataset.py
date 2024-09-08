@@ -2,14 +2,13 @@ import os
 import logging
 from typing import Optional, List, Dict, Tuple, Union, Any, Callable
 
+import numpy as np
+
 import torch
 
-from .. import data
-from .. import utils
-from .. import settings
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from asparagus import data
+from asparagus import utils
+from asparagus import settings
 
 __all__ = ['DataSet', 'DataSubSet']
 
@@ -23,6 +22,8 @@ class DataSet():
     data_file: (str, tuple(str)), optional, default ('data.db', 'db.sql')
         Either a single string of the reference Asparagus database file name
         or a tuple of the filename first and the file format label second.
+    data_label: str, optional, default 'all'
+        Dataset label.
     data_properties: List(str), optional, default None
         Subset of properties to load.
     data_unit_properties: dict, optional, default None
@@ -44,9 +45,14 @@ class DataSet():
         Asparagus DataSet object
     """
 
+    # Initialize logger
+    name = f"{__name__:s} - {__qualname__:s}"
+    logger = utils.set_logger(logging.getLogger(name))
+
     def __init__(
         self,
-        data_file: Union[str, tuple[str, str]],
+        data_file: Union[str, Tuple[str, str]],
+        data_label: Optional[Union[str]] = None,
         data_properties: Optional[List[str]] = None,
         data_unit_properties: Optional[Dict[str, str]] = None,
         data_alt_property_labels: Optional[Dict[str, List[str]]] = None,
@@ -65,6 +71,12 @@ class DataSet():
                     data_file, is_source_format=False))
         else:
             self.data_file = tuple(data_file)
+
+        # Assign dataset label
+        if data_label is None:
+            self.data_label = 'all'
+        else:
+            self.data_label = data_label
 
         # Get database connect function
         self.connect = data.get_connect(self.data_file[1])
@@ -100,6 +112,9 @@ class DataSet():
             self.data_alt_property_labels = settings._alt_property_labels
         else:
             self.data_alt_property_labels = data_alt_property_labels
+
+        # Assign database property dtype
+        self.data_dtype_property = self.get_data_properties_dtype()
 
         # Initialize DataReader variable
         self.datareader = None
@@ -137,6 +152,10 @@ class DataSet():
         # Start data counter and set dataset length
         self.counter = 0
         self.Ndata = len(self)
+        
+        # Open database
+        self.db = self.connect(self.data_file[0], mode='r')
+        
         return self
 
     def __next__(
@@ -144,10 +163,11 @@ class DataSet():
     ):
         # Check counter within number of data range
         if self.counter < self.Ndata:
-            data = self.get(self.counter)
+            data = self.db.get(self.counter + 1)[0]
             self.counter += 1
             return data
         else:
+            del self.db
             raise StopIteration
 
     def get(
@@ -262,7 +282,6 @@ class DataSet():
         # Set metadata
         with self.connect(self.data_file[0], mode='a') as db:
             db.set_metadata(metadata)
-            db.init_systems()
 
     def reset_database(
         self,
@@ -276,6 +295,7 @@ class DataSet():
         data_properties: Optional[List[str]] = None,
         data_unit_properties: Optional[Dict[str, str]] = None,
         data_alt_property_labels: Optional[Dict[str, str]] = None,
+        data_source_unit_properties: Optional[Dict[str, str]] = None,
     ):
         """
         Load properties from data source.
@@ -285,14 +305,16 @@ class DataSet():
         data_source: (str, list(str))
             File path or a tuple of file path and file format label of data
             source to file.
-        data_properties: List(str), optional, default None
-            Subset of properties to load.
-        data_unit_properties: dict, optional, default None
+        data_properties: list(str), optional, default None
+            Set of properties to store in the DataSet
+        data_unit_properties: dictionary, optional, default None
             Dictionary from properties (keys) to corresponding unit as a
-            string (item)
-        data_alt_property_labels: dict, optional, default None
-            Dictionary of alternative property labeling to replace
-            non-valid property labels with the valid one if possible.
+            string (item).
+        data_alt_property_labels: dict
+            Alternative property labels to detect common mismatches.
+        data_source_unit_properties: dictionary, optional, default None
+            Dictionary from properties (keys) to corresponding unit as a 
+            string (item) in the source data files.
 
         """
 
@@ -301,20 +323,23 @@ class DataSet():
 
         # Check data source file and format
         if utils.is_string(data_source):
-            data_source = (
+            data_source = [
                 data_source, data.check_data_format(
-                    data_source, is_source_format=True))
+                    data_source, is_source_format=True)]
         else:
-            data_source = tuple(data_source)
+            data_source = list(data_source)
 
         # Check if data source already loaded
         if metadata.get('data_source') is None:
             metadata['data_source'] = []
-        elif data_source in metadata['data_source']:
-            logger.warning(
-                f"WARNING:\nData source '{data_source[0]:s}' already "
+        elif (
+            tuple(data_source)
+            in [tuple(source_i) for source_i in metadata['data_source']]
+        ):
+            self.logger.warning(
+                f"Data source '{data_source[0]:s}' already "
                 + f"written to dataset '{self.data_file[0]:s}'! "
-                + "Loading data source is skipped.\n")
+                + "Loading data source is skipped.")
             return
 
         # Check property list, units and alternative labels
@@ -327,6 +352,7 @@ class DataSet():
 
         # Reset property scaling flag
         metadata['data_property_scaling_uptodate'] = False
+        metadata['data_atom_energies_scaling_uptodate'] = False
 
         # Initialize DataReader
         datareader = data.DataReader(
@@ -337,7 +363,8 @@ class DataSet():
 
         # Load data file
         datareader.load(
-            data_source)
+            data_source,
+            data_source_unit_properties=data_source_unit_properties)
 
         # Append data source information
         metadata['data_source'].append(data_source)
@@ -381,7 +408,7 @@ class DataSet():
         self.datareader.load_atoms(
             atoms,
             properties,
-            data_load_properties=metadata['load_properties'],
+            data_properties=metadata['load_properties'],
             data_unit_properties=metadata['unit_properties'],
             )
 
@@ -390,23 +417,23 @@ class DataSet():
     def check_data_compatibility(
         self,
         metadata: Dict[str, Any],
-        data_load_properties: List[str],
+        data_properties: List[str],
         data_unit_properties: Dict[str, str],
     ):
         """
-        Check compatibility between input for 'data_load_properties' and
+        Check compatibility between input for 'data_properties' and
         'data_unit_properties' with metadata.
         """
 
         if (
             metadata.get('load_properties') is None
-            and data_load_properties is None
+            and data_properties is None
         ):
             metadata['load_properties'] = []
         elif metadata.get('load_properties') is None:
-            metadata['load_properties'] = data_load_properties
-        elif data_load_properties is None:
-            data_load_properties = metadata['load_properties']
+            metadata['load_properties'] = data_properties
+        elif data_properties is None:
+            data_properties = metadata['load_properties']
         else:
             mismatch_metadata = []
             mismatch_input = []
@@ -414,26 +441,26 @@ class DataSet():
             # in database
             for prop in metadata.get('load_properties'):
                 if (
-                    prop not in data_load_properties
+                    prop not in data_properties
                     and prop not in settings._default_property_labels
                 ):
                     mismatch_metadata.append(prop)
-            for prop in data_load_properties:
+            for prop in data_properties:
                 if (
                     prop not in metadata.get('load_properties')
                     and prop not in settings._default_property_labels
                 ):
                     mismatch_input.append(prop)
             if len(mismatch_metadata) or len(mismatch_input):
-                msg = (
+                message = (
                     "Mismatch between DataSet 'load_properties' "
                     + f"input and metadata in '{self.data_file[0]:s}'!\n")
                 for prop in mismatch_metadata:
-                    msg += f"Property '{prop:s}' in metadata not in input.\n"
+                    message += f"Property '{prop:s}' in metadata not in input."
                 for prop in mismatch_input:
-                    msg += f"Property '{prop:s}' in input not in metadata.\n"
-                logger.error("Error:\n" + msg)
-                raise SyntaxError(msg)
+                    message += f"Property '{prop:s}' in input not in metadata."
+                self.logger.error(message)
+                raise SyntaxError(message)
 
         # Check compatibility between 'data_unit_properties' in metadata
         # and input
@@ -444,18 +471,18 @@ class DataSet():
             metadata['unit_properties'] = {}
         elif metadata.get('unit_properties') is None:
             metadata['unit_properties'] = {}
-            msg = ""
-            for prop in data_load_properties:
+            message = ""
+            for prop in data_properties:
                 if prop in data_unit_properties:
                     metadata['unit_properties'][prop] = (
                         data_unit_properties[prop])
                 else:
-                    msg += f"No Property unit defined for '{prop:s}'.\n"
-            if len(msg):
+                    message += f"No Property unit defined for '{prop:s}'."
+            if len(message):
                 raise SyntaxError(
                     "DataSet 'load_properties' input contains properties with"
                     + "unkown property units in 'unit_properties'!\n"
-                    + msg)
+                    + message)
         elif data_unit_properties is None:
             data_unit_properties = metadata['unit_properties']
         else:
@@ -466,15 +493,15 @@ class DataSet():
                 if um is not None and um.lower() != ui.lower():
                     mismatch.append((prop, um, ui))
             if len(mismatch):
-                msg = (
+                message = (
                     "Mismatch between DataContainer 'data_unit_properties' "
                     + f"input and metadata in '{self.data_file[0]:s}'!\n")
                 for (prop, um, ui) in mismatch:
-                    msg += (
+                    message += (
                         f"Unit for property for '{prop:s}' in metadata "
-                        + f"'{um:s}' does not match with inout '{ui:s}'!\n")
-                logger.error("Error:\n" + msg)
-                raise SyntaxError(msg)
+                        + f"'{um:s}' does not match with inout '{ui:s}'!")
+                self.logger.error(message)
+                raise SyntaxError(message)
 
         # Check for position and charge entry in 'unit_properties' in
         # metadata
@@ -489,6 +516,20 @@ class DataSet():
 
         return metadata
 
+    def get_data_properties_dtype(
+        self,
+    ) -> 'dtype':
+        """
+        Return database properties float dtype
+        
+        Returns:
+        --------
+        'dtype'
+            Properties float dtype (most likely torch.float64)
+
+        """
+        with self.connect(self.data_file[0], mode='r') as db:
+            return db.properties_torch_dtype
 
 class DataSubSet(DataSet):
     """
@@ -499,6 +540,8 @@ class DataSubSet(DataSet):
     data_file: (str, tuple(str)), optional, default ('data.db', 'db.sql')
         Either a single string of the reference Asparagus database file name
         or a tuple of the filename first and the file format label second.
+    data_label: str
+        Data subset label
     subset_idx: List(int)
         List of reference data indices of this subset.
 
@@ -510,7 +553,8 @@ class DataSubSet(DataSet):
 
     def __init__(
         self,
-        data_file: Union[str, tuple[str, str]],
+        data_file: Union[str, Tuple[str, str]],
+        data_label: str,
         subset_idx: List[int],
     ):
         """
@@ -520,10 +564,11 @@ class DataSubSet(DataSet):
         # Inherit from DataSet base class
         super().__init__(
             data_file,
+            data_label,
             )
 
         # Assign arguments
-        self.subset_idx = [int(idx) for idx in subset_idx]
+        self.subset_idx = np.array(subset_idx, dtype=int)
 
         # Iterate over args
         for arg, item in locals().items():
@@ -537,6 +582,11 @@ class DataSubSet(DataSet):
 
         # Number of subset data points
         self.Nidx = len(self.subset_idx)
+
+        # Get parent dataset parameters from metadata
+        metadata = self.get_metadata()
+        self.data_properties = metadata.get('load_properties')
+        self.data_unit_properties = metadata.get('unit_properties')
 
         return
 

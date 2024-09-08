@@ -19,7 +19,7 @@ def set_logger(
     ----------
     logger: logging.Logger
         Logger object to set paramerts
-    level: callable, optional, default 'logging.DEBUG'
+    level: callable, optional, default 'logging.INFO'
         Print level for output (e.g. logging.DEBUG, logging.INFO, ...)
     stream: callable, optional, default 'sys.stdout'
         Output channel to print
@@ -35,7 +35,7 @@ def set_logger(
 
     # Set print level
     if level is None:
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
     else:
         logger.setLevel(level)
 
@@ -74,21 +74,22 @@ def get_header(
     current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     host = socket.gethostname()
 
-    msg = (f"""
-       '   _______                                                  ______                  _ _
-       '  (_______)                                                (____  \                | | |
-       '   _______  ___ ____  _____  ____ _____  ____ _   _  ___    ____)  )_   _ ____   __| | | _____
-       '  |  ___  |/___)  _ \(____ |/ ___|____ |/ _  | | | |/___)  |  __  (| | | |  _ \ / _  | || ___ |
-       '  | |   | |___ | |_| / ___ | |   / ___ ( (_| | |_| |___ |  | |__)  ) |_| | | | ( (_| | || ____|
-       '  |_|   |_(___/|  __/\_____|_|   \_____|\___ |____/(___/   |______/|____/|_| |_|\____|\_)_____)
-       '               |_|                     (_____|
-       '
-       '                        Authors: K. Toepfer and L.I. Vazquez-Salazar
-       '                        Date: {current_time:s}
-       '                        Running on: {host:s}
-       '                        Details of this run are stored in: {config_file:s}
-       ' ---------------------------------------------------------------------------------------------
-       """)
+    msg = (
+        r"""        '   _______                                                  ______                  _ _
+        '  (_______)                                                (____  \                | | |
+        '   _______  ___ ____  _____  ____ _____  ____ _   _  ___    ____)  )_   _ ____   __| | | _____
+        '  |  ___  |/___)  _ \(____ |/ ___|____ |/ _  | | | |/___)  |  __  (| | | |  _ \ / _  | || ___ |
+        '  | |   | |___ | |_| / ___ | |   / ___ ( (_| | |_| |___ |  | |__)  ) |_| | | | ( (_| | || ____|
+        '  |_|   |_(___/|  __/\_____|_|   \_____|\___ |____/(___/   |______/|____/|_| |_|\____|\_)_____)
+        '               |_|                     (_____|"""
+        + f"""
+        '
+        '                        Authors: K. Toepfer and L.I. Vazquez-Salazar
+        '                        Date: {current_time:s}
+        '                        Running on: {host:s}
+        '                        Details of this run are stored in: {config_file:s}
+        ' ---------------------------------------------------------------------------------------------"""
+       )
 
     return msg
 

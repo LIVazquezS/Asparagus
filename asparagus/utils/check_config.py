@@ -2,8 +2,8 @@ import inspect
 import platform
 from typing import Optional, Union, List, Dict, Tuple, Iterator, Callable, Any
 
-from .. import utils
-from .. import settings
+from asparagus import utils
+from asparagus import settings
 
 # --------------- ** Checking input parameter ** ---------------
 

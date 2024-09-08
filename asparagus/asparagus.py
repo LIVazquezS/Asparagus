@@ -6,12 +6,12 @@ import ase
 
 import torch
 
-from . import settings
-from . import utils
-from . import data
-from . import model
-from . import training
-from . import interface
+from asparagus import settings
+from asparagus import utils
+from asparagus import data
+from asparagus import model
+from asparagus import training
+from asparagus import interface
 
 __all__ = ['Asparagus']
 
@@ -33,7 +33,7 @@ class Asparagus():
     """
 
     name = f"{__name__:s}: {__qualname__:s}"
-    logger = utils.set_logger(logging.getLogger(name), verbose=False)
+    logger = utils.set_logger(logging.getLogger(name))
 
     def __init__(
         self,
@@ -254,8 +254,6 @@ class Asparagus():
     def _get_data_container(
         self,
         config: settings.Configuration,
-        data_file: Optional[str] = None,
-        data_file_format: Optional[str] = None,
         **kwargs
     ) -> data.DataContainer:
         """
@@ -385,7 +383,7 @@ class Asparagus():
         ###################################
 
         # Get model calculator
-        model_calculator, restart = self._get_model_calculator(
+        model_calculator = self._get_model_calculator(
             config,
             model_calculator=model_calculator,
             model_type=model_type,
@@ -394,7 +392,6 @@ class Asparagus():
 
         # Assign model calculator
         self.model_calculator = model_calculator
-        self.model_restart = restart
 
         return
 
@@ -461,7 +458,7 @@ class Asparagus():
         ####################################
 
         # Get model calculator
-        model_calculator, restart = self._get_model_calculator(
+        model_calculator = self._get_model_calculator(
             config=config,
             model_calculator=model_calculator,
             model_type=model_type,
@@ -476,11 +473,11 @@ class Asparagus():
         config: settings.Configuration,
         model_calculator: Optional[torch.nn.Module] = None,
         model_type: Optional[str] = None,
-        model_checkpoint: Optional[Union[int, str]] = 'last',
+        model_checkpoint: Optional[Union[int, str]] = 'best',
         **kwargs,
-    ) -> (torch.nn.Module, bool):
+    ) -> torch.nn.Module:
         """
-        Return calculator model class object and restart flag.
+        Return calculator model class object.
 
         Parameters
         ----------
@@ -491,7 +488,7 @@ class Asparagus():
         model_type: str, optional, default None
             Model calculator type to initialize, e.g. 'PhysNet'. The default
             model is defined in settings.default._default_calculator_model.
-        model_checkpoint: int, optional, default 'last'
+        model_checkpoint: int, optional, default 'best'
             If None or 'best', load best model checkpoint.
             Otherwise load latest checkpoint file with 'last' or define a
             checkpoint index number of the respective checkpoint file.
@@ -500,8 +497,6 @@ class Asparagus():
         -------
         torch.nn.Module
             Asparagus calculator model object
-        bool
-            Restart flag, True if checkpoint file is loaded.
 
         """
 
@@ -520,15 +515,14 @@ class Asparagus():
         # TODO put into a model function not main Asparagus
         # Load model checkpoint file
         if checkpoint is None:
-            self.logger.info("No checkpoint file loaded.\n")
-            restart = False
+            self.logger.info("No checkpoint file load.")
         else:
             model_calculator.load_state_dict(
                 checkpoint['model_state_dict'])
-            self.logger.info("Checkpoint file loaded.\n")
-            restart = True
+            self.logger.info("Checkpoint file loaded.")
+            model_calculator.checkpoint_loaded = True
 
-        return model_calculator, restart
+        return model_calculator
 
     def get_trainer(
         self,
